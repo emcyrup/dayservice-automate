@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --brand:#2f8f7a; --brand-d:#227061; --brand-l:#e6f2ef; --brand-ll:#f3f9f7;
+    --ink:#20302c; --sub:#5f716c; --line:#dfe8e5; --accent:#f0a04b;
+  }
+  html{ font-family:"IPAPGothic","IPAGothic",sans-serif; color:var(--ink); line-height:1.75; -webkit-font-smoothing:antialiased; }
+  .page{ width:210mm; height:297mm; padding:18mm 17mm; position:relative; page-break-after:always; overflow:hidden; }
+  .page:last-child{ page-break-after:auto; }
+
+  /* ===== 表紙 ===== */
+  .cover{ padding:0; background:linear-gradient(155deg,#2f8f7a 0%,#227061 60%,#1c5a4e 100%); color:#fff; }
+  .cover .inner{ padding:34mm 20mm; height:100%; display:flex; flex-direction:column; }
+  .cover .brand{ font-size:15pt; letter-spacing:.05em; opacity:.9; }
+  .cover .logo{ font-size:42pt; font-weight:800; margin-top:6mm; letter-spacing:.02em; }
+  .cover .lead{ font-size:15pt; margin-top:5mm; line-height:1.7; opacity:.96; font-weight:500; }
+  .cover .sub{ font-size:11pt; opacity:.82; margin-top:auto; }
+  .cover .pill{ display:inline-block; margin-top:8mm; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); padding:3mm 6mm; border-radius:30px; font-size:11pt; }
+  .cover .deco{ position:absolute; right:-40mm; top:-40mm; width:130mm; height:130mm; border-radius:50%; background:rgba(255,255,255,.06); }
+  .cover .deco2{ position:absolute; right:12mm; bottom:20mm; font-size:120pt; opacity:.12; }
+
+  /* ===== 共通 ===== */
+  .eyebrow{ color:var(--brand-d); font-weight:800; font-size:10.5pt; letter-spacing:.08em; }
+  h1.sec{ font-size:22pt; font-weight:800; margin:2mm 0 3mm; letter-spacing:.01em; }
+  h1.sec .bar{ display:inline-block; width:7mm; height:3px; background:var(--accent); vertical-align:middle; margin-right:3mm; border-radius:2px; }
+  .intro{ font-size:11pt; color:var(--sub); margin-bottom:7mm; max-width:150mm; }
+
+  .value-grid{ display:flex; gap:5mm; margin-bottom:9mm; }
+  .value{ flex:1; background:var(--brand-ll); border:1px solid var(--line); border-radius:5mm; padding:6mm 5mm; }
+  .value .ic{ font-size:26pt; }
+  .value .t{ font-weight:800; font-size:12.5pt; margin-top:2mm; color:var(--brand-d); }
+  .value .d{ font-size:10pt; color:var(--sub); margin-top:1.5mm; }
+
+  .feat{ display:flex; gap:6mm; padding:6mm; border:1px solid var(--line); border-radius:5mm; margin-bottom:5mm; background:#fff; }
+  .feat .num{ flex-shrink:0; width:13mm; height:13mm; border-radius:50%; background:var(--brand); color:#fff; font-size:16pt; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .feat .body{ flex:1; }
+  .feat .ttl{ font-size:14pt; font-weight:800; }
+  .feat .tag{ display:inline-block; font-size:8.5pt; background:var(--brand-l); color:var(--brand-d); font-weight:700; padding:1mm 3mm; border-radius:20px; margin-left:3mm; vertical-align:middle; }
+  .feat .desc{ font-size:10.5pt; color:#3c4a46; margin-top:2mm; }
+  .feat .how{ font-size:9.5pt; color:var(--sub); margin-top:2.5mm; background:var(--brand-ll); border-radius:3mm; padding:3mm 4mm; }
+  .feat .how b{ color:var(--brand-d); }
+
+  /* ===== 流れ ===== */
+  .flow{ display:flex; align-items:stretch; gap:0; margin:6mm 0 9mm; }
+  .step{ flex:1; text-align:center; padding:5mm 3mm; background:var(--brand-ll); border:1px solid var(--line); position:relative; }
+  .step:first-child{ border-radius:4mm 0 0 4mm; }
+  .step:last-child{ border-radius:0 4mm 4mm 0; }
+  .step .si{ font-size:24pt; }
+  .step .st{ font-weight:800; font-size:10.5pt; margin-top:1mm; color:var(--brand-d); }
+  .step .sd{ font-size:8.5pt; color:var(--sub); margin-top:1mm; }
+  .step .arrow{ position:absolute; right:-3mm; top:50%; transform:translateY(-50%); color:var(--accent); font-size:14pt; z-index:2; }
+
+  .panel{ background:var(--brand-ll); border:1px solid var(--line); border-left:4px solid var(--brand); border-radius:4mm; padding:6mm; margin-bottom:5mm; }
+  .panel .pt{ font-weight:800; font-size:12pt; color:var(--brand-d); margin-bottom:2mm; }
+  .checklist{ list-style:none; }
+  .checklist li{ font-size:10.5pt; padding:1.6mm 0 1.6mm 8mm; position:relative; }
+  .checklist li:before{ content:"✓"; position:absolute; left:2mm; color:var(--brand); font-weight:800; }
+
+  .note{ font-size:9pt; color:var(--sub); background:#fff8ec; border:1px solid #f0e0c2; border-radius:3mm; padding:4mm 5mm; }
+
+  .footer{ position:absolute; bottom:10mm; left:17mm; right:17mm; display:flex; justify-content:space-between; font-size:8.5pt; color:#9aa8a4; border-top:1px solid var(--line); padding-top:3mm; }
+
+  /* ===== 問い合わせ ===== */
+  .cta{ background:var(--brand); color:#fff; border-radius:5mm; padding:9mm; text-align:center; margin-top:4mm; }
+  .cta .ct{ font-size:16pt; font-weight:800; }
+  .cta .cd{ font-size:10.5pt; opacity:.92; margin-top:2mm; }
+</style>
+</head>
+<body>
+
+<!-- ===== ページ1: 表紙 ===== -->
+<div class="page cover">
+  <div class="deco"></div>
+  <div class="deco2">🌱</div>
+  <div class="inner">
+    <div class="brand">放課後等デイサービス 業務支援AI</div>
+    <div class="logo">🌱 そだちノート</div>
+    <div class="lead">話すだけで、記録も報告も計画も。<br>書類のための残業を、AIがなくします。</div>
+    <span class="pill">サービス紹介・機能ガイド</span>
+    <div class="sub">現場のスタッフ・管理者のみなさまへ</div>
+  </div>
+</div>
+
+<!-- ===== ページ2: これは何 + 機能前半 ===== -->
+<div class="page">
+  <div class="eyebrow">ABOUT / できること</div>
+  <h1 class="sec"><span class="bar"></span>そだちノートとは</h1>
+  <p class="intro">放課後等デイサービスの「毎日の記録」「保護者への報告」「個別支援計画」「加算の書類」——
+  時間のかかる書類業務を、AIがまるごと下書き・チェックします。スタッフが子どもと向き合う時間を取り戻すためのツールです。</p>
+
+  <div class="value-grid">
+    <div class="value"><div class="ic">⏱️</div><div class="t">残業を減らす</div><div class="d">記録・報告文の作成時間を大幅に短縮。閉所後の書類残業から解放。</div></div>
+    <div class="value"><div class="ic">💰</div><div class="t">加算を守る</div><div class="d">算定漏れ・減算リスクをAIが点検。事業所の収益を取りこぼさない。</div></div>
+    <div class="value"><div class="ic">✨</div><div class="t">品質をそろえる</div><div class="d">経験の浅いスタッフでも、AIの下書きで一定水準の記録が書ける。</div></div>
+  </div>
+
+  <div class="eyebrow">FEATURES / 主な機能</div>
+  <h1 class="sec"><span class="bar"></span>4つの機能</h1>
+
+  <div class="feat">
+    <div class="num">1</div>
+    <div class="body">
+      <div class="ttl">音声で活動記録<span class="tag">毎日</span></div>
+      <div class="desc">スマホに向かって今日の様子を話すだけ。AIが活動記録のフォーマット（活動内容・様子・支援のねらい・引き継ぎ）に自動で整形します。</div>
+      <div class="how"><b>使い方</b>　児童と活動を選ぶ → 🎤ボタンを押して話す → 「AIで整形」→ 内容を確認して保存。手書き・タイピングは不要です。</div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="num">2</div>
+    <div class="body">
+      <div class="ttl">保護者への報告文を自動生成<span class="tag">毎日</span></div>
+      <div class="desc">その日の記録から、保護者向けのやわらかい報告文をワンタップで作成。トーン（ていねい／あたたかめ／簡潔）も選べます。</div>
+      <div class="how"><b>使い方</b>　記録を選ぶ → トーンを選ぶ → 「報告文を生成」→ <b>内容を確認・編集してから送信</b>。連絡帳アプリ／LINE連携も想定。</div>
+    </div>
+  </div>
+  <div class="footer"><span>🌱 そだちノート サービスガイド</span><span>2</span></div>
+</div>
+
+<!-- ===== ページ3: 機能後半 + 流れ ===== -->
+<div class="page">
+  <div class="feat">
+    <div class="num">3</div>
+    <div class="body">
+      <div class="ttl">個別支援計画の下書き<span class="tag">6ヶ月ごと</span></div>
+      <div class="desc">アセスメント（保護者・本人の願い）と直近の活動記録から、長期・短期目標や支援内容の「たたき台」を生成。ゼロから書く負担をなくします。</div>
+      <div class="how"><b>使い方</b>　児童を選ぶ → 願い・特性を入力 → 「下書きを生成」。<b>最終版は児童発達支援管理責任者が仕上げます。</b></div>
+    </div>
+  </div>
+
+  <div class="feat">
+    <div class="num">4</div>
+    <div class="body">
+      <div class="ttl">加算・書類チェック<span class="tag">収益を守る</span></div>
+      <div class="desc">記録・計画の状況を突き合わせ、個別支援計画の未作成（減算リスク）、モニタリング期限の超過、加算の取りこぼしをAIが点検・アラートします。</div>
+      <div class="how"><b>使い方</b>　児童を選んで「チェックを実行」。要対応・確認推奨の項目が一覧で表示され、実地指導への備えにもなります。</div>
+    </div>
+  </div>
+
+  <div class="eyebrow" style="margin-top:6mm">HOW IT WORKS / 1日の使い方</div>
+  <h1 class="sec"><span class="bar"></span>かんたん4ステップ</h1>
+  <div class="flow">
+    <div class="step"><div class="si">🎤</div><div class="st">話す</div><div class="sd">今日の様子を音声入力</div><div class="arrow">→</div></div>
+    <div class="step"><div class="si">✨</div><div class="st">整える</div><div class="sd">AIが記録に整形</div><div class="arrow">→</div></div>
+    <div class="step"><div class="si">👀</div><div class="st">確認</div><div class="sd">スタッフがチェック</div><div class="arrow">→</div></div>
+    <div class="step"><div class="si">✉️</div><div class="st">報告</div><div class="sd">保護者へ送信</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="pt">🔒 安心してお使いいただくために</div>
+    <ul class="checklist">
+      <li>児童の情報は暗号化して保管。AIの学習には利用しません（オプトアウト前提）。</li>
+      <li>AIが作るのは「下書き」。<b>記録・報告・計画は必ず人が確認・承認してから確定・送信</b>します。</li>
+      <li>「誰がいつ編集したか」の履歴を保持し、実地指導（監査）にも備えます。</li>
+      <li>制度改定に合わせて加算要件をアップデートしていきます。</li>
+    </ul>
+  </div>
+  <p class="note">※ 音声入力はブラウザの音声認識機能を利用します（Chrome / Edge / Safari 推奨）。専門用語は選択式にすることで認識精度を高めています。</p>
+  <div class="footer"><span>🌱 そだちノート サービスガイド</span><span>3</span></div>
+</div>
+
+<!-- ===== ページ4: 導入・問い合わせ ===== -->
+<div class="page">
+  <div class="eyebrow">GET STARTED / 導入について</div>
+  <h1 class="sec"><span class="bar"></span>導入はかんたん</h1>
+  <p class="intro">アプリのインストールは不要。スマホやパソコンのブラウザで、URLを開くだけですぐに使い始められます。IT担当者がいない事業所でも安心です。</p>
+
+  <div class="value-grid">
+    <div class="value"><div class="ic">📱</div><div class="t">インストール不要</div><div class="d">ブラウザで開くだけ。スマホ・タブレット・PCどれでも。</div></div>
+    <div class="value"><div class="ic">🖐️</div><div class="t">かんたん操作</div><div class="d">「話す」「ボタンを押す」だけ。福祉職のためのシンプル設計。</div></div>
+    <div class="value"><div class="ic">🏢</div><div class="t">複数拠点OK</div><div class="d">事業所ごとに児童・記録を管理。展開もスムーズ。</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="pt">📋 まずは体験（デモ）から</div>
+    <ul class="checklist">
+      <li>実際の画面を触れるデモをご用意しています。音声記録から保護者報告まで一連の流れを体験できます。</li>
+      <li>御事業所の業務フローに合うか、時短効果がどれくらいかを一緒に確認しましょう。</li>
+      <li>ご要望に合わせて、対応する加算や連携先（連絡帳アプリ等）を調整します。</li>
+    </ul>
+  </div>
+
+  <div class="cta">
+    <div class="ct">まずはデモをご覧ください</div>
+    <div class="cd">御事業所に合わせたご説明・トライアルのご相談を承ります。<br>お気軽にお問い合わせください。</div>
+  </div>
+
+  <p class="note" style="margin-top:6mm">本資料はサービス企画段階の紹介資料です。機能・仕様・料金・対応加算の詳細は今後の開発と制度に合わせて変更される場合があります。AIの生成物は必ず担当者が内容を確認のうえご利用ください。</p>
+  <div class="footer"><span>🌱 そだちノート サービスガイド</span><span>4</span></div>
+</div>
+
+</body>
+</html>

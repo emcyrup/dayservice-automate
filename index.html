@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#2f8f7a">
+<title>そだちノート ─ 放デイ業務AI（プロトタイプ）</title>
+<style>
+  :root{
+    --bg:#f4f7f6; --card:#ffffff; --ink:#1f2d2a; --sub:#5f716c;
+    --brand:#2f8f7a; --brand-d:#227061; --brand-l:#e6f2ef;
+    --accent:#f0a04b; --danger:#d9534f; --ok:#2f8f7a; --warn:#e0a800;
+    --line:#e4eae8; --shadow:0 2px 12px rgba(31,45,42,.08);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.6;
+    max-width:480px;margin:0 auto;position:relative;min-height:100vh;padding-bottom:76px;
+  }
+  header.appbar{
+    position:sticky;top:0;z-index:20;background:var(--brand);color:#fff;
+    padding:14px 18px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);
+  }
+  .appbar .logo{font-weight:800;font-size:18px;letter-spacing:.02em}
+  .appbar .tag{font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;margin-left:auto}
+  main{padding:16px}
+  h2.title{font-size:17px;margin:4px 2px 14px;display:flex;align-items:center;gap:8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .muted{color:var(--sub);font-size:13px}
+  label.fld{display:block;font-size:13px;color:var(--sub);margin:12px 0 5px;font-weight:600}
+  select,textarea,input[type=text]{
+    width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px;
+    font-family:inherit;background:#fbfdfc;color:var(--ink);resize:vertical
+  }
+  textarea{min-height:88px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    padding:14px;border:none;border-radius:14px;background:var(--brand);color:#fff;
+    font-size:16px;font-weight:700;cursor:pointer;transition:.15s;font-family:inherit
+  }
+  .btn:active{transform:scale(.98)}
+  .btn.sec{background:var(--brand-l);color:var(--brand-d)}
+  .btn.ghost{background:#fff;color:var(--brand-d);border:1.5px solid var(--brand-l)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:10px}
+  .chip{display:inline-block;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:700}
+  .chip.g{background:var(--brand-l);color:var(--brand-d)}
+  .chip.o{background:#fdeede;color:#b9701f}
+  .chip.r{background:#fbe4e3;color:#b13c39}
+  .chip.y{background:#fbf3d5;color:#8a6d0b}
+  /* mic */
+  .mic-wrap{text-align:center;padding:8px 0 2px}
+  .mic{
+    width:96px;height:96px;border-radius:50%;border:none;background:var(--brand);color:#fff;
+    font-size:38px;cursor:pointer;box-shadow:0 6px 20px rgba(47,143,122,.4);transition:.15s
+  }
+  .mic.rec{background:var(--danger);animation:pulse 1.3s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,83,79,.5)}70%{box-shadow:0 0 0 22px rgba(217,83,79,0)}100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}}
+  .mic-hint{font-size:13px;color:var(--sub);margin-top:10px}
+  /* nav */
+  nav.tabs{
+    position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+    background:#fff;border-top:1px solid var(--line);display:flex;z-index:30;
+    box-shadow:0 -2px 12px rgba(31,45,42,.06)
+  }
+  nav.tabs button{
+    flex:1;background:none;border:none;padding:8px 2px 10px;font-size:10.5px;color:var(--sub);
+    cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit
+  }
+  nav.tabs button .ic{font-size:21px}
+  nav.tabs button.on{color:var(--brand)}
+  .view{display:none}
+  .view.on{display:block;animation:fade .2s}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .child-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:#fff}
+  .avatar{width:44px;height:44px;border-radius:50%;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0}
+  .out{background:var(--brand-l);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:14.5px;margin-top:10px;border:1px solid #d3e8e2}
+  .rec-item{border-left:3px solid var(--brand);padding:10px 12px;background:#fff;border:1px solid var(--line);border-left-width:3px;border-radius:10px;margin-bottom:10px}
+  .rec-item .h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub)}
+  .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .banner{font-size:12px;background:#fff8ec;border:1px solid #f3e0c0;color:#8a6d0b;padding:9px 12px;border-radius:10px;margin-bottom:14px}
+  .kpi{display:flex;gap:10px;margin-bottom:14px}
+  .kpi .card{flex:1;text-align:center;margin:0;padding:14px 6px}
+  .kpi .n{font-size:22px;font-weight:800;color:var(--brand-d)}
+  .kpi .l{font-size:11px;color:var(--sub)}
+  .check-row{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+  .check-row:last-child{border:none}
+  .check-ic{font-size:18px;flex-shrink:0;margin-top:1px}
+  .check-row .t{font-weight:700;font-size:14px}
+  .check-row .d{font-size:12.5px;color:var(--sub)}
+  a.link{color:var(--brand-d);font-weight:600}
+  .foot{text-align:center;font-size:11px;color:#9aa8a4;padding:6px 0 2px}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <span class="logo">🌱 そだちノート</span>
+  <span class="tag">プロトタイプ</span>
+</header>
+
+<main>
+  <!-- ============ ホーム ============ -->
+  <section id="v-home" class="view on">
+    <div class="kpi">
+      <div class="card"><div class="n" id="kpi-children">–</div><div class="l">利用児童</div></div>
+      <div class="card"><div class="n" id="kpi-records">–</div><div class="l">今日の記録</div></div>
+      <div class="card"><div class="n" id="kpi-alerts">–</div><div class="l">要対応</div></div>
+    </div>
+    <div class="banner">🎤 これはデモです。「記録」タブでマイクを押して話すと、AIが活動記録に整形します。（対応ブラウザ: Chrome/Edge/Safari）</div>
+    <h2 class="title">👦 利用児童</h2>
+    <div id="child-list"></div>
+    <button class="btn ghost" onclick="go('record')">＋ 音声で記録する</button>
+  </section>
+
+  <!-- ============ 記録 ============ -->
+  <section id="v-record" class="view">
+    <h2 class="title">🎤 音声で活動記録</h2>
+    <div class="card">
+      <label class="fld">児童</label>
+      <select id="rec-child"></select>
+      <label class="fld">活動（選択式：認識精度UP）</label>
+      <select id="rec-activity">
+        <option>自由遊び</option><option>集団活動（ゲーム）</option><option>制作・工作</option>
+        <option>運動・体操</option><option>おやつ</option><option>宿題・学習支援</option>
+        <option>SST（ソーシャルスキル）</option><option>お散歩・外出</option>
+      </select>
+
+      <div class="mic-wrap">
+        <button id="mic" class="mic" onclick="toggleMic()">🎤</button>
+        <div class="mic-hint" id="mic-hint">押して、今日の様子を話してください</div>
+      </div>
+
+      <label class="fld">認識テキスト（編集可）</label>
+      <textarea id="rec-speech" placeholder="例）today はブロックで高いタワーを作れて嬉しそうだった。順番を待つのが少し難しかったけど、声かけで待てました。"></textarea>
+      <button class="btn" id="rec-gen" onclick="genRecord()" style="margin-top:12px">✨ AIで記録に整形</button>
+
+      <div id="rec-out"></div>
+    </div>
+    <h2 class="title">📋 最近の記録</h2>
+    <div id="rec-history"></div>
+  </section>
+
+  <!-- ============ 保護者報告 ============ -->
+  <section id="v-report" class="view">
+    <h2 class="title">✉️ 保護者への報告文</h2>
+    <div class="card">
+      <p class="muted">その日の活動記録から、保護者向けのやわらかい報告文を自動生成します。<b>送信前に必ず内容を確認・編集</b>してください。</p>
+      <label class="fld">対象の記録</label>
+      <select id="rep-record"></select>
+      <label class="fld">トーン</label>
+      <select id="rep-tone">
+        <option value="standard">標準（ていねい）</option>
+        <option value="warm">あたたかめ</option>
+        <option value="brief">簡潔</option>
+      </select>
+      <button class="btn" id="rep-gen" onclick="genReport()" style="margin-top:14px">✨ 報告文を生成</button>
+      <div id="rep-out"></div>
+    </div>
+  </section>
+
+  <!-- ============ 支援計画 ============ -->
+  <section id="v-plan" class="view">
+    <h2 class="title">📝 個別支援計画（下書き）</h2>
+    <div class="card">
+      <p class="muted">アセスメントと直近の活動記録から、目標・支援内容の<b>たたき台</b>を生成します。最終版は児童発達支援管理責任者が仕上げてください。</p>
+      <label class="fld">児童</label>
+      <select id="plan-child"></select>
+      <label class="fld">保護者・本人の願い（アセスメント）</label>
+      <textarea id="plan-wish" placeholder="例）友だちと一緒に遊べるようになってほしい。かんしゃくを減らしたい。"></textarea>
+      <button class="btn" id="plan-gen" onclick="genPlan()" style="margin-top:12px">✨ 計画の下書きを生成</button>
+      <div id="plan-out"></div>
+    </div>
+  </section>
+
+  <!-- ============ 加算チェック ============ -->
+  <section id="v-check" class="view">
+    <h2 class="title">✅ 加算・書類チェック</h2>
+    <div class="card">
+      <p class="muted">記録・計画の状況を突き合わせ、加算算定の根拠不足や減算リスクを点検します。（デモ判定）</p>
+      <label class="fld">児童</label>
+      <select id="check-child"></select>
+      <button class="btn" onclick="runCheck()" style="margin-top:12px">🔍 チェックを実行</button>
+      <div id="check-out"></div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button data-t="home" class="on" onclick="go('home')"><span class="ic">🏠</span>ホーム</button>
+  <button data-t="record" onclick="go('record')"><span class="ic">🎤</span>記録</button>
+  <button data-t="report" onclick="go('report')"><span class="ic">✉️</span>報告</button>
+  <button data-t="plan" onclick="go('plan')"><span class="ic">📝</span>計画</button>
+  <button data-t="check" onclick="go('check')"><span class="ic">✅</span>加算</button>
+</nav>
+
+<div class="foot">そだちノート prototype · AI生成物は必ず人が確認してください</div>
+
+<script>
+/* ============================================================
+   そだちノート プロトタイプ
+   - データは localStorage に保存（プロト用）
+   - AI生成はデモ用の内蔵ジェネレータ。本番は callAI() を
+     Claude API に差し替えるだけで動くよう分離している。
+   ============================================================ */
+
+const DB_KEY = 'sodachi_db_v1';
+const seed = {
+  children: [
+    { id:'c1', name:'たろう', kana:'た', age:8, grade:'小2',
+      traits:'ブロック遊びが好き。順番を待つのが苦手。落ち着くと集中力が高い。',
+      plan:true, lastMonitoring:'2026-05-10', wish:'友だちと順番を守って遊べるようになってほしい。' },
+    { id:'c2', name:'はなこ', kana:'は', age:10, grade:'小4',
+      traits:'絵を描くのが得意。初めての活動に不安が強い。言葉より視覚支援が有効。',
+      plan:false, lastMonitoring:null, wish:'新しいことにも安心して取り組めるようになってほしい。' },
+    { id:'c3', name:'けんた', kana:'け', age:7, grade:'小1',
+      traits:'体を動かすのが大好き。気持ちの切り替えに時間がかかる。',
+      plan:true, lastMonitoring:'2025-11-20', wish:'かんしゃくを減らし、気持ちを言葉で伝えられるように。' },
+  ],
+  records: []
+};
+let db = load();
+function load(){ try{ return JSON.parse(localStorage.getItem(DB_KEY)) || structuredClone(seed);}catch(e){ return structuredClone(seed);} }
+function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function child(id){ return db.children.find(c=>c.id===id); }
+function todayStr(){ const d=new Date(); return `${d.getMonth()+1}/${d.getDate()}`; }
+function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function esc(s){ return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+/* ---------- ナビ ---------- */
+function go(t){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+t).classList.add('on');
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  window.scrollTo(0,0);
+  if(t==='home') renderHome();
+  if(t==='report') fillReportSelect();
+  if(t==='record') renderHistory();
+}
+
+/* ---------- ホーム ---------- */
+function renderHome(){
+  document.getElementById('kpi-children').textContent = db.children.length;
+  document.getElementById('kpi-records').textContent = db.records.filter(r=>r.date===fullDate()).length;
+  const alerts = db.children.filter(c=>!c.plan).length;
+  document.getElementById('kpi-alerts').textContent = alerts;
+  const list = db.children.map(c=>`
+    <div class="child-item">
+      <div class="avatar">${esc(c.kana)}</div>
+      <div style="flex:1">
+        <div style="font-weight:700">${esc(c.name)} <span class="muted">（${esc(c.grade)}）</span></div>
+        <div class="muted">${esc(c.traits).slice(0,28)}…</div>
+      </div>
+      ${c.plan?'<span class="chip g">計画あり</span>':'<span class="chip r">計画未</span>'}
+    </div>`).join('');
+  document.getElementById('child-list').innerHTML = list;
+}
+
+/* ---------- セレクト初期化 ---------- */
+function fillChildSelects(){
+  const opts = db.children.map(c=>`<option value="${c.id}">${esc(c.name)}（${esc(c.grade)}）</option>`).join('');
+  ['rec-child','plan-child','check-child'].forEach(id=>document.getElementById(id).innerHTML=opts);
+}
+function fillReportSelect(){
+  const sel = document.getElementById('rep-record');
+  if(!db.records.length){ sel.innerHTML='<option value="">まだ記録がありません（記録タブで作成）</option>'; return; }
+  sel.innerHTML = db.records.slice().reverse().map(r=>`<option value="${r.id}">${r.date} ${esc(child(r.childId)?.name||'')}・${esc(r.activity)}</option>`).join('');
+}
+
+/* ============================================================
+   AI 呼び出しの中枢。プロトはデモ生成。
+   本番: この関数を Claude API 呼び出しに差し替える。
+   例）
+   async function callAI(kind, payload){
+     const res = await fetch('/api/ai', {method:'POST',
+       headers:{'Content-Type':'application/json'},
+       body: JSON.stringify({kind, payload})});
+     return (await res.json()).text;   // サーバ側で Claude API を呼ぶ
+   }
+   ============================================================ */
+async function callAI(kind, payload){
+  await new Promise(r=>setTimeout(r, 750)); // 生成中の演出
+  return demoGenerators[kind](payload);
+}
+
+const demoGenerators = {
+  record({name, activity, speech}){
+    const s = speech.trim() || '特記事項なし。';
+    const positive = /(できた|嬉し|笑|楽し|集中|上手|がんば|待て)/.test(s);
+    const support  = /(難し|苦手|不安|泣|かんしゃく|待てな|嫌)/.test(s);
+    return [
+      `【活動内容】${activity}`,
+      `【本人の様子】${s}`,
+      `【支援のねらいと関わり】${support
+        ? 'つまずきの場面では、本人のペースに合わせて事前予告と声かけを行い、成功体験につなげた。'
+        : '活動に主体的に取り組めるよう、興味を尊重しながら見守り・肯定的な声かけを行った。'}`,
+      `【評価・次回への引き継ぎ】${positive
+        ? 'できた点を十分に称賛。次回も同様の成功体験を積み重ねられるよう支援を継続する。'
+        : '本人の反応を観察しながら、無理のない範囲でステップアップを図る。'}`
+    ].join('\n');
+  },
+  report({name, activity, record, tone}){
+    const greet = { standard:'いつもお世話になっております。', warm:'こんにちは！本日もお預かりありがとうございました😊', brief:'本日のご様子です。' }[tone];
+    const close = { standard:'ご家庭でも話題にしていただけますと幸いです。何かございましたらお気軽にお知らせください。',
+                    warm:'おうちでも今日のことをたくさんお話ししてみてくださいね🌟',
+                    brief:'よろしくお願いいたします。' }[tone];
+    const body = record
+      ? record.replace(/【.*?】/g,'').split('\n').filter(Boolean)[1] || 'みんなと元気に過ごされました。'
+      : 'みんなと元気に過ごされました。';
+    return `${name}さんの保護者様\n\n${greet}\n\n本日は「${activity}」に取り組みました。${name}さんは、${body}\n\nスタッフ一同、${name}さんの「できた！」を大切に見守っています。${close}`;
+  },
+  plan({name, traits, wish}){
+    return [
+      `■ 個別支援計画（下書き）── ${name}さん`,
+      ``,
+      `【アセスメント要約】`,
+      `・特性: ${traits}`,
+      `・保護者/本人の願い: ${wish||'（未入力）'}`,
+      ``,
+      `【長期目標（6ヶ月）】`,
+      `安心できる環境の中で、集団活動に自分から参加し、成功体験を積み重ねる。`,
+      ``,
+      `【短期目標（3ヶ月）】`,
+      `① 見通しを持って活動に取り組める（事前予告があれば切り替えられる）。`,
+      `② 困ったときに、言葉やカードでスタッフに伝えられる。`,
+      ``,
+      `【支援内容・手立て】`,
+      `・活動前に流れを視覚的に提示し、見通しを持てるようにする。`,
+      `・成功場面を具体的に称賛し、自己肯定感を育てる。`,
+      `・つまずき時は本人のペースを尊重し、選択肢を示して自己決定を促す。`,
+      ``,
+      `※本文は下書きです。児発管がアセスメント結果と照合し確定してください。`
+    ].join('\n');
+  }
+};
+
+/* ---------- 音声認識 ---------- */
+let recog=null, recording=false;
+function initSpeech(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ document.getElementById('mic-hint').textContent='※このブラウザは音声認識に非対応。テキスト欄に直接入力できます。'; document.getElementById('mic').disabled=true; return; }
+  recog = new SR(); recog.lang='ja-JP'; recog.interimResults=true; recog.continuous=true;
+  let base='';
+  recog.onstart=()=>{ base=document.getElementById('rec-speech').value; };
+  recog.onresult=(e)=>{
+    let txt='';
+    for(let i=e.resultIndex;i<e.results.length;i++) txt+=e.results[i][0].transcript;
+    document.getElementById('rec-speech').value = (base+txt).trim();
+  };
+  recog.onend=()=>{ if(recording){ try{recog.start()}catch(e){} } };
+}
+function toggleMic(){
+  if(!recog) return;
+  const btn=document.getElementById('mic'), hint=document.getElementById('mic-hint');
+  if(!recording){ try{recog.start()}catch(e){}; recording=true; btn.classList.add('rec'); btn.textContent='⏹'; hint.textContent='録音中… もう一度押すと停止'; }
+  else{ recording=false; recog.stop(); btn.classList.remove('rec'); btn.textContent='🎤'; hint.textContent='押して、今日の様子を話してください'; }
+}
+
+/* ---------- 各生成アクション ---------- */
+async function withLoading(btnId, label, fn){
+  const b=document.getElementById(btnId); const html=b.innerHTML;
+  b.disabled=true; b.innerHTML=`<span class="spin"></span> ${label}`;
+  try{ await fn(); } finally{ b.disabled=false; b.innerHTML=html; }
+}
+
+async function genRecord(){
+  const c = child(document.getElementById('rec-child').value);
+  const activity = document.getElementById('rec-activity').value;
+  const speech = document.getElementById('rec-speech').value;
+  await withLoading('rec-gen','AIが整形中…', async()=>{
+    const text = await callAI('record', {name:c.name, activity, speech});
+    document.getElementById('rec-out').innerHTML =
+      `<div class="out" id="rec-text">${esc(text)}</div>
+       <div class="row" style="margin-top:10px">
+         <button class="btn sec" onclick="saveRecord('${c.id}','${esc(activity)}')">💾 記録を保存</button>
+         <button class="btn ghost" onclick="go('report')">✉️ 報告文へ</button>
+       </div>`;
+    document.getElementById('rec-out').dataset.text=text;
+  });
+}
+function saveRecord(childId, activity){
+  const text = document.getElementById('rec-out').dataset.text;
+  const id='r'+Date.now();
+  db.records.push({id, childId, activity, text, date:fullDate(), t:todayStr()});
+  save(); renderHistory(); renderHome();
+  alert('記録を保存しました。報告タブから保護者報告を生成できます。');
+}
+function renderHistory(){
+  fillChildSelects();
+  const h=document.getElementById('rec-history');
+  if(!db.records.length){ h.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
+  h.innerHTML = db.records.slice().reverse().map(r=>`
+    <div class="rec-item">
+      <div class="h"><span>${r.date}・${esc(child(r.childId)?.name||'')}</span><span class="chip g">${esc(r.activity)}</span></div>
+      <div style="font-size:13.5px;margin-top:6px;white-space:pre-wrap">${esc(r.text).slice(0,90)}…</div>
+    </div>`).join('');
+}
+
+async function genReport(){
+  const rid = document.getElementById('rep-record').value;
+  if(!rid){ alert('先に記録を作成してください。'); return; }
+  const rec = db.records.find(r=>r.id===rid);
+  const c = child(rec.childId);
+  const tone = document.getElementById('rep-tone').value;
+  await withLoading('rep-gen','AIが作成中…', async()=>{
+    const text = await callAI('report', {name:c.name, activity:rec.activity, record:rec.text, tone});
+    document.getElementById('rep-out').innerHTML =
+      `<div class="out">${esc(text)}</div>
+       <div class="banner" style="margin-top:10px">⚠️ 送信前に必ず内容をご確認ください（誤りがあれば編集してから送信）。</div>
+       <button class="btn" style="margin-top:6px" onclick="fakeSend()">📤 保護者へ送信（デモ）</button>`;
+  });
+}
+function fakeSend(){ alert('（デモ）連絡帳アプリ / LINE 連携で送信されるイメージです。'); }
+
+async function genPlan(){
+  const c = child(document.getElementById('plan-child').value);
+  const wish = document.getElementById('plan-wish').value || c.wish;
+  await withLoading('plan-gen','AIが作成中…', async()=>{
+    const text = await callAI('plan', {name:c.name, traits:c.traits, wish});
+    document.getElementById('plan-out').innerHTML = `<div class="out">${esc(text)}</div>
+      <div class="banner" style="margin-top:10px">📌 これは下書きです。児童発達支援管理責任者が確定してください。</div>`;
+  });
+}
+
+/* ---------- 加算・書類チェック（ルール判定のデモ） ---------- */
+function runCheck(){
+  const c = child(document.getElementById('check-child').value);
+  const recCount = db.records.filter(r=>r.childId===c.id).length;
+  const rows=[];
+  // 個別支援計画
+  rows.push(c.plan
+    ? {ic:'✅', t:'個別支援計画', d:'作成済み。減算リスクなし。'}
+    : {ic:'⛔', t:'個別支援計画の未作成（減算リスク）', d:'計画がありません。未作成のままだと個別支援計画未作成減算の対象。至急作成してください。'});
+  // モニタリング（6ヶ月）
+  if(c.lastMonitoring){
+    const months = (new Date(fullDate()) - new Date(c.lastMonitoring))/(1000*60*60*24*30);
+    rows.push(months>=6
+      ? {ic:'⚠️', t:'モニタリング期限の超過', d:`前回モニタリング ${c.lastMonitoring}（約${Math.floor(months)}ヶ月前）。6ヶ月ごとの見直しが必要です。`}
+      : {ic:'✅', t:'モニタリング', d:`前回 ${c.lastMonitoring}。期限内です。`});
+  } else {
+    rows.push({ic:'⚠️', t:'モニタリング記録なし', d:'定期的なモニタリング記録の作成をおすすめします。'});
+  }
+  // 活動記録の蓄積
+  rows.push(recCount>0
+    ? {ic:'✅', t:'活動記録（加算の根拠）', d:`${recCount}件の記録あり。家庭連携・個別サポート等の根拠として活用できます。`}
+    : {ic:'⚠️', t:'活動記録が不足', d:'加算算定の根拠となる支援記録がありません。記録の蓄積を推奨。'});
+  // 家庭連携加算の示唆
+  rows.push({ic:'💡', t:'加算の取りこぼしチェック', d:'保護者面談を実施した場合は「家庭連携加算」、事業所での相談支援は該当加算の算定漏れがないか確認しましょう。'});
+
+  const badge = rows.some(r=>r.ic==='⛔') ? '<span class="chip r">要対応あり</span>'
+             : rows.some(r=>r.ic==='⚠️') ? '<span class="chip y">確認推奨</span>'
+             : '<span class="chip g">良好</span>';
+  document.getElementById('check-out').innerHTML =
+    `<div style="margin:14px 0 6px">${esc(c.name)}さんの点検結果 ${badge}</div>` +
+    rows.map(r=>`<div class="check-row"><div class="check-ic">${r.ic}</div><div><div class="t">${esc(r.t)}</div><div class="d">${esc(r.d)}</div></div></div>`).join('');
+}
+
+/* ---------- 起動 ---------- */
+fillChildSelects();
+initSpeech();
+renderHome();
+</script>
+</body>
+</html>
