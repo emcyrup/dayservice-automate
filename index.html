@@ -135,6 +135,18 @@
   .check-row .t{font-weight:700;font-size:14px}
   .check-row .d{font-size:12.5px;color:var(--sub)}
   .gearbtn{background:none;border:none;font-size:19px;cursor:pointer;color:#fff;padding:0 0 0 6px}
+  .menu-btn{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 6px 0 0;line-height:1}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid2>*{min-width:0}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:45;opacity:0;pointer-events:none;transition:.2s}
+  .overlay.on{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;bottom:0;width:272px;left:max(0px,calc(50% - 240px));background:var(--card);z-index:50;transform:translateX(-110%);transition:transform .22s;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow-y:auto}
+  .drawer.on{transform:translateX(0)}
+  .drawer .dr-head{background:var(--brand);color:#fff;font-weight:800;padding:18px 16px;font-size:16px}
+  .drawer button{background:none;border:none;border-bottom:1px solid var(--line);text-align:left;padding:15px 18px;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer;font-family:inherit}
+  .drawer button:active{background:var(--brand-l)}
+  .totop{position:fixed;bottom:88px;right:max(14px,calc(50% - 226px));width:46px;height:46px;border-radius:50%;border:none;background:var(--brand);color:#fff;font-size:20px;font-weight:800;z-index:35;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;opacity:0;pointer-events:none;transition:.2s}
+  .totop.on{opacity:1;pointer-events:auto}
   .rec-item .body{font-size:13.5px;margin-top:6px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.7;padding:6px 0 2px}
@@ -142,26 +154,35 @@
 </style>
 
 <header class="appbar">
+  <button class="menu-btn" onclick="openMenu()" aria-label="メニュー">☰</button>
   <span class="logo">🌱 そだちノート</span>
   <span class="tag">検証版</span>
   <button class="gearbtn" onclick="go('setting')" aria-label="設定">⚙️</button>
 </header>
 
 <main>
-  <!-- ============ ホーム ============ -->
+  <!-- ============ ホーム(ダッシュボード) ============ -->
   <section id="v-home" class="view on">
+    <div class="banner safe">🧪 検証版: 実名は入力せず、イニシャル・仮名(例: Aくん)でお試しください。データはこの端末のブラウザ内にのみ保存されます(⚙️設定からバックアップできます)。</div>
+    <h2 class="title">📊 ダッシュボード <span class="muted" id="dash-date" style="font-weight:400;font-size:13px"></span></h2>
     <div class="kpi">
-      <div class="card"><div class="n" id="kpi-children">–</div><div class="l">利用児童</div></div>
       <div class="card"><div class="n" id="kpi-records">–</div><div class="l">今日の記録</div></div>
       <div class="card"><div class="n" id="kpi-stock">–</div><div class="l">未生成メモ</div></div>
+      <div class="card"><div class="n" id="kpi-alerts">–</div><div class="l">計画未</div></div>
+      <div class="card"><div class="n" id="kpi-children">–</div><div class="l">児童</div></div>
     </div>
-    <div class="banner">✨ 💬キーワードを送って貯める→ボタンで記録に整形。👥セーフティノートは名前を送るだけで配慮点がわかります。</div>
-    <div class="banner safe">🧪 検証版: 実名は入力せず、イニシャル・仮名(例: Aくん)でお試しください。データはこの端末のブラウザ内にのみ保存されます(⚙️設定からバックアップできます)。</div>
-    <h2 class="title">👦 利用児童</h2>
-    <div id="child-list"></div>
-    <div class="row">
-      <button class="btn ghost" onclick="go('record')">💬 記録する</button>
-      <button class="btn ghost" onclick="go('share')">👥 配慮点を調べる</button>
+    <div class="card">
+      <div class="subttl">クイックアクション</div>
+      <div class="grid2">
+        <button class="btn" onclick="go('record')">💬 記録する</button>
+        <button class="btn sec" onclick="go('report')">✉️ 保護者報告</button>
+        <button class="btn sec" onclick="go('share')">👥 配慮点を調べる</button>
+        <button class="btn sec" onclick="go('children')">👦 児童一覧</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="subttl">今日の動き</div>
+      <div id="dash-feed"></div>
     </div>
   </section>
 
@@ -283,6 +304,37 @@
   </section>
 
 
+  <!-- ============ 児童一覧 ============ -->
+  <section id="v-children" class="view">
+    <h2 class="title">👦 児童一覧</h2>
+    <div id="children-list"></div>
+    <button class="btn sec" onclick="go('setting')">＋ 児童の追加・編集(⚙️設定)</button>
+  </section>
+
+  <!-- ============ 児童詳細 ============ -->
+  <section id="v-cdetail" class="view">
+    <button class="btn mini sec" onclick="go('children')">← 一覧へ戻る</button>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="avatar" id="cd-avatar"></div>
+        <div style="min-width:0">
+          <div style="font-weight:800;font-size:17px" id="cd-name"></div>
+          <div class="muted" id="cd-traits"></div>
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <button class="btn" onclick="goRecordFor(curChild)">💬 この子の記録</button>
+        <button class="btn sec" onclick="goPlanFor(curChild)">📝 支援計画</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="subttl">🛡 セーフティノート</div>
+      <div id="cd-care"></div>
+      <button class="btn mini sec" style="margin-top:8px" onclick="editChildFromDetail(curChild)">✏️ 情報を編集(設定へ)</button>
+    </div>
+    <div class="card"><div class="subttl">直近の記録</div><div id="cd-records"></div></div>
+  </section>
+
   <!-- ============ 設定(検証用) ============ -->
   <section id="v-setting" class="view">
     <h2 class="title">⚙️ 設定(検証用)</h2>
@@ -330,7 +382,21 @@
   <button data-t="share" onclick="go('share')"><span class="ic">👥</span>共有</button>
 </nav>
 
-<div class="foot">そだちノート prototype v0.2 · AI生成物は必ず人が確認してください</div>
+<div class="overlay" id="ovl" onclick="closeMenu()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dr-head">🌱 そだちノート</div>
+  <button onclick="go('home')">📊 ダッシュボード</button>
+  <button onclick="go('record')">💬 記録(貯めて生成)</button>
+  <button onclick="go('report')">✉️ 保護者への報告</button>
+  <button onclick="go('plan')">📝 計画の下書き</button>
+  <button onclick="go('check')">✅ 加算・書類チェック</button>
+  <button onclick="go('share')">👥 セーフティノート</button>
+  <button onclick="go('children')">👦 児童一覧</button>
+  <button onclick="go('setting')">⚙️ 設定(検証用)</button>
+</aside>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="ページ上部へ">↑</button>
+
+<div class="foot">そだちノート 検証版 · AI生成物は必ず人が確認してください</div>
 
 <script>
 /* ============================================================
@@ -379,32 +445,40 @@ function nowHM(){ const d=new Date(); return `${d.getHours()}:${String(d.getMinu
 function esc(s){ return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
 /* ---------- ナビ ---------- */
-function go(t){
+function switchView(t, navKey){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('v-'+t).classList.add('on');
-  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
-  window.scrollTo(0,0);
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===(navKey||t)));
+  window.scrollTo(0,0); closeMenu();
+}
+function go(t){
+  switchView(t);
   if(t==='home') renderHome();
   if(t==='report') fillReportSelect();
   if(t==='record'){ renderHistory(); renderStock(); }
   if(t==='share') renderShareChips();
+  if(t==='children') renderChildren();
   if(t==='setting') renderSetChildren();
 }
 
 /* ---------- ホーム ---------- */
 function renderHome(){
+  const today=fullDate();
+  const recs=db.records.filter(r=>r.date===today);
+  const stock=db.stock.filter(s=>s.date===today);
   document.getElementById('kpi-children').textContent = db.children.length;
-  document.getElementById('kpi-records').textContent = db.records.filter(r=>r.date===fullDate()).length;
-  document.getElementById('kpi-stock').textContent = db.stock.filter(s=>s.date===fullDate()).length;
-  document.getElementById('child-list').innerHTML = db.children.map(c=>`
-    <div class="child-item">
-      <div class="avatar">${esc(c.kana)}</div>
-      <div style="flex:1">
-        <div style="font-weight:700">${esc(c.name)} <span class="muted">(${esc(c.grade)})</span></div>
-        <div class="muted">${esc(c.traits).slice(0,28)}…</div>
-      </div>
-      ${c.plan?'<span class="chip g">計画あり</span>':'<span class="chip r">計画未</span>'}
-    </div>`).join('');
+  document.getElementById('kpi-records').textContent = recs.length;
+  document.getElementById('kpi-stock').textContent = stock.length;
+  document.getElementById('kpi-alerts').textContent = db.children.filter(c=>!c.plan).length;
+  const d=new Date();
+  document.getElementById('dash-date').textContent=`${d.getMonth()+1}/${d.getDate()}(${['日','月','火','水','木','金','土'][d.getDay()]})`;
+  const feed=[
+    ...stock.map(s=>({ic:'💬',t:`${child(s.childId)?.name||''} へのメモ(${s.time})`,s:s.text.slice(0,32)})),
+    ...recs.map(r=>({ic:'📝',t:`${child(r.childId)?.name||''} の記録を保存(${r.activity})`,s:''}))
+  ];
+  document.getElementById('dash-feed').innerHTML = feed.length
+    ? feed.slice(-6).reverse().map(f=>`<div class="check-row"><div class="check-ic">${f.ic}</div><div style="flex:1;min-width:0"><div class="t">${esc(f.t)}</div>${f.s?`<div class="d">${esc(f.s)}…</div>`:''}</div></div>`).join('')
+    : '<p class="muted">まだ今日の動きはありません。「💬 記録する」からメモを送ってみてください。</p>';
 }
 
 /* ---------- セレクト初期化 ---------- */
@@ -693,6 +767,50 @@ async function askShare(){
   log.insertAdjacentHTML('beforeend', `<div class="bubble bot">${esc(reply)}<div class="bt">セーフティノート</div></div>`);
   log.scrollTop=log.scrollHeight;
 }
+
+/* ---------- 児童一覧・詳細 ---------- */
+let curChild=null;
+function renderChildren(){
+  document.getElementById('children-list').innerHTML = db.children.length ? db.children.map(c=>`
+    <div class="child-item" onclick="showChild('${c.id}')" style="cursor:pointer">
+      <div class="avatar">${esc(c.kana)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700">${esc(c.name)} <span class="muted">(${esc(c.grade)})</span></div>
+        <div class="muted">${esc(c.traits).slice(0,28)}…</div>
+      </div>
+      ${c.plan?'<span class="chip g">計画あり</span>':'<span class="chip r">計画未</span>'}
+      <div class="muted" style="font-size:18px">›</div>
+    </div>`).join('') : '<p class="muted">児童がいません。⚙️設定から追加してください。</p>';
+}
+function showChild(id){
+  const c=child(id); if(!c) return;
+  curChild=id;
+  document.getElementById('cd-avatar').textContent=c.kana;
+  document.getElementById('cd-name').textContent=`${c.name}(${c.grade})`;
+  document.getElementById('cd-traits').textContent=c.traits||'';
+  const care=[
+    ['⚠️','健康・安全',c.care.alert],['😥','苦手なこと',c.care.dislike],
+    ['😊','落ち着く方法',c.care.calm],['🆘','パニック時',c.care.panic],
+    ['🚌','送迎',c.care.bus],['💭','保護者・本人の願い',c.wish||'(未入力)']
+  ];
+  document.getElementById('cd-care').innerHTML = care.map(([ic,t,d])=>`
+    <div class="check-row"><div class="check-ic">${ic}</div><div style="flex:1;min-width:0"><div class="t">${esc(t)}</div><div class="d">${esc(d||'(未登録)')}</div></div></div>`).join('');
+  const recs=db.records.filter(r=>r.childId===id).slice(-5).reverse();
+  document.getElementById('cd-records').innerHTML = recs.length ? recs.map(r=>`
+    <div class="rec-item" onclick="this.classList.toggle('open')">
+      <div class="h"><span>${r.date}</span><span class="chip g">${esc(r.activity)}</span></div>
+      <div class="body">${esc(r.text)}</div>
+    </div>`).join('') : '<p class="muted">まだ記録はありません。</p>';
+  switchView('cdetail','children');
+}
+function goRecordFor(id){ go('record'); if(id){ document.getElementById('rec-child').value=id; renderStock(); } }
+function goPlanFor(id){ go('plan'); if(id) document.getElementById('plan-child').value=id; }
+function editChildFromDetail(id){ go('setting'); if(id) editChild(id); }
+
+/* ---------- メニュー / ページ上部へ ---------- */
+function openMenu(){ document.getElementById('drawer').classList.add('on'); document.getElementById('ovl').classList.add('on'); }
+function closeMenu(){ const d=document.getElementById('drawer'), o=document.getElementById('ovl'); if(d) d.classList.remove('on'); if(o) o.classList.remove('on'); }
+window.addEventListener('scroll', ()=>{ document.getElementById('totop').classList.toggle('on', window.scrollY>300); }, {passive:true});
 
 /* ---------- 設定(検証用) ---------- */
 let editingChild=null;
