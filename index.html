@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#2f8f7a">
-<title>そだちノート ─ 福祉現場の記録・共有AI(プロトタイプ)</title>
+<title>そだちノート ─ 放課後デイサービスの記録・共有AI(プロトタイプ)</title>
 </head>
 <body>
 <style>
@@ -106,10 +106,10 @@
     box-shadow:0 -2px 12px rgba(31,45,42,.06)
   }
   nav.tabs button{
-    flex:1;background:none;border:none;padding:8px 0 10px;font-size:9.5px;color:var(--sub);
+    flex:1;background:none;border:none;padding:8px 0 10px;font-size:10.5px;color:var(--sub);
     cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit
   }
-  nav.tabs button .ic{font-size:19px}
+  nav.tabs button .ic{font-size:21px}
   nav.tabs button.on{color:var(--brand-d)}
   nav.tabs button:focus-visible,.btn:focus-visible,.mic:focus-visible{outline:3px solid var(--brand-d);outline-offset:2px}
   .view{display:none}
@@ -151,7 +151,7 @@
       <div class="card"><div class="n" id="kpi-records">–</div><div class="l">今日の記録</div></div>
       <div class="card"><div class="n" id="kpi-stock">–</div><div class="l">未生成メモ</div></div>
     </div>
-    <div class="banner">✨ v0.2: 💬キーワードを貯めて生成 / 👥セーフティノート(名前で配慮点検索) / 🚗訪問介護デモ を追加しました。</div>
+    <div class="banner">✨ 💬キーワードを送って貯める→ボタンで記録に整形。👥セーフティノートは名前を送るだけで配慮点がわかります。</div>
     <h2 class="title">👦 利用児童</h2>
     <div id="child-list"></div>
     <div class="row">
@@ -277,56 +277,6 @@
     </div>
   </section>
 
-  <!-- ============ 訪問介護 ============ -->
-  <section id="v-visit" class="view">
-    <h2 class="title">🚗 訪問介護(デモ)</h2>
-
-    <div class="card">
-      <div class="subttl">📋 報告をまとめて生成(3形態同時)</div>
-      <p class="muted">一度入力するだけで、<b>①正式報告書 ②記録アプリ入力用 ③サ責向け要約</b> を同時に作ります。</p>
-      <label class="fld">利用者</label>
-      <select id="visit-user"></select>
-      <div class="row">
-        <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
-        <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
-        <div><label class="fld">体調</label><select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select></div>
-      </div>
-      <label class="fld">支援内容・様子(音声もOK)</label>
-      <div style="display:flex;gap:8px;align-items:flex-start">
-        <textarea id="visit-text" style="flex:1" placeholder="例)調理と掃除。食欲あり元気そう。買い物で牛乳と食パン購入。"></textarea>
-        <button id="v-mic" class="mic sm" onclick="toggleDict('v-mic','visit-text','v-hint')">🎤</button>
-      </div>
-      <div class="muted" id="v-hint" style="margin-top:4px"></div>
-      <button class="btn" id="visit-gen" onclick="genVisit()" style="margin-top:12px">✨ 3つの報告を生成</button>
-      <div id="visit-out"></div>
-    </div>
-
-    <div class="card">
-      <div class="subttl">🚗 移動記録(距離は自動計算)</div>
-      <div class="row">
-        <div><label class="fld">開始メーター(km)</label><input type="number" id="trip-start" placeholder="12345.0"></div>
-        <div><label class="fld">終了メーター(km)</label><input type="number" id="trip-end" placeholder="12349.2"></div>
-      </div>
-      <div class="row">
-        <div><label class="fld">所要時間(分)</label><input type="number" id="trip-min" placeholder="15"></div>
-        <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
-      </div>
-      <button class="btn sec" onclick="saveTrip()" style="margin-top:12px">💾 記録する(距離を自動計算)</button>
-      <div id="trip-list" style="margin-top:10px"></div>
-    </div>
-
-    <div class="card">
-      <div class="subttl">🛒 買い物リストの時短</div>
-      <p class="muted">過去の依頼をワンタップで候補に。周期からAIが「そろそろ」を提案します。</p>
-      <label class="fld">いつもの品(タップで追加)</label>
-      <div id="shop-history"></div>
-      <label class="fld">AIの提案</label>
-      <div id="shop-suggest"></div>
-      <label class="fld">今回のリスト</label>
-      <div id="shop-list" class="out" style="margin-top:0">(まだありません)</div>
-      <div class="banner" style="margin-top:10px">⚠️ AIは提案までです。購入の確定は必ずご本人・支援者が確認してください。</div>
-    </div>
-  </section>
 </main>
 
 <nav class="tabs">
@@ -336,7 +286,6 @@
   <button data-t="plan" onclick="go('plan')"><span class="ic">📝</span>計画</button>
   <button data-t="check" onclick="go('check')"><span class="ic">✅</span>加算</button>
   <button data-t="share" onclick="go('share')"><span class="ic">👥</span>共有</button>
-  <button data-t="visit" onclick="go('visit')"><span class="ic">🚗</span>訪問</button>
 </nav>
 
 <div class="foot">そだちノート prototype v0.2 · AI生成物は必ず人が確認してください</div>
@@ -377,21 +326,9 @@ const seed = {
              panic:'クールダウンスペースへ。5分タイマーで切り替えやすい',
              bus:'飛び出し注意。駐車場では大人が先に降りる' } },
   ],
-  careUsers: [
-    { id:'u1', name:'佐藤さん(80代・独居)',
-      history:['牛乳','食パン','卵','ヨーグルト','バナナ','トイレットペーパー'],
-      suggest:[ {item:'牛乳', why:'前回購入から4日。いつもの周期です'},
-                {item:'食パン', why:'ほぼ毎回ご依頼があります'},
-                {item:'トイレットペーパー', why:'前回から3週間。そろそろ切れる頃'} ] },
-    { id:'u2', name:'鈴木さん(70代・夫婦)',
-      history:['お茶2L','りんご','味噌','カップ麺','単3電池'],
-      suggest:[ {item:'お茶2L', why:'夏場は週2本ペースです'},
-                {item:'りんご', why:'前回「また頼む」とのお話でした'} ] },
-  ],
-  records: [], stock: [], trips: []
+  records: [], stock: []
 };
 let db = load();
-let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children) return d; }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function child(id){ return db.children.find(c=>c.id===id); }
@@ -409,7 +346,6 @@ function go(t){
   if(t==='report') fillReportSelect();
   if(t==='record'){ renderHistory(); renderStock(); }
   if(t==='share') renderShareChips();
-  if(t==='visit') renderVisit();
 }
 
 /* ---------- ホーム ---------- */
@@ -432,8 +368,6 @@ function renderHome(){
 function fillChildSelects(){
   const opts = db.children.map(c=>`<option value="${c.id}">${esc(c.name)}(${esc(c.grade)})</option>`).join('');
   ['rec-child','plan-child','check-child'].forEach(id=>document.getElementById(id).innerHTML=opts);
-  document.getElementById('visit-user').innerHTML =
-    db.careUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
 }
 function fillReportSelect(){
   const sel = document.getElementById('rep-record');
@@ -525,28 +459,6 @@ const demoGenerators = {
       ``,
       `🔒 この閲覧はログに記録されました`
     ].join('\n');
-  },
-  visit({userName, text, cond, start, end}){
-    const t = text.trim() || '生活援助を実施。';
-    const good = /(元気|食欲|笑|安定|良好)/.test(t);
-    const flag = /(転倒|発熱|痛|むくみ|残薬|受診|変化|食欲な)/.test(t);
-    const formal = [
-      `【利用者】${userName}`,
-      `【日時】${fullDate()} ${start}〜${end}`,
-      `【支援内容】${t}`,
-      `【ご本人の様子】${good?'体調は安定しており、食欲・表情ともに良好でした。':'表情・体調に大きな変化は見られませんでした。'}`,
-      `【特記事項】${flag?'気になる点があるため、上記の内容を確認・共有をお願いします。':'特になし。'}`,
-      `【支援者の体調】${cond}`
-    ].join('\n');
-    const app = [
-      `・時間: ${start}〜${end}`,
-      `・支援内容: ${t}`,
-      `・様子: ${good?'安定/食欲・表情良好':'変化なし'}`,
-      `・特記: ${flag?'あり(本文参照)':'なし'}`,
-      `・支援者体調: ${cond}`
-    ].join('\n');
-    const summary = `${userName}宅で${start}から支援を実施。${t.slice(0,42)}${t.length>42?'…':''} 体調・様子は${good?'良好':'安定'}です。${flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。'}`;
-    return { formal, app, summary };
   }
 };
 
@@ -735,74 +647,12 @@ async function askShare(){
   log.scrollTop=log.scrollHeight;
 }
 
-/* ---------- 訪問介護 ---------- */
-function renderVisit(){
-  const u = db.careUsers.find(u=>u.id===document.getElementById('visit-user').value) || db.careUsers[0];
-  document.getElementById('shop-history').innerHTML =
-    u.history.map(i=>`<span class="chip btnchip" onclick="addShop('${esc(i)}')">${esc(i)}</span>`).join('');
-  document.getElementById('shop-suggest').innerHTML =
-    u.suggest.map(s=>`<div class="check-row"><div class="check-ic">💡</div><div style="flex:1"><div class="t">${esc(s.item)}</div><div class="d">${esc(s.why)}</div></div><button class="btn mini sec" onclick="addShop('${esc(s.item)}')">追加</button></div>`).join('');
-  renderShopList();
-  renderTrips();
-}
-document.addEventListener('change', e=>{ if(e.target.id==='visit-user'){ shopSel=[]; renderVisit(); } });
-function addShop(item){ if(!shopSel.includes(item)) shopSel.push(item); renderShopList(); }
-function renderShopList(){
-  document.getElementById('shop-list').innerHTML = shopSel.length
-    ? shopSel.map((i,x)=>`${x+1}. ${esc(i)}`).join('<br>')
-    : '(まだありません)';
-}
-async function genVisit(){
-  const u = db.careUsers.find(u=>u.id===document.getElementById('visit-user').value);
-  const payload = {
-    userName: u.name.split('(')[0],
-    text: document.getElementById('visit-text').value,
-    cond: document.getElementById('visit-cond').value,
-    start: document.getElementById('visit-start').value,
-    end: document.getElementById('visit-end').value
-  };
-  await withLoading('visit-gen','AIが3つの報告を作成中…', async()=>{
-    const r = await callAI('visit', payload);
-    document.getElementById('visit-out').innerHTML =
-      outBlock('① 正式報告書', r.formal) +
-      outBlock('② 記録アプリ入力用(ケアピア等)', r.app) +
-      outBlock('③ サービス提供責任者向け要約', r.summary) +
-      `<div class="banner" style="margin-top:10px">⚠️ 内容を確認してから提出・入力してください。本番は記録アプリへのAPI/CSV連携も想定しています。</div>`;
-  });
-}
-function outBlock(title, text){
-  const id='cp'+Math.random().toString(36).slice(2,8);
-  return `<div class="out"><div class="ot"><span>${esc(title)}</span><button class="btn mini sec" onclick="copyText('${id}')">コピー</button></div><span id="${id}">${esc(text)}</span></div>`;
-}
-function copyText(id){
-  const t=document.getElementById(id).innerText;
-  try{ navigator.clipboard.writeText(t); alert('コピーしました'); }catch(e){ alert('コピーできませんでした'); }
-}
-function saveTrip(){
-  const s=parseFloat(document.getElementById('trip-start').value);
-  const e=parseFloat(document.getElementById('trip-end').value);
-  const m=document.getElementById('trip-min').value;
-  const why=document.getElementById('trip-why').value;
-  if(isNaN(s)||isNaN(e)||e<s){ alert('メーター値を確認してください(終了≧開始)。'); return; }
-  db.trips.push({date:fullDate(), why, dist:(e-s).toFixed(1), min:m||'-'});
-  save();
-  ['trip-start','trip-end','trip-min'].forEach(i=>document.getElementById(i).value='');
-  renderTrips();
-}
-function renderTrips(){
-  const l=document.getElementById('trip-list');
-  if(!db.trips.length){ l.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
-  l.innerHTML = db.trips.slice().reverse().map(t=>`
-    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('');
-}
-
 /* ---------- 起動 ---------- */
 fillChildSelects();
 initSpeech();
 renderHome();
 renderStock();
 renderShareChips();
-renderVisit();
 </script>
 </body>
 </html>
