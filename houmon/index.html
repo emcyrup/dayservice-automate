@@ -117,6 +117,16 @@
   .sug-row .t{font-weight:700;font-size:14px}
   .sug-row .d{font-size:12.5px;color:var(--sub)}
   .gearbtn{background:none;border:none;font-size:19px;cursor:pointer;color:#fff;padding:0 0 0 6px}
+  .menu-btn{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:0 6px 0 0;line-height:1}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:45;opacity:0;pointer-events:none;transition:.2s}
+  .overlay.on{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;bottom:0;width:272px;left:max(0px,calc(50% - 240px));background:var(--card);z-index:50;transform:translateX(-110%);transition:transform .22s;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow-y:auto}
+  .drawer.on{transform:translateX(0)}
+  .drawer .dr-head{background:var(--brand);color:#fff;font-weight:800;padding:18px 16px;font-size:16px}
+  .drawer button{background:none;border:none;border-bottom:1px solid var(--line);text-align:left;padding:15px 18px;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer;font-family:inherit}
+  .drawer button:active{background:var(--brand-l)}
+  .totop{position:fixed;bottom:88px;right:max(14px,calc(50% - 226px));width:46px;height:46px;border-radius:50%;border:none;background:var(--brand);color:#fff;font-size:20px;font-weight:800;z-index:35;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;opacity:0;pointer-events:none;transition:.2s}
+  .totop.on{opacity:1;pointer-events:auto}
   .rec-item .body{font-size:13.5px;margin-top:6px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.7;padding:6px 0 2px}
@@ -124,24 +134,36 @@
 </style>
 
 <header class="appbar">
+  <button class="menu-btn" onclick="openMenu()" aria-label="メニュー">☰</button>
   <span class="logo">🧡 かけはしノート</span>
   <span class="tag">検証版</span>
   <button class="gearbtn" onclick="go('setting')" aria-label="設定">⚙️</button>
 </header>
 
 <main>
-  <!-- ============ ホーム ============ -->
+  <!-- ============ ホーム(ダッシュボード) ============ -->
   <section id="v-home" class="view on">
-    <div class="kpi">
-      <div class="card"><div class="n" id="kpi-users">–</div><div class="l">利用者</div></div>
-      <div class="card"><div class="n" id="kpi-reports">–</div><div class="l">今日の報告</div></div>
-      <div class="card"><div class="n" id="kpi-km">–</div><div class="l">今日の走行km</div></div>
-    </div>
-    <div class="banner">📋 一度入力すれば、正式報告書・記録アプリ用・サ責向け要約の3つが同時にできます。手書き+アプリ+口頭報告の三重作業をなくすデモです。</div>
     <div class="banner" style="background:var(--brand-l);border-color:var(--line);color:var(--brand-d)">🧪 検証版: 実名は入力せず、仮名(例: Aさん)でお試しください。データはこの端末のブラウザ内にのみ保存されます(⚙️設定からバックアップできます)。</div>
-    <h2 class="title">🏡 利用者</h2>
-    <div id="user-list"></div>
-    <button class="btn" onclick="go('report')">📋 報告を作成する</button>
+    <h2 class="title">📊 ダッシュボード <span class="muted" id="dash-date" style="font-weight:400;font-size:13px"></span></h2>
+    <div class="kpi">
+      <div class="card"><div class="n" id="kpi-reports">–</div><div class="l">今日の報告</div></div>
+      <div class="card"><div class="n" id="kpi-trips">–</div><div class="l">今日の移動</div></div>
+      <div class="card"><div class="n" id="kpi-km">–</div><div class="l">走行km</div></div>
+      <div class="card"><div class="n" id="kpi-users">–</div><div class="l">利用者</div></div>
+    </div>
+    <div class="card">
+      <div class="subttl">クイックアクション</div>
+      <div class="grid2">
+        <button class="btn" onclick="go('report')">📋 報告を作成</button>
+        <button class="btn sec" onclick="go('trip')">🚗 移動を記録</button>
+        <button class="btn sec" onclick="go('shop')">🛒 買い物リスト</button>
+        <button class="btn sec" onclick="go('users')">🏡 利用者一覧</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="subttl">今日の動き</div>
+      <div id="dash-feed"></div>
+    </div>
   </section>
 
   <!-- ============ 報告 ============ -->
@@ -175,6 +197,12 @@
     <h2 class="title">🚗 移動記録</h2>
     <div class="card">
       <p class="muted">メーター値を入れるだけで走行距離を自動計算。買い物支援で移動が増えても1件ずつサッと記録できます。</p>
+      <label class="fld">🎤 音声でまとめて入力(数字で「開始12345 終了12352 15分 買い物」)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="trip-speech" placeholder="マイクを押して話すと下の欄に自動反映">
+        <button id="t-mic" class="mic sm" onclick="toggleDict('t-mic','trip-speech','t-hint')">🎤</button>
+      </div>
+      <div class="muted" id="t-hint" style="margin:4px 0 0"></div>
       <div class="grid2">
         <div><label class="fld">開始メーター(km)</label><input type="number" id="trip-start" placeholder="12345.0"></div>
         <div><label class="fld">終了メーター(km)</label><input type="number" id="trip-end" placeholder="12349.2"></div>
@@ -184,7 +212,6 @@
         <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
       </div>
       <button class="btn" onclick="saveTrip()" style="margin-top:12px">💾 記録する(距離を自動計算)</button>
-      <p class="muted" style="margin-top:8px">🎤 本番では「開始12345、終了12352」と話すだけの音声入力にも対応予定です。</p>
     </div>
     <h2 class="title">🗂 移動の履歴</h2>
     <div id="trip-list"></div>
@@ -213,6 +240,30 @@
       </div>
       <div class="banner" style="margin-top:10px">⚠️ AIは提案までです。購入の確定は必ずご本人・支援者が確認してください。</div>
     </div>
+  </section>
+
+  <!-- ============ 利用者一覧 ============ -->
+  <section id="v-users" class="view">
+    <h2 class="title">🏡 利用者一覧</h2>
+    <div id="users-list"></div>
+    <button class="btn sec" onclick="go('setting')">＋ 利用者の追加・編集(⚙️設定)</button>
+  </section>
+
+  <!-- ============ 利用者詳細 ============ -->
+  <section id="v-udetail" class="view">
+    <button class="btn mini sec" onclick="go('users')">← 一覧へ戻る</button>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="avatar" id="ud-avatar"></div>
+        <div style="min-width:0"><div style="font-weight:800;font-size:17px" id="ud-name"></div><div class="muted" id="ud-note"></div></div>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <button class="btn" onclick="goReportFor(curUser)">📋 この方の報告</button>
+        <button class="btn sec" onclick="goShopFor(curUser)">🛒 買い物リスト</button>
+      </div>
+    </div>
+    <div class="card"><div class="subttl">直近の報告</div><div id="ud-reports"></div></div>
+    <div class="card"><div class="subttl">いつもの品</div><div id="ud-items"></div></div>
   </section>
 
   <!-- ============ 設定(検証用) ============ -->
@@ -250,7 +301,20 @@
   <button data-t="report" onclick="go('report')"><span class="ic">📋</span>報告</button>
   <button data-t="trip" onclick="go('trip')"><span class="ic">🚗</span>移動</button>
   <button data-t="shop" onclick="go('shop')"><span class="ic">🛒</span>買い物</button>
+  <button data-t="users" onclick="go('users')"><span class="ic">🏡</span>利用者</button>
 </nav>
+
+<div class="overlay" id="ovl" onclick="closeMenu()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dr-head">🧡 かけはしノート</div>
+  <button onclick="go('home')">📊 ダッシュボード</button>
+  <button onclick="go('report')">📋 報告をまとめて生成</button>
+  <button onclick="go('trip')">🚗 移動記録</button>
+  <button onclick="go('shop')">🛒 買い物リスト</button>
+  <button onclick="go('users')">🏡 利用者一覧</button>
+  <button onclick="go('setting')">⚙️ 設定(検証用)</button>
+</aside>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="ページ上部へ">↑</button>
 
 <div class="foot">かけはしノート prototype · AI生成物は必ず人が確認してください</div>
 
@@ -289,31 +353,39 @@ function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.g
 function esc(s){ return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
 /* ---------- ナビ ---------- */
-function go(t){
+function switchView(t, navKey){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('v-'+t).classList.add('on');
-  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
-  window.scrollTo(0,0);
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===(navKey||t)));
+  window.scrollTo(0,0); closeMenu();
+}
+function go(t){
+  switchView(t);
   if(t==='home') renderHome();
   if(t==='report') renderReports();
   if(t==='trip') renderTrips();
   if(t==='shop') renderShop();
+  if(t==='users') renderUsers();
   if(t==='setting') renderSetUsers();
 }
 
 function renderHome(){
-  document.getElementById('kpi-users').textContent = db.users.length;
-  document.getElementById('kpi-reports').textContent = db.reports.filter(r=>r.date===fullDate()).length;
-  const km = db.trips.filter(t=>t.date===fullDate()).reduce((a,t)=>a+parseFloat(t.dist),0);
-  document.getElementById('kpi-km').textContent = km.toFixed(1);
-  document.getElementById('user-list').innerHTML = db.users.map(u=>`
-    <div class="user-item">
-      <div class="avatar">${esc(u.kana)}</div>
-      <div style="flex:1">
-        <div style="font-weight:700">${esc(u.name)}</div>
-        <div class="muted">${esc(u.note)}</div>
-      </div>
-    </div>`).join('');
+  const today=fullDate();
+  const reps=db.reports.filter(r=>r.date===today);
+  const trips=db.trips.filter(t=>t.date===today);
+  document.getElementById('kpi-users').textContent=db.users.length;
+  document.getElementById('kpi-reports').textContent=reps.length;
+  document.getElementById('kpi-trips').textContent=trips.length;
+  document.getElementById('kpi-km').textContent=trips.reduce((a,t)=>a+parseFloat(t.dist),0).toFixed(1);
+  const d=new Date();
+  document.getElementById('dash-date').textContent=`${d.getMonth()+1}/${d.getDate()}(${['日','月','火','水','木','金','土'][d.getDay()]})`;
+  const feed=[
+    ...reps.map(r=>({ic:'📋',t:`${user(r.userId)?.name||''} の報告を作成`,s:(r.summary||'').slice(0,36)})),
+    ...trips.map(t=>({ic:'🚗',t:`${t.why} ${t.dist}km / ${t.min}分`,s:''}))
+  ];
+  document.getElementById('dash-feed').innerHTML = feed.length
+    ? feed.slice(-6).reverse().map(f=>`<div class="sug-row"><div style="font-size:18px">${f.ic}</div><div style="flex:1;min-width:0"><div class="t">${esc(f.t)}</div>${f.s?`<div class="d">${esc(f.s)}…</div>`:''}</div></div>`).join('')
+    : '<p class="muted">まだ今日の記録はありません。「📋 報告を作成」から始めてください。</p>';
 }
 
 function fillSelects(){
@@ -365,6 +437,7 @@ function initSpeech(){
     if(!dictTarget) return;
     let txt=''; for(let i=e.resultIndex;i<e.results.length;i++) txt+=e.results[i][0].transcript;
     dictTarget.value=(dictBase+txt).trim();
+    dictTarget.dispatchEvent(new Event('input',{bubbles:true}));
   };
   recog.onerror=(e)=>{ if(e.error==='not-allowed'&&dictHint){ dictHint.textContent='※マイクの使用が許可されていません。'; stopDict(); } };
   recog.onend=()=>{ if(recording){ try{recog.start()}catch(e){} } };
@@ -447,7 +520,8 @@ function saveTrip(){
   if(isNaN(s)||isNaN(e)||e<s){ alert('メーター値を確認してください(終了≧開始)。'); return; }
   db.trips.push({date:fullDate(), why, dist:(e-s).toFixed(1), min:m||'-'});
   save();
-  ['trip-start','trip-end','trip-min'].forEach(i=>document.getElementById(i).value='');
+  ['trip-start','trip-end','trip-min','trip-speech'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('t-hint').textContent='';
   renderTrips(); renderHome();
 }
 function renderTrips(){
@@ -544,6 +618,64 @@ function addCustomShop(){
       u.history.map(x=>`<span class="chip btnchip" onclick="addShop('${esc(x)}')">${esc(x)}</span>`).join('');
   }
   i.value='';
+}
+
+/* ---------- 利用者一覧・詳細 ---------- */
+let curUser=null;
+function renderUsers(){
+  document.getElementById('users-list').innerHTML = db.users.length ? db.users.map(u=>`
+    <div class="user-item" onclick="showUser('${u.id}')" style="cursor:pointer">
+      <div class="avatar">${esc(u.kana)}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:700">${esc(u.name)}</div><div class="muted">${esc(u.note||'')}</div></div>
+      <div class="muted" style="font-size:18px">›</div>
+    </div>`).join('') : '<p class="muted">利用者がいません。⚙️設定から追加してください。</p>';
+}
+function showUser(id){
+  const u=user(id); if(!u) return;
+  curUser=id;
+  document.getElementById('ud-avatar').textContent=u.kana;
+  document.getElementById('ud-name').textContent=u.name;
+  document.getElementById('ud-note').textContent=u.note||'';
+  const reps=db.reports.filter(r=>r.userId===id).slice(-5).reverse();
+  document.getElementById('ud-reports').innerHTML = reps.length ? reps.map(r=>`
+    <div class="rec-item" onclick="this.classList.toggle('open')">
+      <div class="h"><span>${r.date}</span><span class="chip g">3形態生成済</span></div>
+      <div class="body">${esc(r.summary)}</div>
+    </div>`).join('') : '<p class="muted">まだ報告はありません。</p>';
+  document.getElementById('ud-items').innerHTML = (u.history&&u.history.length)
+    ? u.history.map(i=>`<span class="chip g" style="margin:0 6px 8px 0">${esc(i)}</span>`).join('')
+    : '<p class="muted">まだ登録がありません。</p>';
+  switchView('udetail','users');
+}
+function goReportFor(id){ go('report'); if(id) document.getElementById('visit-user').value=id; }
+function goShopFor(id){ if(id){ document.getElementById('shop-user').value=id; shopSel=[]; } go('shop'); }
+
+/* ---------- メニュー / ページ上部へ ---------- */
+function openMenu(){ document.getElementById('drawer').classList.add('on'); document.getElementById('ovl').classList.add('on'); }
+function closeMenu(){ const d=document.getElementById('drawer'), o=document.getElementById('ovl'); if(d) d.classList.remove('on'); if(o) o.classList.remove('on'); }
+window.addEventListener('scroll', ()=>{ document.getElementById('totop').classList.toggle('on', window.scrollY>300); }, {passive:true});
+
+/* ---------- 移動: 音声まとめ入力 ---------- */
+document.addEventListener('input', e=>{ if(e.target.id==='trip-speech') parseTripSpeech(); });
+function parseTripSpeech(){
+  const raw=document.getElementById('trip-speech').value
+    .replace(/[０-９]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+    .replace(/[,、。]/g,' ');
+  const nums=(raw.match(/\d+(?:\.\d+)?/g)||[]).map(Number);
+  if(nums[0]!=null) document.getElementById('trip-start').value=nums[0];
+  if(nums[1]!=null) document.getElementById('trip-end').value=nums[1];
+  if(nums[2]!=null) document.getElementById('trip-min').value=nums[2];
+  const why=document.getElementById('trip-why');
+  if(/買い物/.test(raw)) why.value='買い物支援';
+  else if(/通院|病院/.test(raw)) why.value='通院同行';
+  const h=document.getElementById('t-hint');
+  if(nums.length>=2){
+    const d=nums[1]-nums[0];
+    h.textContent = d>=0
+      ? `→ 距離 ${d.toFixed(1)}km${nums[2]!=null?` / ${nums[2]}分`:''} を反映しました。内容を確認して「記録する」を押してください。`
+      : '⚠ 終了メーターが開始より小さいようです。数値を確認してください。';
+  } else if(nums.length===1){ h.textContent='続けて終了メーターの数値も話してください。'; }
+  else if(raw.trim()){ h.textContent='数字が聞き取れませんでした。「開始12345 終了12352」のように数字で話してください。'; }
 }
 
 /* ---------- 起動 ---------- */
