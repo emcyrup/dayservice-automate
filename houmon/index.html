@@ -108,13 +108,17 @@
   .sug-row:last-child{border:none}
   .sug-row .t{font-weight:700;font-size:14px}
   .sug-row .d{font-size:12.5px;color:var(--sub)}
+  .gearbtn{background:none;border:none;font-size:19px;cursor:pointer;color:#fff;padding:0 0 0 6px}
+  .rec-item .body{font-size:13.5px;margin-top:6px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.7;padding:6px 0 2px}
   .subttl{font-weight:800;font-size:14px;margin:2px 0 8px;color:var(--brand-d)}
 </style>
 
 <header class="appbar">
   <span class="logo">🧡 かけはしノート</span>
-  <span class="tag">プロトタイプ</span>
+  <span class="tag">検証版</span>
+  <button class="gearbtn" onclick="go('setting')" aria-label="設定">⚙️</button>
 </header>
 
 <main>
@@ -126,6 +130,7 @@
       <div class="card"><div class="n" id="kpi-km">–</div><div class="l">今日の走行km</div></div>
     </div>
     <div class="banner">📋 一度入力すれば、正式報告書・記録アプリ用・サ責向け要約の3つが同時にできます。手書き+アプリ+口頭報告の三重作業をなくすデモです。</div>
+    <div class="banner" style="background:var(--brand-l);border-color:var(--line);color:var(--brand-d)">🧪 検証版: 実名は入力せず、仮名(例: Aさん)でお試しください。データはこの端末のブラウザ内にのみ保存されます(⚙️設定からバックアップできます)。</div>
     <h2 class="title">🏡 利用者</h2>
     <div id="user-list"></div>
     <button class="btn" onclick="go('report')">📋 報告を作成する</button>
@@ -187,6 +192,10 @@
       <div id="shop-history"></div>
       <label class="fld">AIの提案</label>
       <div id="shop-suggest"></div>
+      <div class="chat-input" style="margin-top:2px">
+        <input type="text" id="shop-custom" placeholder="その他の品を入力" onkeydown="if(event.key==='Enter')addCustomShop()">
+        <button class="btn" onclick="addCustomShop()">追加</button>
+      </div>
       <label class="fld">今回のリスト</label>
       <div id="shop-list" class="out" style="margin-top:0">(まだありません)</div>
       <div class="row" style="margin-top:10px">
@@ -194,6 +203,35 @@
         <button class="btn" onclick="alert('(デモ)このリストをご本人と確認して確定するイメージです。')">✔ 本人と確認して確定</button>
       </div>
       <div class="banner" style="margin-top:10px">⚠️ AIは提案までです。購入の確定は必ずご本人・支援者が確認してください。</div>
+    </div>
+  </section>
+
+  <!-- ============ 設定(検証用) ============ -->
+  <section id="v-setting" class="view">
+    <h2 class="title">⚙️ 設定(検証用)</h2>
+    <div class="banner">🧪 検証中は実名を入力せず、仮名でお試しください。</div>
+    <div class="card">
+      <div class="subttl">利用者の管理</div>
+      <div id="set-user-list"></div>
+      <button class="btn sec" onclick="editUser(null)">+ 利用者を追加</button>
+      <div id="user-form" style="display:none;margin-top:12px">
+        <label class="fld">名前(仮名で)</label><input type="text" id="uf-name" placeholder="例: Aさん">
+        <label class="fld">メモ(年代・サービス内容など)</label><textarea id="uf-note" placeholder="例: 80代女性・独居。生活援助 週3回。"></textarea>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="saveUser()">保存</button>
+          <button class="btn sec" onclick="hideUserForm()">キャンセル</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="subttl">データ管理</div>
+      <div class="row">
+        <button class="btn sec" onclick="exportData()">⬇ バックアップ</button>
+        <button class="btn sec" onclick="document.getElementById('imp-file').click()">⬆ 復元</button>
+      </div>
+      <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(event)">
+      <button class="btn sec" onclick="removeSamples()" style="margin-top:10px">🧹 サンプル利用者(佐藤さん等)を削除して自分のデータで検証</button>
+      <button class="btn" style="margin-top:10px;background:var(--danger)" onclick="resetAll()">⚠ 全データを初期化(サンプルに戻す)</button>
     </div>
   </section>
 </main>
@@ -251,6 +289,7 @@ function go(t){
   if(t==='report') renderReports();
   if(t==='trip') renderTrips();
   if(t==='shop') renderShop();
+  if(t==='setting') renderSetUsers();
 }
 
 function renderHome(){
@@ -347,6 +386,7 @@ async function withLoading(btnId, label, fn){
 }
 async function genVisit(){
   const u = user(document.getElementById('visit-user').value);
+  if(!u){ alert('利用者がいません。⚙️設定から利用者を追加してください。'); return; }
   const payload = {
     userName: u.name,
     text: document.getElementById('visit-text').value,
@@ -383,9 +423,9 @@ function renderReports(){
   const h=document.getElementById('visit-history');
   if(!db.reports.length){ h.innerHTML='<p class="muted">まだ報告はありません。</p>'; return; }
   h.innerHTML = db.reports.slice().reverse().map(r=>`
-    <div class="rec-item">
+    <div class="rec-item" onclick="this.classList.toggle('open')">
       <div class="h"><span>${r.date}・${esc(user(r.userId)?.name||'')}</span><span class="chip g">3形態生成済</span></div>
-      <div style="font-size:13.5px;margin-top:6px">${esc(r.summary).slice(0,70)}…</div>
+      <div class="body">${esc(r.summary)}</div>
     </div>`).join('');
 }
 
@@ -423,6 +463,78 @@ function renderShopList(){
   document.getElementById('shop-list').innerHTML = shopSel.length
     ? shopSel.map((i,x)=>`${x+1}. ${esc(i)}`).join('<br>')
     : '(まだありません)';
+}
+
+/* ---------- 設定(検証用) ---------- */
+let editingUser=null;
+function renderSetUsers(){
+  const l=document.getElementById('set-user-list');
+  l.innerHTML = db.users.length ? db.users.map(u=>`
+    <div class="rec-item"><div class="h"><span style="font-weight:700">${esc(u.name)}</span>
+      <span><button class="btn mini sec" onclick="editUser('${u.id}')">編集</button>
+      <button class="btn mini sec" onclick="delUser('${u.id}')">削除</button></span></div>
+      <div class="muted" style="margin-top:4px">${esc(u.note||'')}</div></div>`).join('')
+    : '<p class="muted">利用者がいません。「+ 利用者を追加」から登録してください。</p>';
+}
+function editUser(id){
+  editingUser=id;
+  const u = id ? user(id) : {name:'', note:''};
+  document.getElementById('uf-name').value=u.name||'';
+  document.getElementById('uf-note').value=u.note||'';
+  document.getElementById('user-form').style.display='block';
+  document.getElementById('uf-name').focus();
+}
+function hideUserForm(){ document.getElementById('user-form').style.display='none'; editingUser=null; }
+function saveUser(){
+  const name=document.getElementById('uf-name').value.trim();
+  if(!name){ alert('名前を入力してください(仮名で)。'); return; }
+  const note=document.getElementById('uf-note').value.trim();
+  if(editingUser){ Object.assign(user(editingUser), {name, kana:name[0], note}); }
+  else { db.users.push({id:'u'+Date.now(), name, kana:name[0], note, history:[], suggest:[]}); }
+  save(); hideUserForm(); renderSetUsers(); fillSelects(); renderHome(); renderShop();
+}
+function delUser(id){
+  const u=user(id); if(!u) return;
+  if(!confirm(u.name+'と関連する報告履歴を削除します。よろしいですか?')) return;
+  db.users=db.users.filter(x=>x.id!==id);
+  db.reports=db.reports.filter(r=>r.userId!==id);
+  save(); renderSetUsers(); fillSelects(); renderHome(); renderShop();
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='kakehashi_backup_'+fullDate()+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function importData(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.users) throw 0; db=d; save(); location.reload(); }
+    catch(e){ alert('読み込めませんでした。かけはしノートのバックアップファイルか確認してください。'); } };
+  r.readAsText(f);
+}
+function removeSamples(){
+  if(!confirm('サンプル利用者(佐藤さん・鈴木さん・高橋さん)と関連データを削除します。よろしいですか?')) return;
+  ['u1','u2','u3'].forEach(id=>{
+    db.users=db.users.filter(u=>u.id!==id);
+    db.reports=db.reports.filter(r=>r.userId!==id);
+  });
+  save(); renderSetUsers(); fillSelects(); renderHome(); renderShop();
+}
+function resetAll(){
+  if(!confirm('すべてのデータを消去して初期状態(サンプル入り)に戻します。よろしいですか?')) return;
+  localStorage.removeItem(DB_KEY); location.reload();
+}
+function addCustomShop(){
+  const i=document.getElementById('shop-custom');
+  const v=i.value.trim(); if(!v) return;
+  addShop(v);
+  const u=user(document.getElementById('shop-user').value);
+  if(u && !u.history.includes(v)){ u.history.push(v); save();
+    document.getElementById('shop-history').innerHTML =
+      u.history.map(x=>`<span class="chip btnchip" onclick="addShop('${esc(x)}')">${esc(x)}</span>`).join('');
+  }
+  i.value='';
 }
 
 /* ---------- 起動 ---------- */
