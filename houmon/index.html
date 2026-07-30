@@ -66,7 +66,8 @@
   .btn.mini{width:auto;padding:7px 14px;font-size:13px;border-radius:10px}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .row{display:flex;gap:10px}
-  .row>*{flex:1}
+  .row>*{flex:1;min-width:0}
+  input[type=time]{padding:12px 6px;text-align:center}
   .chip{display:inline-block;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:700}
   .chip.g{background:var(--brand-l);color:var(--brand-d)}
   .chip.btnchip{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:0 6px 8px 0;padding:7px 13px;font-weight:600;font-size:13px}
@@ -146,8 +147,9 @@
       <div class="row">
         <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
         <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
-        <div><label class="fld">体調</label><select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select></div>
       </div>
+      <label class="fld">支援者の体調</label>
+      <select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select>
       <label class="fld">支援内容・様子(🎤音声もOK)</label>
       <div style="display:flex;gap:8px;align-items:flex-start">
         <textarea id="visit-text" style="flex:1" placeholder="例)調理と掃除。食欲あり元気そう。買い物で牛乳と食パン購入。"></textarea>
