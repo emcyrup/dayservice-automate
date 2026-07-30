@@ -4,14 +4,36 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#2f8f7a">
-<title>そだちノート ─ 放デイ業務AI（プロトタイプ）</title>
+<title>そだちノート ─ 福祉現場の記録・共有AI(プロトタイプ)</title>
+</head>
+<body>
 <style>
   :root{
     --bg:#f4f7f6; --card:#ffffff; --ink:#1f2d2a; --sub:#5f716c;
     --brand:#2f8f7a; --brand-d:#227061; --brand-l:#e6f2ef;
-    --accent:#f0a04b; --danger:#d9534f; --ok:#2f8f7a; --warn:#e0a800;
+    --accent:#f0a04b; --danger:#d9534f;
     --line:#e4eae8; --shadow:0 2px 12px rgba(31,45,42,.08);
-    --radius:16px;
+    --field:#fbfdfc; --bubble-me:#d8f0e6; --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1a17; --card:#17231f; --ink:#e8f0ed; --sub:#9fb2ac;
+      --brand:#3ba98f; --brand-d:#7fd4bd; --brand-l:#1e352e; --danger:#e8756f;
+      --line:#26362f; --shadow:0 2px 14px rgba(0,0,0,.35);
+      --field:#101c18; --bubble-me:#1f4237;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f4f7f6; --card:#ffffff; --ink:#1f2d2a; --sub:#5f716c;
+    --brand:#2f8f7a; --brand-d:#227061; --brand-l:#e6f2ef; --danger:#d9534f;
+    --line:#e4eae8; --shadow:0 2px 12px rgba(31,45,42,.08);
+    --field:#fbfdfc; --bubble-me:#d8f0e6;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0f1a17; --card:#17231f; --ink:#e8f0ed; --sub:#9fb2ac;
+    --brand:#3ba98f; --brand-d:#7fd4bd; --brand-l:#1e352e; --danger:#e8756f;
+    --line:#26362f; --shadow:0 2px 14px rgba(0,0,0,.35);
+    --field:#101c18; --bubble-me:#1f4237;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
@@ -31,11 +53,11 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
   .muted{color:var(--sub);font-size:13px}
   label.fld{display:block;font-size:13px;color:var(--sub);margin:12px 0 5px;font-weight:600}
-  select,textarea,input[type=text]{
+  select,textarea,input[type=text],input[type=number],input[type=time]{
     width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px;
-    font-family:inherit;background:#fbfdfc;color:var(--ink);resize:vertical
+    font-family:inherit;background:var(--field);color:var(--ink);resize:vertical
   }
-  textarea{min-height:88px}
+  textarea{min-height:80px}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
     padding:14px;border:none;border-radius:14px;background:var(--brand);color:#fff;
@@ -43,46 +65,66 @@
   }
   .btn:active{transform:scale(.98)}
   .btn.sec{background:var(--brand-l);color:var(--brand-d)}
-  .btn.ghost{background:#fff;color:var(--brand-d);border:1.5px solid var(--brand-l)}
+  .btn.ghost{background:var(--card);color:var(--brand-d);border:1.5px solid var(--brand-l)}
+  .btn.mini{width:auto;padding:7px 14px;font-size:13px;border-radius:10px}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .row{display:flex;gap:10px}
+  .row>*{flex:1}
   .chip{display:inline-block;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:700}
   .chip.g{background:var(--brand-l);color:var(--brand-d)}
-  .chip.o{background:#fdeede;color:#b9701f}
   .chip.r{background:#fbe4e3;color:#b13c39}
   .chip.y{background:#fbf3d5;color:#8a6d0b}
+  .chip.btnchip{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:0 6px 8px 0;padding:7px 13px;font-weight:600;font-size:13px}
+  .chip.btnchip:active{background:var(--brand-l)}
+  .seg{display:flex;background:var(--brand-l);border-radius:12px;padding:4px;margin-bottom:12px}
+  .seg button{flex:1;border:none;background:none;padding:9px 4px;border-radius:9px;font-size:14px;font-weight:700;color:var(--brand-d);cursor:pointer;font-family:inherit}
+  .seg button.on{background:var(--card);box-shadow:var(--shadow)}
   /* mic */
   .mic-wrap{text-align:center;padding:8px 0 2px}
   .mic{
-    width:96px;height:96px;border-radius:50%;border:none;background:var(--brand);color:#fff;
-    font-size:38px;cursor:pointer;box-shadow:0 6px 20px rgba(47,143,122,.4);transition:.15s
+    width:92px;height:92px;border-radius:50%;border:none;background:var(--brand);color:#fff;
+    font-size:36px;cursor:pointer;box-shadow:0 6px 20px rgba(47,143,122,.4);transition:.15s
   }
+  .mic.sm{width:46px;height:46px;font-size:20px;box-shadow:none;flex:none}
   .mic.rec{background:var(--danger);animation:pulse 1.3s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,83,79,.5)}70%{box-shadow:0 0 0 22px rgba(217,83,79,0)}100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,83,79,.5)}70%{box-shadow:0 0 0 18px rgba(217,83,79,0)}100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}}
+  @media (prefers-reduced-motion: reduce){ .mic.rec{animation:none} .view.on{animation:none} }
   .mic-hint{font-size:13px;color:var(--sub);margin-top:10px}
+  /* chat */
+  .chat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;min-height:120px;max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .bubble{max-width:82%;padding:9px 13px;border-radius:14px;font-size:14px;white-space:pre-wrap;line-height:1.55}
+  .bubble.me{align-self:flex-end;background:var(--bubble-me);border-bottom-right-radius:4px}
+  .bubble.bot{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .bubble .bt{font-size:10.5px;color:var(--sub);margin-top:3px;text-align:right}
+  .chat-input{display:flex;gap:8px;margin-top:10px}
+  .chat-input input{flex:1}
+  .chat-input .btn{width:auto;padding:0 18px}
   /* nav */
   nav.tabs{
     position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
-    background:#fff;border-top:1px solid var(--line);display:flex;z-index:30;
+    background:var(--card);border-top:1px solid var(--line);display:flex;z-index:30;
     box-shadow:0 -2px 12px rgba(31,45,42,.06)
   }
   nav.tabs button{
-    flex:1;background:none;border:none;padding:8px 2px 10px;font-size:10.5px;color:var(--sub);
+    flex:1;background:none;border:none;padding:8px 0 10px;font-size:9.5px;color:var(--sub);
     cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit
   }
-  nav.tabs button .ic{font-size:21px}
-  nav.tabs button.on{color:var(--brand)}
+  nav.tabs button .ic{font-size:19px}
+  nav.tabs button.on{color:var(--brand-d)}
+  nav.tabs button:focus-visible,.btn:focus-visible,.mic:focus-visible{outline:3px solid var(--brand-d);outline-offset:2px}
   .view{display:none}
   .view.on{display:block;animation:fade .2s}
   @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-  .child-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:#fff}
+  .child-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:var(--card)}
   .avatar{width:44px;height:44px;border-radius:50%;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0}
-  .out{background:var(--brand-l);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:14.5px;margin-top:10px;border:1px solid #d3e8e2}
-  .rec-item{border-left:3px solid var(--brand);padding:10px 12px;background:#fff;border:1px solid var(--line);border-left-width:3px;border-radius:10px;margin-bottom:10px}
+  .out{background:var(--brand-l);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:14.5px;margin-top:10px;border:1px solid var(--line);color:var(--ink)}
+  .out .ot{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:13px;color:var(--brand-d);margin-bottom:6px}
+  .rec-item{padding:10px 12px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;margin-bottom:10px}
   .rec-item .h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub)}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .banner{font-size:12px;background:#fff8ec;border:1px solid #f3e0c0;color:#8a6d0b;padding:9px 12px;border-radius:10px;margin-bottom:14px}
+  .banner.safe{background:var(--brand-l);border-color:var(--line);color:var(--brand-d)}
   .kpi{display:flex;gap:10px;margin-bottom:14px}
   .kpi .card{flex:1;text-align:center;margin:0;padding:14px 6px}
   .kpi .n{font-size:22px;font-weight:800;color:var(--brand-d)}
@@ -92,14 +134,13 @@
   .check-ic{font-size:18px;flex-shrink:0;margin-top:1px}
   .check-row .t{font-weight:700;font-size:14px}
   .check-row .d{font-size:12.5px;color:var(--sub)}
-  a.link{color:var(--brand-d);font-weight:600}
-  .foot{text-align:center;font-size:11px;color:#9aa8a4;padding:6px 0 2px}
+  .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.7;padding:6px 0 2px}
+  .subttl{font-weight:800;font-size:14px;margin:2px 0 8px;color:var(--brand-d)}
 </style>
-</head>
-<body>
+
 <header class="appbar">
   <span class="logo">🌱 そだちノート</span>
-  <span class="tag">プロトタイプ</span>
+  <span class="tag">プロトタイプ v0.2</span>
 </header>
 
 <main>
@@ -108,36 +149,54 @@
     <div class="kpi">
       <div class="card"><div class="n" id="kpi-children">–</div><div class="l">利用児童</div></div>
       <div class="card"><div class="n" id="kpi-records">–</div><div class="l">今日の記録</div></div>
-      <div class="card"><div class="n" id="kpi-alerts">–</div><div class="l">要対応</div></div>
+      <div class="card"><div class="n" id="kpi-stock">–</div><div class="l">未生成メモ</div></div>
     </div>
-    <div class="banner">🎤 これはデモです。「記録」タブでマイクを押して話すと、AIが活動記録に整形します。（対応ブラウザ: Chrome/Edge/Safari）</div>
+    <div class="banner">✨ v0.2: 💬キーワードを貯めて生成 / 👥セーフティノート(名前で配慮点検索) / 🚗訪問介護デモ を追加しました。</div>
     <h2 class="title">👦 利用児童</h2>
     <div id="child-list"></div>
-    <button class="btn ghost" onclick="go('record')">＋ 音声で記録する</button>
+    <div class="row">
+      <button class="btn ghost" onclick="go('record')">💬 記録する</button>
+      <button class="btn ghost" onclick="go('share')">👥 配慮点を調べる</button>
+    </div>
   </section>
 
   <!-- ============ 記録 ============ -->
   <section id="v-record" class="view">
-    <h2 class="title">🎤 音声で活動記録</h2>
+    <h2 class="title">💬 貯めて、生成する</h2>
     <div class="card">
       <label class="fld">児童</label>
-      <select id="rec-child"></select>
-      <label class="fld">活動（選択式：認識精度UP）</label>
+      <select id="rec-child" onchange="renderStock()"></select>
+      <label class="fld">活動(選択式:精度UP)</label>
       <select id="rec-activity">
-        <option>自由遊び</option><option>集団活動（ゲーム）</option><option>制作・工作</option>
+        <option>自由遊び</option><option>集団活動(ゲーム)</option><option>制作・工作</option>
         <option>運動・体操</option><option>おやつ</option><option>宿題・学習支援</option>
-        <option>SST（ソーシャルスキル）</option><option>お散歩・外出</option>
+        <option>SST(ソーシャルスキル)</option><option>お散歩・外出</option>
       </select>
 
-      <div class="mic-wrap">
-        <button id="mic" class="mic" onclick="toggleMic()">🎤</button>
-        <div class="mic-hint" id="mic-hint">押して、今日の様子を話してください</div>
+      <div class="seg" style="margin-top:14px">
+        <button id="seg-kw" class="on" onclick="setRecMode('kw')">💬 キーワード</button>
+        <button id="seg-voice" onclick="setRecMode('voice')">🎤 音声</button>
       </div>
 
-      <label class="fld">認識テキスト（編集可）</label>
-      <textarea id="rec-speech" placeholder="例）today はブロックで高いタワーを作れて嬉しそうだった。順番を待つのが少し難しかったけど、声かけで待てました。"></textarea>
-      <button class="btn" id="rec-gen" onclick="genRecord()" style="margin-top:12px">✨ AIで記録に整形</button>
+      <div id="mode-kw">
+        <div class="chat" id="kw-log"></div>
+        <div class="chat-input">
+          <input type="text" id="kw-input" placeholder="例)ブロック集中 / 順番待てた" onkeydown="if(event.key==='Enter')sendKw()">
+          <button class="btn" onclick="sendKw()">送信</button>
+        </div>
+        <p class="muted" style="margin:8px 2px 0">その場で一言送って貯めるだけ。本番はLINE公式アカウントに送信できます。</p>
+      </div>
 
+      <div id="mode-voice" style="display:none">
+        <div class="mic-wrap">
+          <button id="mic" class="mic" onclick="toggleDict('mic','rec-speech','mic-hint')">🎤</button>
+          <div class="mic-hint" id="mic-hint">押して、今日の様子を話してください</div>
+        </div>
+        <label class="fld">認識テキスト(編集可)</label>
+        <textarea id="rec-speech" placeholder="例)ブロックで高いタワーを作れて嬉しそうだった。順番を待つのが少し難しかったけど、声かけで待てました。"></textarea>
+      </div>
+
+      <button class="btn" id="rec-gen" onclick="genRecord()" style="margin-top:12px">✨ 貯めたメモから記録を生成</button>
       <div id="rec-out"></div>
     </div>
     <h2 class="title">📋 最近の記録</h2>
@@ -153,7 +212,7 @@
       <select id="rep-record"></select>
       <label class="fld">トーン</label>
       <select id="rep-tone">
-        <option value="standard">標準（ていねい）</option>
+        <option value="standard">標準(ていねい)</option>
         <option value="warm">あたたかめ</option>
         <option value="brief">簡潔</option>
       </select>
@@ -162,17 +221,31 @@
     </div>
   </section>
 
-  <!-- ============ 支援計画 ============ -->
+  <!-- ============ 計画 ============ -->
   <section id="v-plan" class="view">
-    <h2 class="title">📝 個別支援計画（下書き）</h2>
+    <h2 class="title">📝 計画の下書き</h2>
     <div class="card">
-      <p class="muted">アセスメントと直近の活動記録から、目標・支援内容の<b>たたき台</b>を生成します。最終版は児童発達支援管理責任者が仕上げてください。</p>
+      <div class="subttl">個別支援計画(6ヶ月)</div>
+      <p class="muted">アセスメントに加えて<b>蓄積された活動記録</b>を根拠に、たたき台を生成します。最終版は児童発達支援管理責任者が仕上げてください。</p>
       <label class="fld">児童</label>
       <select id="plan-child"></select>
-      <label class="fld">保護者・本人の願い（アセスメント）</label>
-      <textarea id="plan-wish" placeholder="例）友だちと一緒に遊べるようになってほしい。かんしゃくを減らしたい。"></textarea>
-      <button class="btn" id="plan-gen" onclick="genPlan()" style="margin-top:12px">✨ 計画の下書きを生成</button>
+      <label class="fld">保護者・本人の願い(アセスメント)</label>
+      <textarea id="plan-wish" placeholder="例)友だちと一緒に遊べるようになってほしい。かんしゃくを減らしたい。"></textarea>
+      <button class="btn" id="plan-gen" onclick="genPlan()" style="margin-top:12px">✨ 支援計画の下書きを生成</button>
       <div id="plan-out"></div>
+    </div>
+    <div class="card">
+      <div class="subttl">活動計画・狙い(日々の活動)</div>
+      <p class="muted">活動の狙い・流れ・配慮事項・評価の視点を下書きします。</p>
+      <label class="fld">活動</label>
+      <select id="act-select">
+        <option>集団活動(ゲーム)</option><option>制作・工作</option><option>運動・体操</option>
+        <option>SST(ソーシャルスキル)</option><option>お散歩・外出</option><option>クッキング</option>
+      </select>
+      <label class="fld">狙いのメモ(任意)</label>
+      <input type="text" id="act-memo" placeholder="例)順番を守る経験を積ませたい">
+      <button class="btn" id="act-gen" onclick="genActPlan()" style="margin-top:12px">✨ 活動計画の下書きを生成</button>
+      <div id="act-out"></div>
     </div>
   </section>
 
@@ -180,55 +253,151 @@
   <section id="v-check" class="view">
     <h2 class="title">✅ 加算・書類チェック</h2>
     <div class="card">
-      <p class="muted">記録・計画の状況を突き合わせ、加算算定の根拠不足や減算リスクを点検します。（デモ判定）</p>
+      <p class="muted">記録・計画の状況を突き合わせ、加算算定の根拠不足や減算リスクを点検します。(デモ判定)</p>
       <label class="fld">児童</label>
       <select id="check-child"></select>
       <button class="btn" onclick="runCheck()" style="margin-top:12px">🔍 チェックを実行</button>
       <div id="check-out"></div>
     </div>
   </section>
+
+  <!-- ============ セーフティノート ============ -->
+  <section id="v-share" class="view">
+    <h2 class="title">👥 セーフティノート</h2>
+    <div class="banner safe">🔒 臨時対応でも、名前を送るだけで配慮点がわかります。閲覧はすべてログに記録されます。本番はLINEで問い合わせできます。</div>
+    <div class="card">
+      <div id="share-chips" style="margin-bottom:4px"></div>
+      <div class="chat" id="share-log">
+        <div class="bubble bot">こんにちは!児童の名前を送ると、支援に必要な配慮点をお知らせします😊<div class="bt">セーフティノート</div></div>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="share-input" placeholder="例)たろう" onkeydown="if(event.key==='Enter')askShare()">
+        <button class="btn" onclick="askShare()">送信</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 訪問介護 ============ -->
+  <section id="v-visit" class="view">
+    <h2 class="title">🚗 訪問介護(デモ)</h2>
+
+    <div class="card">
+      <div class="subttl">📋 報告をまとめて生成(3形態同時)</div>
+      <p class="muted">一度入力するだけで、<b>①正式報告書 ②記録アプリ入力用 ③サ責向け要約</b> を同時に作ります。</p>
+      <label class="fld">利用者</label>
+      <select id="visit-user"></select>
+      <div class="row">
+        <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
+        <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
+        <div><label class="fld">体調</label><select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select></div>
+      </div>
+      <label class="fld">支援内容・様子(音声もOK)</label>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea id="visit-text" style="flex:1" placeholder="例)調理と掃除。食欲あり元気そう。買い物で牛乳と食パン購入。"></textarea>
+        <button id="v-mic" class="mic sm" onclick="toggleDict('v-mic','visit-text','v-hint')">🎤</button>
+      </div>
+      <div class="muted" id="v-hint" style="margin-top:4px"></div>
+      <button class="btn" id="visit-gen" onclick="genVisit()" style="margin-top:12px">✨ 3つの報告を生成</button>
+      <div id="visit-out"></div>
+    </div>
+
+    <div class="card">
+      <div class="subttl">🚗 移動記録(距離は自動計算)</div>
+      <div class="row">
+        <div><label class="fld">開始メーター(km)</label><input type="number" id="trip-start" placeholder="12345.0"></div>
+        <div><label class="fld">終了メーター(km)</label><input type="number" id="trip-end" placeholder="12349.2"></div>
+      </div>
+      <div class="row">
+        <div><label class="fld">所要時間(分)</label><input type="number" id="trip-min" placeholder="15"></div>
+        <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
+      </div>
+      <button class="btn sec" onclick="saveTrip()" style="margin-top:12px">💾 記録する(距離を自動計算)</button>
+      <div id="trip-list" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <div class="subttl">🛒 買い物リストの時短</div>
+      <p class="muted">過去の依頼をワンタップで候補に。周期からAIが「そろそろ」を提案します。</p>
+      <label class="fld">いつもの品(タップで追加)</label>
+      <div id="shop-history"></div>
+      <label class="fld">AIの提案</label>
+      <div id="shop-suggest"></div>
+      <label class="fld">今回のリスト</label>
+      <div id="shop-list" class="out" style="margin-top:0">(まだありません)</div>
+      <div class="banner" style="margin-top:10px">⚠️ AIは提案までです。購入の確定は必ずご本人・支援者が確認してください。</div>
+    </div>
+  </section>
 </main>
 
 <nav class="tabs">
   <button data-t="home" class="on" onclick="go('home')"><span class="ic">🏠</span>ホーム</button>
-  <button data-t="record" onclick="go('record')"><span class="ic">🎤</span>記録</button>
+  <button data-t="record" onclick="go('record')"><span class="ic">💬</span>記録</button>
   <button data-t="report" onclick="go('report')"><span class="ic">✉️</span>報告</button>
   <button data-t="plan" onclick="go('plan')"><span class="ic">📝</span>計画</button>
   <button data-t="check" onclick="go('check')"><span class="ic">✅</span>加算</button>
+  <button data-t="share" onclick="go('share')"><span class="ic">👥</span>共有</button>
+  <button data-t="visit" onclick="go('visit')"><span class="ic">🚗</span>訪問</button>
 </nav>
 
-<div class="foot">そだちノート prototype · AI生成物は必ず人が確認してください</div>
+<div class="foot">そだちノート prototype v0.2 · AI生成物は必ず人が確認してください</div>
 
 <script>
 /* ============================================================
-   そだちノート プロトタイプ
-   - データは localStorage に保存（プロト用）
+   そだちノート プロトタイプ v0.2
+   - データは localStorage(プロト用)。本番はDB+権限管理+閲覧ログ
    - AI生成はデモ用の内蔵ジェネレータ。本番は callAI() を
-     Claude API に差し替えるだけで動くよう分離している。
+     Claude API(サーバ経由)に差し替えるだけで動くよう分離。
    ============================================================ */
 
-const DB_KEY = 'sodachi_db_v1';
+const DB_KEY = 'sodachi_db_v2';
 const seed = {
   children: [
-    { id:'c1', name:'たろう', kana:'た', age:8, grade:'小2',
+    { id:'c1', name:'たろう', kana:'た', grade:'小2',
       traits:'ブロック遊びが好き。順番を待つのが苦手。落ち着くと集中力が高い。',
-      plan:true, lastMonitoring:'2026-05-10', wish:'友だちと順番を守って遊べるようになってほしい。' },
-    { id:'c2', name:'はなこ', kana:'は', age:10, grade:'小4',
+      plan:true, lastMonitoring:'2026-05-10', wish:'友だちと順番を守って遊べるようになってほしい。',
+      care:{ alert:'食物アレルギー:そば(要除去)。服薬なし。',
+             dislike:'大きな音/突然の予定変更',
+             calm:'ブロック遊び。静かな場所で1対1',
+             panic:'無理に止めず距離を取る。落ち着いてから短い言葉で声かけ',
+             bus:'降車時は必ず手をつなぐ' } },
+    { id:'c2', name:'はなこ', kana:'は', grade:'小4',
       traits:'絵を描くのが得意。初めての活動に不安が強い。言葉より視覚支援が有効。',
-      plan:false, lastMonitoring:null, wish:'新しいことにも安心して取り組めるようになってほしい。' },
-    { id:'c3', name:'けんた', kana:'け', age:7, grade:'小1',
+      plan:false, lastMonitoring:null, wish:'新しいことにも安心して取り組めるようになってほしい。',
+      care:{ alert:'アレルギー・服薬なし。',
+             dislike:'初めての場所/大きな声での指示',
+             calm:'絵を描く。視覚スケジュールの提示',
+             panic:'別室へ誘導し、言葉より絵カードで気持ちを確認',
+             bus:'乗り物酔いしやすい→前方座席に' } },
+    { id:'c3', name:'けんた', kana:'け', grade:'小1',
       traits:'体を動かすのが大好き。気持ちの切り替えに時間がかかる。',
-      plan:true, lastMonitoring:'2025-11-20', wish:'かんしゃくを減らし、気持ちを言葉で伝えられるように。' },
+      plan:true, lastMonitoring:'2025-11-20', wish:'かんしゃくを減らし、気持ちを言葉で伝えられるように。',
+      care:{ alert:'卵アレルギー(加熱済みは可)。てんかん既往→発作時は時間を計り保護者へ連絡。',
+             dislike:'活動の中断/負けること',
+             calm:'トランポリンなど体を動かす活動',
+             panic:'クールダウンスペースへ。5分タイマーで切り替えやすい',
+             bus:'飛び出し注意。駐車場では大人が先に降りる' } },
   ],
-  records: []
+  careUsers: [
+    { id:'u1', name:'佐藤さん(80代・独居)',
+      history:['牛乳','食パン','卵','ヨーグルト','バナナ','トイレットペーパー'],
+      suggest:[ {item:'牛乳', why:'前回購入から4日。いつもの周期です'},
+                {item:'食パン', why:'ほぼ毎回ご依頼があります'},
+                {item:'トイレットペーパー', why:'前回から3週間。そろそろ切れる頃'} ] },
+    { id:'u2', name:'鈴木さん(70代・夫婦)',
+      history:['お茶2L','りんご','味噌','カップ麺','単3電池'],
+      suggest:[ {item:'お茶2L', why:'夏場は週2本ペースです'},
+                {item:'りんご', why:'前回「また頼む」とのお話でした'} ] },
+  ],
+  records: [], stock: [], trips: []
 };
 let db = load();
-function load(){ try{ return JSON.parse(localStorage.getItem(DB_KEY)) || structuredClone(seed);}catch(e){ return structuredClone(seed);} }
-function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+let shopSel = [];
+function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children) return d; }catch(e){} return structuredClone(seed); }
+function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function child(id){ return db.children.find(c=>c.id===id); }
-function todayStr(){ const d=new Date(); return `${d.getMonth()+1}/${d.getDate()}`; }
 function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function esc(s){ return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+function nowHM(){ const d=new Date(); return `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`; }
+function esc(s){ return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
 /* ---------- ナビ ---------- */
 function go(t){
@@ -238,56 +407,51 @@ function go(t){
   window.scrollTo(0,0);
   if(t==='home') renderHome();
   if(t==='report') fillReportSelect();
-  if(t==='record') renderHistory();
+  if(t==='record'){ renderHistory(); renderStock(); }
+  if(t==='share') renderShareChips();
+  if(t==='visit') renderVisit();
 }
 
 /* ---------- ホーム ---------- */
 function renderHome(){
   document.getElementById('kpi-children').textContent = db.children.length;
   document.getElementById('kpi-records').textContent = db.records.filter(r=>r.date===fullDate()).length;
-  const alerts = db.children.filter(c=>!c.plan).length;
-  document.getElementById('kpi-alerts').textContent = alerts;
-  const list = db.children.map(c=>`
+  document.getElementById('kpi-stock').textContent = db.stock.filter(s=>s.date===fullDate()).length;
+  document.getElementById('child-list').innerHTML = db.children.map(c=>`
     <div class="child-item">
       <div class="avatar">${esc(c.kana)}</div>
       <div style="flex:1">
-        <div style="font-weight:700">${esc(c.name)} <span class="muted">（${esc(c.grade)}）</span></div>
+        <div style="font-weight:700">${esc(c.name)} <span class="muted">(${esc(c.grade)})</span></div>
         <div class="muted">${esc(c.traits).slice(0,28)}…</div>
       </div>
       ${c.plan?'<span class="chip g">計画あり</span>':'<span class="chip r">計画未</span>'}
     </div>`).join('');
-  document.getElementById('child-list').innerHTML = list;
 }
 
 /* ---------- セレクト初期化 ---------- */
 function fillChildSelects(){
-  const opts = db.children.map(c=>`<option value="${c.id}">${esc(c.name)}（${esc(c.grade)}）</option>`).join('');
+  const opts = db.children.map(c=>`<option value="${c.id}">${esc(c.name)}(${esc(c.grade)})</option>`).join('');
   ['rec-child','plan-child','check-child'].forEach(id=>document.getElementById(id).innerHTML=opts);
+  document.getElementById('visit-user').innerHTML =
+    db.careUsers.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
 }
 function fillReportSelect(){
   const sel = document.getElementById('rep-record');
-  if(!db.records.length){ sel.innerHTML='<option value="">まだ記録がありません（記録タブで作成）</option>'; return; }
+  if(!db.records.length){ sel.innerHTML='<option value="">まだ記録がありません(記録タブで作成)</option>'; return; }
   sel.innerHTML = db.records.slice().reverse().map(r=>`<option value="${r.id}">${r.date} ${esc(child(r.childId)?.name||'')}・${esc(r.activity)}</option>`).join('');
 }
 
 /* ============================================================
    AI 呼び出しの中枢。プロトはデモ生成。
-   本番: この関数を Claude API 呼び出しに差し替える。
-   例）
-   async function callAI(kind, payload){
-     const res = await fetch('/api/ai', {method:'POST',
-       headers:{'Content-Type':'application/json'},
-       body: JSON.stringify({kind, payload})});
-     return (await res.json()).text;   // サーバ側で Claude API を呼ぶ
-   }
+   本番: fetch('/api/ai', {kind, payload}) → サーバ側で Claude API を呼ぶ。
    ============================================================ */
 async function callAI(kind, payload){
-  await new Promise(r=>setTimeout(r, 750)); // 生成中の演出
+  await new Promise(r=>setTimeout(r, 700));
   return demoGenerators[kind](payload);
 }
 
 const demoGenerators = {
-  record({name, activity, speech}){
+  record({activity, speech}){
     const s = speech.trim() || '特記事項なし。';
     const positive = /(できた|嬉し|笑|楽し|集中|上手|がんば|待て)/.test(s);
     const support  = /(難し|苦手|不安|泣|かんしゃく|待てな|嫌)/.test(s);
@@ -303,60 +467,144 @@ const demoGenerators = {
     ].join('\n');
   },
   report({name, activity, record, tone}){
-    const greet = { standard:'いつもお世話になっております。', warm:'こんにちは！本日もお預かりありがとうございました😊', brief:'本日のご様子です。' }[tone];
+    const greet = { standard:'いつもお世話になっております。', warm:'こんにちは!本日もお預かりありがとうございました😊', brief:'本日のご様子です。' }[tone];
     const close = { standard:'ご家庭でも話題にしていただけますと幸いです。何かございましたらお気軽にお知らせください。',
                     warm:'おうちでも今日のことをたくさんお話ししてみてくださいね🌟',
                     brief:'よろしくお願いいたします。' }[tone];
-    const body = record
-      ? record.replace(/【.*?】/g,'').split('\n').filter(Boolean)[1] || 'みんなと元気に過ごされました。'
-      : 'みんなと元気に過ごされました。';
-    return `${name}さんの保護者様\n\n${greet}\n\n本日は「${activity}」に取り組みました。${name}さんは、${body}\n\nスタッフ一同、${name}さんの「できた！」を大切に見守っています。${close}`;
+    const body = record ? (record.replace(/【.*?】/g,'').split('\n').filter(Boolean)[1] || 'みんなと元気に過ごされました。') : 'みんなと元気に過ごされました。';
+    return `${name}さんの保護者様\n\n${greet}\n\n本日は「${activity}」に取り組みました。${name}さんは、${body}\n\nスタッフ一同、${name}さんの「できた!」を大切に見守っています。${close}`;
   },
-  plan({name, traits, wish}){
+  plan({name, traits, wish, recent}){
+    const evid = recent.length
+      ? `・直近の記録より: ${recent.join(' / ')}`
+      : '・直近の記録: まだ蓄積がありません(記録が貯まるほど根拠が濃くなります)';
     return [
-      `■ 個別支援計画（下書き）── ${name}さん`,
-      ``,
+      `■ 個別支援計画(下書き)── ${name}さん`, ``,
       `【アセスメント要約】`,
       `・特性: ${traits}`,
-      `・保護者/本人の願い: ${wish||'（未入力）'}`,
-      ``,
-      `【長期目標（6ヶ月）】`,
-      `安心できる環境の中で、集団活動に自分から参加し、成功体験を積み重ねる。`,
-      ``,
-      `【短期目標（3ヶ月）】`,
-      `① 見通しを持って活動に取り組める（事前予告があれば切り替えられる）。`,
-      `② 困ったときに、言葉やカードでスタッフに伝えられる。`,
-      ``,
+      `・保護者/本人の願い: ${wish||'(未入力)'}`,
+      evid, ``,
+      `【長期目標(6ヶ月)】`,
+      `安心できる環境の中で、集団活動に自分から参加し、成功体験を積み重ねる。`, ``,
+      `【短期目標(3ヶ月)】`,
+      `① 見通しを持って活動に取り組める(事前予告があれば切り替えられる)。`,
+      `② 困ったときに、言葉やカードでスタッフに伝えられる。`, ``,
       `【支援内容・手立て】`,
       `・活動前に流れを視覚的に提示し、見通しを持てるようにする。`,
       `・成功場面を具体的に称賛し、自己肯定感を育てる。`,
-      `・つまずき時は本人のペースを尊重し、選択肢を示して自己決定を促す。`,
-      ``,
+      `・つまずき時は本人のペースを尊重し、選択肢を示して自己決定を促す。`, ``,
       `※本文は下書きです。児発管がアセスメント結果と照合し確定してください。`
     ].join('\n');
+  },
+  actplan({activity, memo}){
+    return [
+      `■ 活動計画(下書き)── ${activity}`, ``,
+      `【狙い】${memo || '集団の中で役割を持ち、達成感と「できた」を味わう。'}`, ``,
+      `【流れ】`,
+      `① 導入・ルール説明(5分) … 流れを視覚提示して見通しを持たせる`,
+      `② ${activity}(25分) … スタッフは成功場面を見逃さず即時に称賛`,
+      `③ 振り返り(10分) … 一人ひとりの「できた」を言葉にして共有`, ``,
+      `【配慮事項】`,
+      `・順番や待ち時間が苦手な児童には事前予告と役割(道具係など)を用意`,
+      `・不安の強い児童には見学・部分参加の選択肢を認める`, ``,
+      `【評価の視点】`,
+      `・自分から参加できたか / 友だちとの関わりの場面 / 狙いに対する反応`, ``,
+      `※下書きです。当日の児童構成に合わせて調整してください。`
+    ].join('\n');
+  },
+  share({c, recentNote}){
+    return [
+      `👤 ${c.name}(${c.grade})の配慮点`,
+      ``,
+      `⚠️ 健康・安全: ${c.care.alert}`,
+      `😥 苦手なこと: ${c.care.dislike}`,
+      `😊 落ち着く方法: ${c.care.calm}`,
+      `🆘 パニック時: ${c.care.panic}`,
+      `🚌 送迎: ${c.care.bus}`,
+      recentNote ? `📈 最近の様子: ${recentNote}` : `📈 最近の様子: 直近の記録はありません`,
+      ``,
+      `🔒 この閲覧はログに記録されました`
+    ].join('\n');
+  },
+  visit({userName, text, cond, start, end}){
+    const t = text.trim() || '生活援助を実施。';
+    const good = /(元気|食欲|笑|安定|良好)/.test(t);
+    const flag = /(転倒|発熱|痛|むくみ|残薬|受診|変化|食欲な)/.test(t);
+    const formal = [
+      `【利用者】${userName}`,
+      `【日時】${fullDate()} ${start}〜${end}`,
+      `【支援内容】${t}`,
+      `【ご本人の様子】${good?'体調は安定しており、食欲・表情ともに良好でした。':'表情・体調に大きな変化は見られませんでした。'}`,
+      `【特記事項】${flag?'気になる点があるため、上記の内容を確認・共有をお願いします。':'特になし。'}`,
+      `【支援者の体調】${cond}`
+    ].join('\n');
+    const app = [
+      `・時間: ${start}〜${end}`,
+      `・支援内容: ${t}`,
+      `・様子: ${good?'安定/食欲・表情良好':'変化なし'}`,
+      `・特記: ${flag?'あり(本文参照)':'なし'}`,
+      `・支援者体調: ${cond}`
+    ].join('\n');
+    const summary = `${userName}宅で${start}から支援を実施。${t.slice(0,42)}${t.length>42?'…':''} 体調・様子は${good?'良好':'安定'}です。${flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。'}`;
+    return { formal, app, summary };
   }
 };
 
-/* ---------- 音声認識 ---------- */
-let recog=null, recording=false;
+/* ---------- 音声認識(共通ディクテーション) ---------- */
+let recog=null, recording=false, dictBtn=null, dictTarget=null, dictHint=null, dictBase='';
 function initSpeech(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ document.getElementById('mic-hint').textContent='※このブラウザは音声認識に非対応。テキスト欄に直接入力できます。'; document.getElementById('mic').disabled=true; return; }
+  if(!SR){ const h=document.getElementById('mic-hint'); if(h) h.textContent='※このブラウザは音声認識に非対応。テキスト入力で試せます。'; return; }
   recog = new SR(); recog.lang='ja-JP'; recog.interimResults=true; recog.continuous=true;
-  let base='';
-  recog.onstart=()=>{ base=document.getElementById('rec-speech').value; };
   recog.onresult=(e)=>{
-    let txt='';
-    for(let i=e.resultIndex;i<e.results.length;i++) txt+=e.results[i][0].transcript;
-    document.getElementById('rec-speech').value = (base+txt).trim();
+    if(!dictTarget) return;
+    let txt=''; for(let i=e.resultIndex;i<e.results.length;i++) txt+=e.results[i][0].transcript;
+    dictTarget.value=(dictBase+txt).trim();
   };
+  recog.onerror=(e)=>{ if(e.error==='not-allowed'&&dictHint){ dictHint.textContent='※マイクの使用が許可されていません。'; stopDict(); } };
   recog.onend=()=>{ if(recording){ try{recog.start()}catch(e){} } };
 }
-function toggleMic(){
-  if(!recog) return;
-  const btn=document.getElementById('mic'), hint=document.getElementById('mic-hint');
-  if(!recording){ try{recog.start()}catch(e){}; recording=true; btn.classList.add('rec'); btn.textContent='⏹'; hint.textContent='録音中… もう一度押すと停止'; }
-  else{ recording=false; recog.stop(); btn.classList.remove('rec'); btn.textContent='🎤'; hint.textContent='押して、今日の様子を話してください'; }
+function stopDict(){
+  recording=false; try{recog&&recog.stop()}catch(e){}
+  if(dictBtn){ dictBtn.classList.remove('rec'); dictBtn.textContent='🎤'; }
+  if(dictHint) dictHint.textContent = dictHint.id==='mic-hint' ? '押して、今日の様子を話してください' : '';
+  dictBtn=null; dictTarget=null; dictHint=null;
+}
+function toggleDict(btnId, targetId, hintId){
+  if(!recog){ alert('このブラウザは音声認識に非対応です(Chrome/Edge/Safari推奨)。テキスト入力をご利用ください。'); return; }
+  const btn=document.getElementById(btnId);
+  if(recording && dictBtn===btn){ stopDict(); return; }
+  if(recording) stopDict();
+  dictBtn=btn; dictTarget=document.getElementById(targetId); dictHint=document.getElementById(hintId);
+  dictBase=dictTarget.value?dictTarget.value+' ':'';
+  recording=true; btn.classList.add('rec'); btn.textContent='⏹';
+  if(dictHint) dictHint.textContent='録音中… もう一度押すと停止';
+  try{recog.start()}catch(e){}
+}
+
+/* ---------- 記録: キーワードストック ---------- */
+function setRecMode(m){
+  document.getElementById('seg-kw').classList.toggle('on', m==='kw');
+  document.getElementById('seg-voice').classList.toggle('on', m==='voice');
+  document.getElementById('mode-kw').style.display = m==='kw'?'block':'none';
+  document.getElementById('mode-voice').style.display = m==='voice'?'block':'none';
+  if(m!=='voice') stopDict();
+}
+function sendKw(){
+  const inp=document.getElementById('kw-input');
+  const text=inp.value.trim(); if(!text) return;
+  db.stock.push({childId:document.getElementById('rec-child').value, text, date:fullDate(), time:nowHM()});
+  save(); inp.value=''; renderStock();
+}
+function todaysStock(childId){ return db.stock.filter(s=>s.childId===childId && s.date===fullDate()); }
+function renderStock(){
+  const cid=document.getElementById('rec-child').value;
+  const log=document.getElementById('kw-log');
+  const items=todaysStock(cid);
+  log.innerHTML = items.length
+    ? items.map(s=>`<div class="bubble me">${esc(s.text)}<div class="bt">${esc(s.time)}</div></div>`).join('')
+    : '<div class="muted" style="margin:auto">まだメモがありません。その場で一言、送ってみてください。</div>';
+  log.scrollTop=log.scrollHeight;
 }
 
 /* ---------- 各生成アクション ---------- */
@@ -369,27 +617,27 @@ async function withLoading(btnId, label, fn){
 async function genRecord(){
   const c = child(document.getElementById('rec-child').value);
   const activity = document.getElementById('rec-activity').value;
-  const speech = document.getElementById('rec-speech').value;
+  const speech = document.getElementById('rec-speech').value.trim();
+  const kws = todaysStock(c.id).map(s=>s.text);
+  const material = [speech, ...kws].filter(Boolean).join('。');
   await withLoading('rec-gen','AIが整形中…', async()=>{
-    const text = await callAI('record', {name:c.name, activity, speech});
-    document.getElementById('rec-out').innerHTML =
-      `<div class="out" id="rec-text">${esc(text)}</div>
+    const text = await callAI('record', {activity, speech: material});
+    const out = document.getElementById('rec-out');
+    out.innerHTML = `<div class="out">${esc(text)}</div>
        <div class="row" style="margin-top:10px">
          <button class="btn sec" onclick="saveRecord('${c.id}','${esc(activity)}')">💾 記録を保存</button>
          <button class="btn ghost" onclick="go('report')">✉️ 報告文へ</button>
        </div>`;
-    document.getElementById('rec-out').dataset.text=text;
+    out.dataset.text=text;
   });
 }
 function saveRecord(childId, activity){
   const text = document.getElementById('rec-out').dataset.text;
-  const id='r'+Date.now();
-  db.records.push({id, childId, activity, text, date:fullDate(), t:todayStr()});
+  db.records.push({id:'r'+Date.now(), childId, activity, text, date:fullDate()});
   save(); renderHistory(); renderHome();
   alert('記録を保存しました。報告タブから保護者報告を生成できます。');
 }
 function renderHistory(){
-  fillChildSelects();
   const h=document.getElementById('rec-history');
   if(!db.records.length){ h.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
   h.innerHTML = db.records.slice().reverse().map(r=>`
@@ -402,54 +650,58 @@ function renderHistory(){
 async function genReport(){
   const rid = document.getElementById('rep-record').value;
   if(!rid){ alert('先に記録を作成してください。'); return; }
-  const rec = db.records.find(r=>r.id===rid);
-  const c = child(rec.childId);
+  const rec = db.records.find(r=>r.id===rid); const c = child(rec.childId);
   const tone = document.getElementById('rep-tone').value;
   await withLoading('rep-gen','AIが作成中…', async()=>{
     const text = await callAI('report', {name:c.name, activity:rec.activity, record:rec.text, tone});
     document.getElementById('rep-out').innerHTML =
       `<div class="out">${esc(text)}</div>
-       <div class="banner" style="margin-top:10px">⚠️ 送信前に必ず内容をご確認ください（誤りがあれば編集してから送信）。</div>
-       <button class="btn" style="margin-top:6px" onclick="fakeSend()">📤 保護者へ送信（デモ）</button>`;
+       <div class="banner" style="margin-top:10px">⚠️ 送信前に必ず内容をご確認ください(誤りがあれば編集してから送信)。</div>
+       <button class="btn" style="margin-top:6px" onclick="alert('(デモ)連絡帳アプリ / LINE 連携で送信されるイメージです。')">📤 保護者へ送信(デモ)</button>`;
   });
 }
-function fakeSend(){ alert('（デモ）連絡帳アプリ / LINE 連携で送信されるイメージです。'); }
 
 async function genPlan(){
   const c = child(document.getElementById('plan-child').value);
   const wish = document.getElementById('plan-wish').value || c.wish;
+  const recent = db.records.filter(r=>r.childId===c.id).slice(-3)
+    .map(r=>`${r.activity}で${(r.text.match(/【本人の様子】(.+)/)||[])[1]?.slice(0,20)||'活動に参加'}`);
   await withLoading('plan-gen','AIが作成中…', async()=>{
-    const text = await callAI('plan', {name:c.name, traits:c.traits, wish});
+    const text = await callAI('plan', {name:c.name, traits:c.traits, wish, recent});
     document.getElementById('plan-out').innerHTML = `<div class="out">${esc(text)}</div>
       <div class="banner" style="margin-top:10px">📌 これは下書きです。児童発達支援管理責任者が確定してください。</div>`;
   });
 }
 
-/* ---------- 加算・書類チェック（ルール判定のデモ） ---------- */
+async function genActPlan(){
+  const activity=document.getElementById('act-select').value;
+  const memo=document.getElementById('act-memo').value;
+  await withLoading('act-gen','AIが作成中…', async()=>{
+    const text = await callAI('actplan', {activity, memo});
+    document.getElementById('act-out').innerHTML = `<div class="out">${esc(text)}</div>`;
+  });
+}
+
+/* ---------- 加算チェック ---------- */
 function runCheck(){
   const c = child(document.getElementById('check-child').value);
   const recCount = db.records.filter(r=>r.childId===c.id).length;
   const rows=[];
-  // 個別支援計画
   rows.push(c.plan
     ? {ic:'✅', t:'個別支援計画', d:'作成済み。減算リスクなし。'}
-    : {ic:'⛔', t:'個別支援計画の未作成（減算リスク）', d:'計画がありません。未作成のままだと個別支援計画未作成減算の対象。至急作成してください。'});
-  // モニタリング（6ヶ月）
+    : {ic:'⛔', t:'個別支援計画の未作成(減算リスク)', d:'計画がありません。未作成のままだと個別支援計画未作成減算の対象。至急作成してください。'});
   if(c.lastMonitoring){
     const months = (new Date(fullDate()) - new Date(c.lastMonitoring))/(1000*60*60*24*30);
     rows.push(months>=6
-      ? {ic:'⚠️', t:'モニタリング期限の超過', d:`前回モニタリング ${c.lastMonitoring}（約${Math.floor(months)}ヶ月前）。6ヶ月ごとの見直しが必要です。`}
+      ? {ic:'⚠️', t:'モニタリング期限の超過', d:`前回 ${c.lastMonitoring}(約${Math.floor(months)}ヶ月前)。6ヶ月ごとの見直しが必要です。`}
       : {ic:'✅', t:'モニタリング', d:`前回 ${c.lastMonitoring}。期限内です。`});
   } else {
     rows.push({ic:'⚠️', t:'モニタリング記録なし', d:'定期的なモニタリング記録の作成をおすすめします。'});
   }
-  // 活動記録の蓄積
   rows.push(recCount>0
-    ? {ic:'✅', t:'活動記録（加算の根拠）', d:`${recCount}件の記録あり。家庭連携・個別サポート等の根拠として活用できます。`}
+    ? {ic:'✅', t:'活動記録(加算の根拠)', d:`${recCount}件の記録あり。家庭連携・個別サポート等の根拠として活用できます。`}
     : {ic:'⚠️', t:'活動記録が不足', d:'加算算定の根拠となる支援記録がありません。記録の蓄積を推奨。'});
-  // 家庭連携加算の示唆
-  rows.push({ic:'💡', t:'加算の取りこぼしチェック', d:'保護者面談を実施した場合は「家庭連携加算」、事業所での相談支援は該当加算の算定漏れがないか確認しましょう。'});
-
+  rows.push({ic:'💡', t:'加算の取りこぼしチェック', d:'保護者面談は「家庭連携加算」、事業所での相談支援は該当加算の算定漏れがないか確認しましょう。'});
   const badge = rows.some(r=>r.ic==='⛔') ? '<span class="chip r">要対応あり</span>'
              : rows.some(r=>r.ic==='⚠️') ? '<span class="chip y">確認推奨</span>'
              : '<span class="chip g">良好</span>';
@@ -458,10 +710,99 @@ function runCheck(){
     rows.map(r=>`<div class="check-row"><div class="check-ic">${r.ic}</div><div><div class="t">${esc(r.t)}</div><div class="d">${esc(r.d)}</div></div></div>`).join('');
 }
 
+/* ---------- セーフティノート ---------- */
+function renderShareChips(){
+  document.getElementById('share-chips').innerHTML =
+    db.children.map(c=>`<span class="chip btnchip" onclick="document.getElementById('share-input').value='${esc(c.name)}';askShare()">${esc(c.name)}</span>`).join('');
+}
+async function askShare(){
+  const inp=document.getElementById('share-input');
+  const q=inp.value.trim(); if(!q) return;
+  const log=document.getElementById('share-log');
+  log.insertAdjacentHTML('beforeend', `<div class="bubble me">${esc(q)}<div class="bt">${esc(nowHM())}</div></div>`);
+  inp.value=''; log.scrollTop=log.scrollHeight;
+  const c = db.children.find(c=>q.includes(c.name));
+  await new Promise(r=>setTimeout(r,600));
+  let reply;
+  if(!c){
+    reply = `「${q}」に該当する児童が見つかりませんでした。名前(例: たろう)で送ってください。`;
+  } else {
+    const last = db.records.filter(r=>r.childId===c.id).slice(-1)[0];
+    const recentNote = last ? `${last.date}の${last.activity}に参加。${(last.text.match(/【本人の様子】(.+)/)||[])[1]?.slice(0,30)||''}` : '';
+    reply = await callAI('share', {c, recentNote});
+  }
+  log.insertAdjacentHTML('beforeend', `<div class="bubble bot">${esc(reply)}<div class="bt">セーフティノート</div></div>`);
+  log.scrollTop=log.scrollHeight;
+}
+
+/* ---------- 訪問介護 ---------- */
+function renderVisit(){
+  const u = db.careUsers.find(u=>u.id===document.getElementById('visit-user').value) || db.careUsers[0];
+  document.getElementById('shop-history').innerHTML =
+    u.history.map(i=>`<span class="chip btnchip" onclick="addShop('${esc(i)}')">${esc(i)}</span>`).join('');
+  document.getElementById('shop-suggest').innerHTML =
+    u.suggest.map(s=>`<div class="check-row"><div class="check-ic">💡</div><div style="flex:1"><div class="t">${esc(s.item)}</div><div class="d">${esc(s.why)}</div></div><button class="btn mini sec" onclick="addShop('${esc(s.item)}')">追加</button></div>`).join('');
+  renderShopList();
+  renderTrips();
+}
+document.addEventListener('change', e=>{ if(e.target.id==='visit-user'){ shopSel=[]; renderVisit(); } });
+function addShop(item){ if(!shopSel.includes(item)) shopSel.push(item); renderShopList(); }
+function renderShopList(){
+  document.getElementById('shop-list').innerHTML = shopSel.length
+    ? shopSel.map((i,x)=>`${x+1}. ${esc(i)}`).join('<br>')
+    : '(まだありません)';
+}
+async function genVisit(){
+  const u = db.careUsers.find(u=>u.id===document.getElementById('visit-user').value);
+  const payload = {
+    userName: u.name.split('(')[0],
+    text: document.getElementById('visit-text').value,
+    cond: document.getElementById('visit-cond').value,
+    start: document.getElementById('visit-start').value,
+    end: document.getElementById('visit-end').value
+  };
+  await withLoading('visit-gen','AIが3つの報告を作成中…', async()=>{
+    const r = await callAI('visit', payload);
+    document.getElementById('visit-out').innerHTML =
+      outBlock('① 正式報告書', r.formal) +
+      outBlock('② 記録アプリ入力用(ケアピア等)', r.app) +
+      outBlock('③ サービス提供責任者向け要約', r.summary) +
+      `<div class="banner" style="margin-top:10px">⚠️ 内容を確認してから提出・入力してください。本番は記録アプリへのAPI/CSV連携も想定しています。</div>`;
+  });
+}
+function outBlock(title, text){
+  const id='cp'+Math.random().toString(36).slice(2,8);
+  return `<div class="out"><div class="ot"><span>${esc(title)}</span><button class="btn mini sec" onclick="copyText('${id}')">コピー</button></div><span id="${id}">${esc(text)}</span></div>`;
+}
+function copyText(id){
+  const t=document.getElementById(id).innerText;
+  try{ navigator.clipboard.writeText(t); alert('コピーしました'); }catch(e){ alert('コピーできませんでした'); }
+}
+function saveTrip(){
+  const s=parseFloat(document.getElementById('trip-start').value);
+  const e=parseFloat(document.getElementById('trip-end').value);
+  const m=document.getElementById('trip-min').value;
+  const why=document.getElementById('trip-why').value;
+  if(isNaN(s)||isNaN(e)||e<s){ alert('メーター値を確認してください(終了≧開始)。'); return; }
+  db.trips.push({date:fullDate(), why, dist:(e-s).toFixed(1), min:m||'-'});
+  save();
+  ['trip-start','trip-end','trip-min'].forEach(i=>document.getElementById(i).value='');
+  renderTrips();
+}
+function renderTrips(){
+  const l=document.getElementById('trip-list');
+  if(!db.trips.length){ l.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
+  l.innerHTML = db.trips.slice().reverse().map(t=>`
+    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('');
+}
+
 /* ---------- 起動 ---------- */
 fillChildSelects();
 initSpeech();
 renderHome();
+renderStock();
+renderShareChips();
+renderVisit();
 </script>
 </body>
 </html>
