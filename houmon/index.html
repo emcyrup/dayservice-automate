@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#c76a2f">
+<title>かけはしノート ─ 訪問介護の報告AI(プロトタイプ)</title>
+</head>
+<body>
+<style>
+  :root{
+    --bg:#faf6f1; --card:#ffffff; --ink:#2e2620; --sub:#7a6c5f;
+    --brand:#c76a2f; --brand-d:#a04f1c; --brand-l:#f7e9dd;
+    --danger:#d9534f;
+    --line:#ece2d6; --shadow:0 2px 12px rgba(60,42,25,.08);
+    --field:#fdfaf7; --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1c1410; --card:#271d16; --ink:#f2e9e1; --sub:#b3a293;
+      --brand:#d97e3f; --brand-d:#f0a86e; --brand-l:#3a2718; --danger:#e8756f;
+      --line:#3d2f23; --shadow:0 2px 14px rgba(0,0,0,.35);
+      --field:#211812;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#faf6f1; --card:#ffffff; --ink:#2e2620; --sub:#7a6c5f;
+    --brand:#c76a2f; --brand-d:#a04f1c; --brand-l:#f7e9dd; --danger:#d9534f;
+    --line:#ece2d6; --shadow:0 2px 12px rgba(60,42,25,.08); --field:#fdfaf7;
+  }
+  :root[data-theme="dark"]{
+    --bg:#1c1410; --card:#271d16; --ink:#f2e9e1; --sub:#b3a293;
+    --brand:#d97e3f; --brand-d:#f0a86e; --brand-l:#3a2718; --danger:#e8756f;
+    --line:#3d2f23; --shadow:0 2px 14px rgba(0,0,0,.35); --field:#211812;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.6;
+    max-width:480px;margin:0 auto;position:relative;min-height:100vh;padding-bottom:76px;
+  }
+  header.appbar{
+    position:sticky;top:0;z-index:20;background:var(--brand);color:#fff;
+    padding:14px 18px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);
+  }
+  .appbar .logo{font-weight:800;font-size:18px;letter-spacing:.02em}
+  .appbar .tag{font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;margin-left:auto}
+  main{padding:16px}
+  h2.title{font-size:17px;margin:4px 2px 14px;display:flex;align-items:center;gap:8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  .muted{color:var(--sub);font-size:13px}
+  label.fld{display:block;font-size:13px;color:var(--sub);margin:12px 0 5px;font-weight:600}
+  select,textarea,input[type=text],input[type=number],input[type=time]{
+    width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px;
+    font-family:inherit;background:var(--field);color:var(--ink);resize:vertical
+  }
+  textarea{min-height:80px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    padding:14px;border:none;border-radius:14px;background:var(--brand);color:#fff;
+    font-size:16px;font-weight:700;cursor:pointer;transition:.15s;font-family:inherit
+  }
+  .btn:active{transform:scale(.98)}
+  .btn.sec{background:var(--brand-l);color:var(--brand-d)}
+  .btn.mini{width:auto;padding:7px 14px;font-size:13px;border-radius:10px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .chip{display:inline-block;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:700}
+  .chip.g{background:var(--brand-l);color:var(--brand-d)}
+  .chip.btnchip{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:0 6px 8px 0;padding:7px 13px;font-weight:600;font-size:13px}
+  .chip.btnchip:active{background:var(--brand-l)}
+  .mic{border-radius:50%;border:none;background:var(--brand);color:#fff;cursor:pointer;transition:.15s}
+  .mic.sm{width:46px;height:46px;font-size:20px;flex:none}
+  .mic.rec{background:var(--danger);animation:pulse 1.3s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,83,79,.5)}70%{box-shadow:0 0 0 14px rgba(217,83,79,0)}100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}}
+  @media (prefers-reduced-motion: reduce){ .mic.rec{animation:none} .view.on{animation:none} }
+  nav.tabs{
+    position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+    background:var(--card);border-top:1px solid var(--line);display:flex;z-index:30;
+    box-shadow:0 -2px 12px rgba(60,42,25,.06)
+  }
+  nav.tabs button{
+    flex:1;background:none;border:none;padding:8px 0 10px;font-size:10.5px;color:var(--sub);
+    cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit
+  }
+  nav.tabs button .ic{font-size:21px}
+  nav.tabs button.on{color:var(--brand-d)}
+  nav.tabs button:focus-visible,.btn:focus-visible,.mic:focus-visible{outline:3px solid var(--brand-d);outline-offset:2px}
+  .view{display:none}
+  .view.on{display:block;animation:fade .2s}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .user-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:var(--card)}
+  .avatar{width:44px;height:44px;border-radius:50%;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0}
+  .out{background:var(--brand-l);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:14.5px;margin-top:10px;border:1px solid var(--line);color:var(--ink)}
+  .out .ot{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:13px;color:var(--brand-d);margin-bottom:6px}
+  .rec-item{padding:10px 12px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;margin-bottom:10px}
+  .rec-item .h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub)}
+  .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .banner{font-size:12px;background:#fff8ec;border:1px solid #f3e0c0;color:#8a6d0b;padding:9px 12px;border-radius:10px;margin-bottom:14px}
+  .kpi{display:flex;gap:10px;margin-bottom:14px}
+  .kpi .card{flex:1;text-align:center;margin:0;padding:14px 6px}
+  .kpi .n{font-size:22px;font-weight:800;color:var(--brand-d)}
+  .kpi .l{font-size:11px;color:var(--sub)}
+  .sug-row{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+  .sug-row:last-child{border:none}
+  .sug-row .t{font-weight:700;font-size:14px}
+  .sug-row .d{font-size:12.5px;color:var(--sub)}
+  .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.7;padding:6px 0 2px}
+  .subttl{font-weight:800;font-size:14px;margin:2px 0 8px;color:var(--brand-d)}
+</style>
+
+<header class="appbar">
+  <span class="logo">🧡 かけはしノート</span>
+  <span class="tag">プロトタイプ</span>
+</header>
+
+<main>
+  <!-- ============ ホーム ============ -->
+  <section id="v-home" class="view on">
+    <div class="kpi">
+      <div class="card"><div class="n" id="kpi-users">–</div><div class="l">利用者</div></div>
+      <div class="card"><div class="n" id="kpi-reports">–</div><div class="l">今日の報告</div></div>
+      <div class="card"><div class="n" id="kpi-km">–</div><div class="l">今日の走行km</div></div>
+    </div>
+    <div class="banner">📋 一度入力すれば、正式報告書・記録アプリ用・サ責向け要約の3つが同時にできます。手書き+アプリ+口頭報告の三重作業をなくすデモです。</div>
+    <h2 class="title">🏡 利用者</h2>
+    <div id="user-list"></div>
+    <button class="btn" onclick="go('report')">📋 報告を作成する</button>
+  </section>
+
+  <!-- ============ 報告 ============ -->
+  <section id="v-report" class="view">
+    <h2 class="title">📋 報告をまとめて生成</h2>
+    <div class="card">
+      <p class="muted">支援内容・様子を一度話す/書くだけで、<b>①正式報告書 ②記録アプリ入力用(ケアピア等) ③サ責向け要約</b>を同時に作ります。</p>
+      <label class="fld">利用者</label>
+      <select id="visit-user"></select>
+      <div class="row">
+        <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
+        <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
+        <div><label class="fld">体調</label><select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select></div>
+      </div>
+      <label class="fld">支援内容・様子(🎤音声もOK)</label>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea id="visit-text" style="flex:1" placeholder="例)調理と掃除。食欲あり元気そう。買い物で牛乳と食パン購入。"></textarea>
+        <button id="v-mic" class="mic sm" onclick="toggleDict('v-mic','visit-text','v-hint')">🎤</button>
+      </div>
+      <div class="muted" id="v-hint" style="margin-top:4px"></div>
+      <button class="btn" id="visit-gen" onclick="genVisit()" style="margin-top:12px">✨ 3つの報告を生成</button>
+      <div id="visit-out"></div>
+    </div>
+    <h2 class="title">🗂 報告の履歴</h2>
+    <div id="visit-history"></div>
+  </section>
+
+  <!-- ============ 移動 ============ -->
+  <section id="v-trip" class="view">
+    <h2 class="title">🚗 移動記録</h2>
+    <div class="card">
+      <p class="muted">メーター値を入れるだけで走行距離を自動計算。買い物支援で移動が増えても1件ずつサッと記録できます。</p>
+      <div class="row">
+        <div><label class="fld">開始メーター(km)</label><input type="number" id="trip-start" placeholder="12345.0"></div>
+        <div><label class="fld">終了メーター(km)</label><input type="number" id="trip-end" placeholder="12349.2"></div>
+      </div>
+      <div class="row">
+        <div><label class="fld">所要時間(分)</label><input type="number" id="trip-min" placeholder="15"></div>
+        <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
+      </div>
+      <button class="btn" onclick="saveTrip()" style="margin-top:12px">💾 記録する(距離を自動計算)</button>
+      <p class="muted" style="margin-top:8px">🎤 本番では「開始12345、終了12352」と話すだけの音声入力にも対応予定です。</p>
+    </div>
+    <h2 class="title">🗂 移動の履歴</h2>
+    <div id="trip-list"></div>
+  </section>
+
+  <!-- ============ 買い物 ============ -->
+  <section id="v-shop" class="view">
+    <h2 class="title">🛒 買い物リストの時短</h2>
+    <div class="card">
+      <p class="muted">利用者が品物を選ぶ時間を短縮。過去の依頼をワンタップ候補に、購入周期からAIが「そろそろ」を提案します。</p>
+      <label class="fld">利用者</label>
+      <select id="shop-user"></select>
+      <label class="fld">いつもの品(タップで追加)</label>
+      <div id="shop-history"></div>
+      <label class="fld">AIの提案</label>
+      <div id="shop-suggest"></div>
+      <label class="fld">今回のリスト</label>
+      <div id="shop-list" class="out" style="margin-top:0">(まだありません)</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sec" onclick="shopSel=[];renderShopList()">クリア</button>
+        <button class="btn" onclick="alert('(デモ)このリストをご本人と確認して確定するイメージです。')">✔ 本人と確認して確定</button>
+      </div>
+      <div class="banner" style="margin-top:10px">⚠️ AIは提案までです。購入の確定は必ずご本人・支援者が確認してください。</div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button data-t="home" class="on" onclick="go('home')"><span class="ic">🏠</span>ホーム</button>
+  <button data-t="report" onclick="go('report')"><span class="ic">📋</span>報告</button>
+  <button data-t="trip" onclick="go('trip')"><span class="ic">🚗</span>移動</button>
+  <button data-t="shop" onclick="go('shop')"><span class="ic">🛒</span>買い物</button>
+</nav>
+
+<div class="foot">かけはしノート prototype · AI生成物は必ず人が確認してください</div>
+
+<script>
+/* ============================================================
+   かけはしノート プロトタイプ(訪問介護向け)
+   - データは localStorage(プロト用)。本番はDB+権限管理
+   - AI生成はデモ用の内蔵ジェネレータ。本番は callAI() を
+     Claude API(サーバ経由)に差し替えるだけで動くよう分離。
+   ============================================================ */
+
+const DB_KEY = 'kakehashi_db_v1';
+const seed = {
+  users: [
+    { id:'u1', name:'佐藤さん', kana:'佐', note:'80代女性・独居。生活援助(調理・掃除・買い物)週3回。',
+      history:['牛乳','食パン','卵','ヨーグルト','バナナ','トイレットペーパー'],
+      suggest:[ {item:'牛乳', why:'前回購入から4日。いつもの周期です'},
+                {item:'食パン', why:'ほぼ毎回ご依頼があります'},
+                {item:'トイレットペーパー', why:'前回から3週間。そろそろ切れる頃'} ] },
+    { id:'u2', name:'鈴木さん', kana:'鈴', note:'70代ご夫婦。身体介護+買い物支援 週2回。',
+      history:['お茶2L','りんご','味噌','カップ麺','単3電池'],
+      suggest:[ {item:'お茶2L', why:'夏場は週2本ペースです'},
+                {item:'りんご', why:'前回「また頼む」とのお話でした'} ] },
+    { id:'u3', name:'高橋さん', kana:'高', note:'90代男性・長男と同居。通院同行 月2回+生活援助。',
+      history:['お粥パック','経口補水液','ティッシュ'],
+      suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
+  ],
+  reports: [], trips: []
+};
+let db = load();
+let shopSel = [];
+function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users) return d; }catch(e){} return structuredClone(seed); }
+function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
+function user(id){ return db.users.find(u=>u.id===id); }
+function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function esc(s){ return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+/* ---------- ナビ ---------- */
+function go(t){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+t).classList.add('on');
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.t===t));
+  window.scrollTo(0,0);
+  if(t==='home') renderHome();
+  if(t==='report') renderReports();
+  if(t==='trip') renderTrips();
+  if(t==='shop') renderShop();
+}
+
+function renderHome(){
+  document.getElementById('kpi-users').textContent = db.users.length;
+  document.getElementById('kpi-reports').textContent = db.reports.filter(r=>r.date===fullDate()).length;
+  const km = db.trips.filter(t=>t.date===fullDate()).reduce((a,t)=>a+parseFloat(t.dist),0);
+  document.getElementById('kpi-km').textContent = km.toFixed(1);
+  document.getElementById('user-list').innerHTML = db.users.map(u=>`
+    <div class="user-item">
+      <div class="avatar">${esc(u.kana)}</div>
+      <div style="flex:1">
+        <div style="font-weight:700">${esc(u.name)}</div>
+        <div class="muted">${esc(u.note)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function fillSelects(){
+  const opts = db.users.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  document.getElementById('visit-user').innerHTML = opts;
+  document.getElementById('shop-user').innerHTML = opts;
+}
+
+/* ============================================================
+   AI 呼び出しの中枢。プロトはデモ生成。
+   本番: fetch('/api/ai', {kind, payload}) → サーバ側で Claude API を呼ぶ。
+   ============================================================ */
+async function callAI(kind, payload){
+  await new Promise(r=>setTimeout(r, 700));
+  return demoGenerators[kind](payload);
+}
+const demoGenerators = {
+  visit({userName, text, cond, start, end}){
+    const t = text.trim() || '生活援助を実施。';
+    const good = /(元気|食欲|笑|安定|良好)/.test(t);
+    const flag = /(転倒|発熱|痛|むくみ|残薬|受診|変化|食欲な)/.test(t);
+    const formal = [
+      `【利用者】${userName}`,
+      `【日時】${fullDate()} ${start}〜${end}`,
+      `【支援内容】${t}`,
+      `【ご本人の様子】${good?'体調は安定しており、食欲・表情ともに良好でした。':'表情・体調に大きな変化は見られませんでした。'}`,
+      `【特記事項】${flag?'気になる点があるため、上記の内容の確認・共有をお願いします。':'特になし。'}`,
+      `【支援者の体調】${cond}`
+    ].join('\n');
+    const app = [
+      `・時間: ${start}〜${end}`,
+      `・支援内容: ${t}`,
+      `・様子: ${good?'安定/食欲・表情良好':'変化なし'}`,
+      `・特記: ${flag?'あり(本文参照)':'なし'}`,
+      `・支援者体調: ${cond}`
+    ].join('\n');
+    const summary = `${userName}宅で${start}から支援を実施。${t.slice(0,42)}${t.length>42?'…':''} 体調・様子は${good?'良好':'安定'}です。${flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。'}`;
+    return { formal, app, summary };
+  }
+};
+
+/* ---------- 音声認識 ---------- */
+let recog=null, recording=false, dictBtn=null, dictTarget=null, dictHint=null, dictBase='';
+function initSpeech(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+  recog = new SR(); recog.lang='ja-JP'; recog.interimResults=true; recog.continuous=true;
+  recog.onresult=(e)=>{
+    if(!dictTarget) return;
+    let txt=''; for(let i=e.resultIndex;i<e.results.length;i++) txt+=e.results[i][0].transcript;
+    dictTarget.value=(dictBase+txt).trim();
+  };
+  recog.onerror=(e)=>{ if(e.error==='not-allowed'&&dictHint){ dictHint.textContent='※マイクの使用が許可されていません。'; stopDict(); } };
+  recog.onend=()=>{ if(recording){ try{recog.start()}catch(e){} } };
+}
+function stopDict(){
+  recording=false; try{recog&&recog.stop()}catch(e){}
+  if(dictBtn){ dictBtn.classList.remove('rec'); dictBtn.textContent='🎤'; }
+  if(dictHint) dictHint.textContent='';
+  dictBtn=null; dictTarget=null; dictHint=null;
+}
+function toggleDict(btnId, targetId, hintId){
+  if(!recog){ alert('このブラウザは音声認識に非対応です(Chrome/Edge/Safari推奨)。テキスト入力をご利用ください。'); return; }
+  const btn=document.getElementById(btnId);
+  if(recording && dictBtn===btn){ stopDict(); return; }
+  if(recording) stopDict();
+  dictBtn=btn; dictTarget=document.getElementById(targetId); dictHint=document.getElementById(hintId);
+  dictBase=dictTarget.value?dictTarget.value+' ':'';
+  recording=true; btn.classList.add('rec'); btn.textContent='⏹';
+  if(dictHint) dictHint.textContent='録音中… もう一度押すと停止';
+  try{recog.start()}catch(e){}
+}
+
+/* ---------- 報告(3形態同時生成) ---------- */
+async function withLoading(btnId, label, fn){
+  const b=document.getElementById(btnId); const html=b.innerHTML;
+  b.disabled=true; b.innerHTML=`<span class="spin"></span> ${label}`;
+  try{ await fn(); } finally{ b.disabled=false; b.innerHTML=html; }
+}
+async function genVisit(){
+  const u = user(document.getElementById('visit-user').value);
+  const payload = {
+    userName: u.name,
+    text: document.getElementById('visit-text').value,
+    cond: document.getElementById('visit-cond').value,
+    start: document.getElementById('visit-start').value,
+    end: document.getElementById('visit-end').value
+  };
+  await withLoading('visit-gen','AIが3つの報告を作成中…', async()=>{
+    const r = await callAI('visit', payload);
+    document.getElementById('visit-out').innerHTML =
+      outBlock('① 正式報告書', r.formal) +
+      outBlock('② 記録アプリ入力用(ケアピア等)', r.app) +
+      outBlock('③ サービス提供責任者向け要約', r.summary) +
+      `<div class="banner" style="margin-top:10px">⚠️ 内容を確認してから提出・入力してください。本番は記録アプリへのAPI/CSV連携も想定しています。</div>
+       <button class="btn sec" onclick='saveReport(${JSON.stringify(u.id)})'>💾 履歴に保存</button>`;
+    document.getElementById('visit-out').dataset.summary = r.summary;
+  });
+}
+function outBlock(title, text){
+  const id='cp'+Math.random().toString(36).slice(2,8);
+  return `<div class="out"><div class="ot"><span>${esc(title)}</span><button class="btn mini sec" onclick="copyText('${id}')">コピー</button></div><span id="${id}">${esc(text)}</span></div>`;
+}
+function copyText(id){
+  const t=document.getElementById(id).innerText;
+  try{ navigator.clipboard.writeText(t); alert('コピーしました'); }catch(e){ alert('コピーできませんでした'); }
+}
+function saveReport(uid){
+  const summary = document.getElementById('visit-out').dataset.summary || '';
+  db.reports.push({id:'p'+Date.now(), userId:uid, summary, date:fullDate()});
+  save(); renderReports(); renderHome();
+  alert('報告を履歴に保存しました。');
+}
+function renderReports(){
+  const h=document.getElementById('visit-history');
+  if(!db.reports.length){ h.innerHTML='<p class="muted">まだ報告はありません。</p>'; return; }
+  h.innerHTML = db.reports.slice().reverse().map(r=>`
+    <div class="rec-item">
+      <div class="h"><span>${r.date}・${esc(user(r.userId)?.name||'')}</span><span class="chip g">3形態生成済</span></div>
+      <div style="font-size:13.5px;margin-top:6px">${esc(r.summary).slice(0,70)}…</div>
+    </div>`).join('');
+}
+
+/* ---------- 移動 ---------- */
+function saveTrip(){
+  const s=parseFloat(document.getElementById('trip-start').value);
+  const e=parseFloat(document.getElementById('trip-end').value);
+  const m=document.getElementById('trip-min').value;
+  const why=document.getElementById('trip-why').value;
+  if(isNaN(s)||isNaN(e)||e<s){ alert('メーター値を確認してください(終了≧開始)。'); return; }
+  db.trips.push({date:fullDate(), why, dist:(e-s).toFixed(1), min:m||'-'});
+  save();
+  ['trip-start','trip-end','trip-min'].forEach(i=>document.getElementById(i).value='');
+  renderTrips(); renderHome();
+}
+function renderTrips(){
+  const l=document.getElementById('trip-list');
+  if(!db.trips.length){ l.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
+  l.innerHTML = db.trips.slice().reverse().map(t=>`
+    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('');
+}
+
+/* ---------- 買い物 ---------- */
+function renderShop(){
+  const u = user(document.getElementById('shop-user').value) || db.users[0];
+  document.getElementById('shop-history').innerHTML =
+    u.history.map(i=>`<span class="chip btnchip" onclick="addShop('${esc(i)}')">${esc(i)}</span>`).join('');
+  document.getElementById('shop-suggest').innerHTML =
+    u.suggest.map(s=>`<div class="sug-row"><div style="font-size:18px">💡</div><div style="flex:1"><div class="t">${esc(s.item)}</div><div class="d">${esc(s.why)}</div></div><button class="btn mini sec" onclick="addShop('${esc(s.item)}')">追加</button></div>`).join('');
+  renderShopList();
+}
+document.addEventListener('change', e=>{ if(e.target.id==='shop-user'){ shopSel=[]; renderShop(); } });
+function addShop(item){ if(!shopSel.includes(item)) shopSel.push(item); renderShopList(); }
+function renderShopList(){
+  document.getElementById('shop-list').innerHTML = shopSel.length
+    ? shopSel.map((i,x)=>`${x+1}. ${esc(i)}`).join('<br>')
+    : '(まだありません)';
+}
+
+/* ---------- 起動 ---------- */
+fillSelects();
+initSpeech();
+renderHome();
+renderShop();
+</script>
+</body>
+</html>
