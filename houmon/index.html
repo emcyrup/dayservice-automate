@@ -67,7 +67,14 @@
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .row{display:flex;gap:10px}
   .row>*{flex:1;min-width:0}
-  input[type=time]{padding:12px 6px;text-align:center}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid2>*{min-width:0}
+  input[type=time]{
+    padding:12px 6px;text-align:center;min-width:0;max-width:100%;
+    -webkit-appearance:none;appearance:none;
+    min-height:49px;display:block;
+  }
+  input[type=time]::-webkit-date-and-time-value{text-align:center;margin:0}
   .chip{display:inline-block;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:700}
   .chip.g{background:var(--brand-l);color:var(--brand-d)}
   .chip.btnchip{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:0 6px 8px 0;padding:7px 13px;font-weight:600;font-size:13px}
@@ -144,7 +151,7 @@
       <p class="muted">支援内容・様子を一度話す/書くだけで、<b>①正式報告書 ②記録アプリ入力用(ケアピア等) ③サ責向け要約</b>を同時に作ります。</p>
       <label class="fld">利用者</label>
       <select id="visit-user"></select>
-      <div class="row">
+      <div class="grid2">
         <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
         <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
       </div>
@@ -168,11 +175,11 @@
     <h2 class="title">🚗 移動記録</h2>
     <div class="card">
       <p class="muted">メーター値を入れるだけで走行距離を自動計算。買い物支援で移動が増えても1件ずつサッと記録できます。</p>
-      <div class="row">
+      <div class="grid2">
         <div><label class="fld">開始メーター(km)</label><input type="number" id="trip-start" placeholder="12345.0"></div>
         <div><label class="fld">終了メーター(km)</label><input type="number" id="trip-end" placeholder="12349.2"></div>
       </div>
-      <div class="row">
+      <div class="grid2">
         <div><label class="fld">所要時間(分)</label><input type="number" id="trip-min" placeholder="15"></div>
         <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
       </div>
