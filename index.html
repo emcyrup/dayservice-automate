@@ -134,13 +134,17 @@
   .check-ic{font-size:18px;flex-shrink:0;margin-top:1px}
   .check-row .t{font-weight:700;font-size:14px}
   .check-row .d{font-size:12.5px;color:var(--sub)}
+  .gearbtn{background:none;border:none;font-size:19px;cursor:pointer;color:#fff;padding:0 0 0 6px}
+  .rec-item .body{font-size:13.5px;margin-top:6px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.7;padding:6px 0 2px}
   .subttl{font-weight:800;font-size:14px;margin:2px 0 8px;color:var(--brand-d)}
 </style>
 
 <header class="appbar">
   <span class="logo">🌱 そだちノート</span>
-  <span class="tag">プロトタイプ v0.2</span>
+  <span class="tag">検証版</span>
+  <button class="gearbtn" onclick="go('setting')" aria-label="設定">⚙️</button>
 </header>
 
 <main>
@@ -152,6 +156,7 @@
       <div class="card"><div class="n" id="kpi-stock">–</div><div class="l">未生成メモ</div></div>
     </div>
     <div class="banner">✨ 💬キーワードを送って貯める→ボタンで記録に整形。👥セーフティノートは名前を送るだけで配慮点がわかります。</div>
+    <div class="banner safe">🧪 検証版: 実名は入力せず、イニシャル・仮名(例: Aくん)でお試しください。データはこの端末のブラウザ内にのみ保存されます(⚙️設定からバックアップできます)。</div>
     <h2 class="title">👦 利用児童</h2>
     <div id="child-list"></div>
     <div class="row">
@@ -277,6 +282,43 @@
     </div>
   </section>
 
+
+  <!-- ============ 設定(検証用) ============ -->
+  <section id="v-setting" class="view">
+    <h2 class="title">⚙️ 設定(検証用)</h2>
+    <div class="banner">🧪 検証中は実名を入力せず、イニシャル・仮名でお試しください。</div>
+    <div class="card">
+      <div class="subttl">児童の管理</div>
+      <div id="set-child-list"></div>
+      <button class="btn sec" onclick="editChild(null)">+ 児童を追加</button>
+      <div id="child-form" style="display:none;margin-top:12px">
+        <label class="fld">名前(仮名で)</label><input type="text" id="cf-name" placeholder="例: Aくん">
+        <label class="fld">学年</label><input type="text" id="cf-grade" placeholder="例: 小2">
+        <label class="fld">特性メモ</label><textarea id="cf-traits" placeholder="好きなこと・苦手なこと・有効な支援など"></textarea>
+        <label class="fld">保護者・本人の願い</label><textarea id="cf-wish"></textarea>
+        <div class="subttl" style="margin-top:14px">セーフティノート情報(👥共有タブで表示されます)</div>
+        <label class="fld">⚠️ 健康・安全(アレルギー・服薬など)</label><input type="text" id="cf-alert">
+        <label class="fld">😥 苦手なこと</label><input type="text" id="cf-dislike">
+        <label class="fld">😊 落ち着く方法</label><input type="text" id="cf-calm">
+        <label class="fld">🆘 パニック時の対応</label><input type="text" id="cf-panic">
+        <label class="fld">🚌 送迎の注意</label><input type="text" id="cf-bus">
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="saveChild()">保存</button>
+          <button class="btn sec" onclick="hideChildForm()">キャンセル</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="subttl">データ管理</div>
+      <div class="row">
+        <button class="btn sec" onclick="exportData()">⬇ バックアップ</button>
+        <button class="btn sec" onclick="document.getElementById('imp-file').click()">⬆ 復元</button>
+      </div>
+      <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(event)">
+      <button class="btn sec" onclick="removeSamples()" style="margin-top:10px">🧹 サンプル児童(たろう等)を削除して自分のデータで検証</button>
+      <button class="btn" style="margin-top:10px;background:var(--danger)" onclick="resetAll()">⚠ 全データを初期化(サンプルに戻す)</button>
+    </div>
+  </section>
 </main>
 
 <nav class="tabs">
@@ -346,6 +388,7 @@ function go(t){
   if(t==='report') fillReportSelect();
   if(t==='record'){ renderHistory(); renderStock(); }
   if(t==='share') renderShareChips();
+  if(t==='setting') renderSetChildren();
 }
 
 /* ---------- ホーム ---------- */
@@ -505,6 +548,7 @@ function setRecMode(m){
 function sendKw(){
   const inp=document.getElementById('kw-input');
   const text=inp.value.trim(); if(!text) return;
+  if(!child(document.getElementById('rec-child').value)){ alert('児童がいません。⚙️設定から児童を追加してください。'); return; }
   db.stock.push({childId:document.getElementById('rec-child').value, text, date:fullDate(), time:nowHM()});
   save(); inp.value=''; renderStock();
 }
@@ -528,6 +572,7 @@ async function withLoading(btnId, label, fn){
 
 async function genRecord(){
   const c = child(document.getElementById('rec-child').value);
+  if(!c){ alert('児童がいません。⚙️設定から児童を追加してください。'); return; }
   const activity = document.getElementById('rec-activity').value;
   const speech = document.getElementById('rec-speech').value.trim();
   const kws = todaysStock(c.id).map(s=>s.text);
@@ -553,9 +598,9 @@ function renderHistory(){
   const h=document.getElementById('rec-history');
   if(!db.records.length){ h.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
   h.innerHTML = db.records.slice().reverse().map(r=>`
-    <div class="rec-item">
+    <div class="rec-item" onclick="this.classList.toggle('open')">
       <div class="h"><span>${r.date}・${esc(child(r.childId)?.name||'')}</span><span class="chip g">${esc(r.activity)}</span></div>
-      <div style="font-size:13.5px;margin-top:6px;white-space:pre-wrap">${esc(r.text).slice(0,90)}…</div>
+      <div class="body">${esc(r.text)}</div>
     </div>`).join('');
 }
 
@@ -575,6 +620,7 @@ async function genReport(){
 
 async function genPlan(){
   const c = child(document.getElementById('plan-child').value);
+  if(!c){ alert('児童がいません。⚙️設定から児童を追加してください。'); return; }
   const wish = document.getElementById('plan-wish').value || c.wish;
   const recent = db.records.filter(r=>r.childId===c.id).slice(-3)
     .map(r=>`${r.activity}で${(r.text.match(/【本人の様子】(.+)/)||[])[1]?.slice(0,20)||'活動に参加'}`);
@@ -597,6 +643,7 @@ async function genActPlan(){
 /* ---------- 加算チェック ---------- */
 function runCheck(){
   const c = child(document.getElementById('check-child').value);
+  if(!c){ alert('児童がいません。⚙️設定から児童を追加してください。'); return; }
   const recCount = db.records.filter(r=>r.childId===c.id).length;
   const rows=[];
   rows.push(c.plan
@@ -645,6 +692,72 @@ async function askShare(){
   }
   log.insertAdjacentHTML('beforeend', `<div class="bubble bot">${esc(reply)}<div class="bt">セーフティノート</div></div>`);
   log.scrollTop=log.scrollHeight;
+}
+
+/* ---------- 設定(検証用) ---------- */
+let editingChild=null;
+const CF_IDS=['cf-name','cf-grade','cf-traits','cf-wish','cf-alert','cf-dislike','cf-calm','cf-panic','cf-bus'];
+function renderSetChildren(){
+  const l=document.getElementById('set-child-list');
+  l.innerHTML = db.children.length ? db.children.map(c=>`
+    <div class="rec-item"><div class="h"><span style="font-weight:700">${esc(c.name)}(${esc(c.grade)})</span>
+      <span><button class="btn mini sec" onclick="editChild('${c.id}')">編集</button>
+      <button class="btn mini sec" onclick="delChild('${c.id}')">削除</button></span></div></div>`).join('')
+    : '<p class="muted">児童がいません。「+ 児童を追加」から登録してください。</p>';
+}
+function editChild(id){
+  editingChild=id;
+  const c = id ? child(id) : {name:'',grade:'',traits:'',wish:'',care:{alert:'',dislike:'',calm:'',panic:'',bus:''}};
+  const vals=[c.name,c.grade,c.traits,c.wish,c.care.alert,c.care.dislike,c.care.calm,c.care.panic,c.care.bus];
+  CF_IDS.forEach((fid,i)=>document.getElementById(fid).value=vals[i]||'');
+  document.getElementById('child-form').style.display='block';
+  document.getElementById('cf-name').focus();
+}
+function hideChildForm(){ document.getElementById('child-form').style.display='none'; editingChild=null; }
+function saveChild(){
+  const v=Object.fromEntries(CF_IDS.map(fid=>[fid,document.getElementById(fid).value.trim()]));
+  if(!v['cf-name']){ alert('名前を入力してください(仮名で)。'); return; }
+  const data={ name:v['cf-name'], kana:v['cf-name'][0], grade:v['cf-grade']||'-',
+    traits:v['cf-traits'], wish:v['cf-wish'],
+    care:{ alert:v['cf-alert']||'(未登録)', dislike:v['cf-dislike']||'(未登録)',
+           calm:v['cf-calm']||'(未登録)', panic:v['cf-panic']||'(未登録)', bus:v['cf-bus']||'(未登録)' } };
+  if(editingChild){ Object.assign(child(editingChild), data); }
+  else { db.children.push(Object.assign({id:'c'+Date.now(), plan:false, lastMonitoring:null}, data)); }
+  save(); hideChildForm(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
+}
+function delChild(id){
+  const c=child(id); if(!c) return;
+  if(!confirm(c.name+'さんと関連する記録・メモをすべて削除します。よろしいですか?')) return;
+  db.children=db.children.filter(x=>x.id!==id);
+  db.records=db.records.filter(r=>r.childId!==id);
+  db.stock=db.stock.filter(s=>s.childId!==id);
+  save(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='sodachi_backup_'+fullDate()+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function importData(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.children) throw 0; db=d; save(); location.reload(); }
+    catch(e){ alert('読み込めませんでした。そだちノートのバックアップファイルか確認してください。'); } };
+  r.readAsText(f);
+}
+function removeSamples(){
+  if(!confirm('サンプル児童(たろう・はなこ・けんた)と関連データを削除します。よろしいですか?')) return;
+  ['c1','c2','c3'].forEach(id=>{
+    db.children=db.children.filter(c=>c.id!==id);
+    db.records=db.records.filter(r=>r.childId!==id);
+    db.stock=db.stock.filter(s=>s.childId!==id);
+  });
+  save(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
+}
+function resetAll(){
+  if(!confirm('すべてのデータを消去して初期状態(サンプル入り)に戻します。よろしいですか?')) return;
+  localStorage.removeItem(DB_KEY); location.reload();
 }
 
 /* ---------- 起動 ---------- */
