@@ -3,127 +3,178 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#c76a2f">
+<meta name="theme-color" content="#e06a2b">
 <title>かけはしノート ─ 訪問介護の報告AI(プロトタイプ)</title>
 </head>
 <body>
 <style>
   :root{
-    --bg:#faf6f1; --card:#ffffff; --ink:#2e2620; --sub:#7a6c5f;
-    --brand:#c76a2f; --brand-d:#a04f1c; --brand-l:#f7e9dd;
-    --danger:#d9534f;
-    --line:#ece2d6; --shadow:0 2px 12px rgba(60,42,25,.08);
-    --field:#fdfaf7; --radius:16px;
+    --bg:#faf6f2; --card:#ffffff; --ink:#241c15; --sub:#7c6c5e;
+    --brand:#e06a2b; --brand-d:#b64e13; --brand-l:#fbeadd;
+    --danger:#dc4c3f; --warn:#b45309;
+    --line:#eee3d8; --field:#fdfaf7; --bubble-me:#fbe3d0;
+    --shadow:0 1px 2px rgba(15,23,42,.05),0 4px 16px rgba(15,23,42,.05);
+    --shadow-lg:0 4px 6px rgba(15,23,42,.04),0 12px 32px rgba(15,23,42,.08);
+    --radius:16px;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#1c1410; --card:#271d16; --ink:#f2e9e1; --sub:#b3a293;
-      --brand:#d97e3f; --brand-d:#f0a86e; --brand-l:#3a2718; --danger:#e8756f;
-      --line:#3d2f23; --shadow:0 2px 14px rgba(0,0,0,.35);
-      --field:#211812;
+      --bg:#1a1310; --card:#251c16; --ink:#f1e9e2; --sub:#b2a294;
+      --brand:#e97b3d; --brand-d:#f2a878; --brand-l:#3a2617; --danger:#f07167;
+      --line:#3b2e23; --field:#1f1712; --bubble-me:#4a2c17;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+      --shadow-lg:0 8px 30px rgba(0,0,0,.4);
     }
   }
   :root[data-theme="light"]{
-    --bg:#faf6f1; --card:#ffffff; --ink:#2e2620; --sub:#7a6c5f;
-    --brand:#c76a2f; --brand-d:#a04f1c; --brand-l:#f7e9dd; --danger:#d9534f;
-    --line:#ece2d6; --shadow:0 2px 12px rgba(60,42,25,.08); --field:#fdfaf7;
+    --bg:#faf6f2; --card:#ffffff; --ink:#241c15; --sub:#7c6c5e;
+    --brand:#e06a2b; --brand-d:#b64e13; --brand-l:#fbeadd; --danger:#dc4c3f;
+    --line:#eee3d8; --field:#fdfaf7; --bubble-me:#fbe3d0;
+    --shadow:0 1px 2px rgba(15,23,42,.05),0 4px 16px rgba(15,23,42,.05);
+    --shadow-lg:0 4px 6px rgba(15,23,42,.04),0 12px 32px rgba(15,23,42,.08);
   }
   :root[data-theme="dark"]{
-    --bg:#1c1410; --card:#271d16; --ink:#f2e9e1; --sub:#b3a293;
-    --brand:#d97e3f; --brand-d:#f0a86e; --brand-l:#3a2718; --danger:#e8756f;
-    --line:#3d2f23; --shadow:0 2px 14px rgba(0,0,0,.35); --field:#211812;
+    --bg:#1a1310; --card:#251c16; --ink:#f1e9e2; --sub:#b2a294;
+    --brand:#e97b3d; --brand-d:#f2a878; --brand-l:#3a2617; --danger:#f07167;
+    --line:#3b2e23; --field:#1f1712; --bubble-me:#4a2c17;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);
+    --shadow-lg:0 8px 30px rgba(0,0,0,.4);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,sans-serif;
-    background:var(--bg);color:var(--ink);line-height:1.6;
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",system-ui,-apple-system,Meiryo,sans-serif;
+    font-feature-settings:"palt";
+    background:var(--bg);color:var(--ink);line-height:1.65;font-size:15px;
     margin:0;position:relative;min-height:100vh;padding-bottom:24px;
+    -webkit-font-smoothing:antialiased;
   }
-  header.appbar{
-    background:var(--brand);color:#fff;
-    padding:14px 18px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);
-  }
-  .appbar .logo{font-weight:800;font-size:18px;letter-spacing:.02em}
-  .appbar .tag{font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;margin-left:auto}
-  main{padding:16px}
-  h2.title{font-size:17px;margin:4px 2px 14px;display:flex;align-items:center;gap:8px}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+  header.appbar{background:var(--brand);color:#fff;padding:15px 18px}
+  .appbar .logo{font-weight:700;font-size:17.5px;letter-spacing:.02em}
+  .appbar .tag{font-size:11px;background:rgba(255,255,255,.22);padding:3px 10px;border-radius:99px;margin-left:auto;font-weight:600;letter-spacing:.04em}
+  header.appbar .hwrap{max-width:1024px;margin:0 auto;width:100%;display:flex;align-items:center;gap:10px}
+  main{padding:16px;max-width:600px;margin:0 auto}
+  h2.title{font-size:19px;font-weight:700;letter-spacing:.01em;margin:6px 2px 16px;display:flex;align-items:center;gap:8px}
+  .subttl{font-weight:700;font-size:14.5px;margin:2px 0 10px;color:var(--ink);letter-spacing:.01em}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
   .muted{color:var(--sub);font-size:13px}
-  label.fld{display:block;font-size:13px;color:var(--sub);margin:12px 0 5px;font-weight:600}
-  select,textarea,input[type=text],input[type=number],input[type=time]{
-    width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:15px;
-    font-family:inherit;background:var(--field);color:var(--ink);resize:vertical
+  label.fld{display:block;font-size:12.5px;color:var(--sub);margin:14px 0 6px;font-weight:600;letter-spacing:.03em}
+  select,textarea,input[type=text],input[type=number],input[type=time],input[type=date],input[type=month]{
+    width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;
+    font-family:inherit;background:var(--field);color:var(--ink);resize:vertical;
+    transition:border-color .15s, box-shadow .15s;
   }
-  textarea{min-height:80px}
+  select:focus,textarea:focus,input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent)}
+  textarea{min-height:84px}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
-    padding:14px;border:none;border-radius:14px;background:var(--brand);color:#fff;
-    font-size:16px;font-weight:700;cursor:pointer;transition:.15s;font-family:inherit
+    padding:13px 16px;border:none;border-radius:12px;background:var(--brand);color:#fff;
+    font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:.02em;
+    transition:transform .1s, filter .15s, box-shadow .15s;box-shadow:0 1px 2px rgba(15,23,42,.12);
   }
-  .btn:active{transform:scale(.98)}
-  .btn.sec{background:var(--brand-l);color:var(--brand-d)}
-  .btn.mini{width:auto;padding:7px 14px;font-size:13px;border-radius:10px}
+  .btn:hover{filter:brightness(1.06)}
+  .btn:active{transform:scale(.985)}
+  .btn.sec{background:var(--brand-l);color:var(--brand-d);box-shadow:none}
+  .btn.ghost{background:var(--card);color:var(--brand-d);border:1.5px solid var(--line);box-shadow:none}
+  .btn.mini{width:auto;padding:7px 14px;font-size:13px;border-radius:9px;font-weight:600}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .row{display:flex;gap:10px}
   .row>*{flex:1;min-width:0}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .grid2>*{min-width:0}
   input[type=time]{
-    padding:12px 6px;text-align:center;min-width:0;max-width:100%;
-    -webkit-appearance:none;appearance:none;
-    min-height:49px;display:block;
+    padding:11px 6px;text-align:center;min-width:0;max-width:100%;
+    -webkit-appearance:none;appearance:none;min-height:47px;display:block;
   }
   input[type=time]::-webkit-date-and-time-value{text-align:center;margin:0}
-  .chip{display:inline-block;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:700}
+  .chip{display:inline-block;padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600}
   .chip.g{background:var(--brand-l);color:var(--brand-d)}
-  .chip.btnchip{cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);margin:0 6px 8px 0;padding:7px 13px;font-weight:600;font-size:13px}
+  .chip.r{background:#fde8e6;color:#b3362b}
+  .chip.y{background:#fdf3d8;color:#92610a}
+  .chip.btnchip{cursor:pointer;border:1.5px solid var(--line);background:var(--card);color:var(--ink);margin:0 6px 8px 0;padding:7px 14px;font-weight:600;font-size:13px;transition:.15s}
+  .chip.btnchip:hover{border-color:var(--brand);color:var(--brand-d)}
   .chip.btnchip:active{background:var(--brand-l)}
-  .mic{border-radius:50%;border:none;background:var(--brand);color:#fff;cursor:pointer;transition:.15s}
-  .mic.sm{width:46px;height:46px;font-size:20px;flex:none}
+  .seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:3px;margin-bottom:12px}
+  .seg button{flex:1;border:none;background:none;padding:9px 4px;border-radius:8px;font-size:14px;font-weight:600;color:var(--sub);cursor:pointer;font-family:inherit;transition:.15s}
+  .seg button.on{background:var(--card);color:var(--brand-d);box-shadow:var(--shadow)}
+  .mic-wrap{text-align:center;padding:8px 0 2px}
+  .mic{border-radius:50%;border:none;background:var(--brand);color:#fff;cursor:pointer;transition:.15s;width:84px;height:84px;font-size:33px;box-shadow:0 8px 24px color-mix(in srgb, var(--brand) 40%, transparent)}
+  .mic.sm{width:47px;height:47px;font-size:20px;box-shadow:none;flex:none}
   .mic.rec{background:var(--danger);animation:pulse 1.3s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(217,83,79,.5)}70%{box-shadow:0 0 0 14px rgba(217,83,79,0)}100%{box-shadow:0 0 0 0 rgba(217,83,79,0)}}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(220,76,63,.45)}70%{box-shadow:0 0 0 16px rgba(220,76,63,0)}100%{box-shadow:0 0 0 0 rgba(220,76,63,0)}}
   @media (prefers-reduced-motion: reduce){ .mic.rec{animation:none} .view.on{animation:none} }
+  .mic-hint{font-size:13px;color:var(--sub);margin-top:10px}
+  .chat{background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:12px;min-height:120px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .bubble{max-width:84%;padding:10px 14px;border-radius:15px;font-size:14px;white-space:pre-wrap;line-height:1.6}
+  .bubble.me{align-self:flex-end;background:var(--bubble-me);border-bottom-right-radius:5px}
+  .bubble.bot{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px;box-shadow:var(--shadow)}
+  .bubble .bt{font-size:10.5px;color:var(--sub);margin-top:4px;text-align:right}
+  .chat-input{display:flex;gap:8px;margin-top:10px}
+  .chat-input input{flex:1}
+  .chat-input .btn{width:auto;padding:0 18px}
+  .topbar{position:sticky;top:0;z-index:20;box-shadow:var(--shadow)}
+  nav.topnav{background:var(--card);border-bottom:1px solid var(--line);display:flex;gap:3px;overflow-x:auto;padding:8px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  nav.topnav::-webkit-scrollbar{display:none}
+  nav.topnav button{flex:none;display:flex;align-items:center;gap:7px;padding:8px 14px;border:none;border-radius:99px;background:none;color:var(--sub);font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
+  nav.topnav button:hover{color:var(--brand-d)}
+  nav.topnav button.on{background:var(--brand-l);color:var(--brand-d);font-weight:700}
   nav.topnav button:focus-visible,.btn:focus-visible,.mic:focus-visible{outline:3px solid var(--brand-d);outline-offset:2px}
   .view{display:none}
-  .view.on{display:block;animation:fade .2s}
-  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-  .user-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:var(--card)}
-  .avatar{width:44px;height:44px;border-radius:50%;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0}
-  .out{background:var(--brand-l);border-radius:12px;padding:14px;white-space:pre-wrap;font-size:14.5px;margin-top:10px;border:1px solid var(--line);color:var(--ink)}
-  .out .ot{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:13px;color:var(--brand-d);margin-bottom:6px}
-  .rec-item{padding:10px 12px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:10px;margin-bottom:10px}
-  .rec-item .h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub)}
+  .view.on{display:block;animation:fade .22s}
+  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .child-item,.user-item{display:flex;align-items:center;gap:13px;padding:14px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:var(--card);transition:.15s;box-shadow:var(--shadow)}
+  .child-item:hover,.user-item:hover{border-color:var(--brand);box-shadow:var(--shadow-lg)}
+  .avatar{width:44px;height:44px;border-radius:50%;background:var(--brand-l);color:var(--brand-d);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;flex-shrink:0}
+  .out{background:var(--brand-l);border-radius:13px;padding:16px;white-space:pre-wrap;font-size:14.5px;margin-top:12px;border:1px solid color-mix(in srgb, var(--brand) 18%, var(--line));color:var(--ink)}
+  .out .ot{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:13px;color:var(--brand-d);margin-bottom:8px}
+  .rec-item{padding:12px 14px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:11px;margin-bottom:10px;box-shadow:var(--shadow)}
+  .rec-item .h{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub);gap:8px}
+  .rec-item .body{font-size:13.5px;margin-top:7px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
-  .banner{font-size:12px;background:#fff8ec;border:1px solid #f3e0c0;color:#8a6d0b;padding:9px 12px;border-radius:10px;margin-bottom:14px}
-  .kpi{display:flex;gap:10px;margin-bottom:14px}
-  .kpi .card{flex:1;text-align:center;margin:0;padding:14px 6px}
-  .kpi .n{font-size:22px;font-weight:800;color:var(--brand-d)}
-  .kpi .l{font-size:11px;color:var(--sub)}
-  .sug-row{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
-  .sug-row:last-child{border:none}
-  .sug-row .t{font-weight:700;font-size:14px}
-  .sug-row .d{font-size:12.5px;color:var(--sub)}
-  .topbar{position:sticky;top:0;z-index:20;box-shadow:var(--shadow)}
-  nav.topnav{background:var(--card);border-bottom:1px solid var(--line);display:flex;gap:4px;overflow-x:auto;padding:8px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  nav.topnav::-webkit-scrollbar{display:none}
-  nav.topnav button{flex:none;display:flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:20px;background:none;color:var(--sub);font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit;white-space:nowrap}
-  nav.topnav button.on{background:var(--brand-l);color:var(--brand-d)}
-  main{max-width:560px;margin:0 auto}
-  header.appbar .hwrap{max-width:1024px;margin:0 auto;width:100%;display:flex;align-items:center;gap:10px}
-  @media (min-width:900px){
-    main{max-width:820px;padding:24px}
+  .tblwrap{overflow-x:auto}
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  .tbl th{font-size:11.5px;color:var(--sub);font-weight:700;letter-spacing:.04em}
+  .tbl th.num,.tbl td.num{text-align:right}
+  .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
+  .ckl input{accent-color:var(--brand);width:16px;height:16px}
+  .banner{font-size:12.5px;background:#fdf6e5;border:1px solid #f2e2bb;color:#8a6410;padding:10px 14px;border-radius:11px;margin-bottom:14px;line-height:1.6}
+  .banner.safe{background:var(--brand-l);border-color:color-mix(in srgb, var(--brand) 20%, var(--line));color:var(--brand-d)}
+  .kpi{display:flex;gap:10px;margin-bottom:16px}
+  .kpi .card{flex:1;text-align:center;margin:0;padding:16px 6px}
+  .kpi .n{font-size:24px;font-weight:800;color:var(--brand-d);font-variant-numeric:tabular-nums;line-height:1.2}
+  .kpi .l{font-size:11px;color:var(--sub);font-weight:600;margin-top:3px}
+  .check-row,.sug-row{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .check-row:last-child,.sug-row:last-child{border:none}
+  .check-ic{font-size:18px;flex-shrink:0;margin-top:1px}
+  .check-row .t,.sug-row .t{font-weight:700;font-size:14px}
+  .check-row .d,.sug-row .d{font-size:12.5px;color:var(--sub);line-height:1.55}
+  .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.65;padding:8px 0 4px}
+  .totop{position:fixed;bottom:24px;right:max(16px,calc(50% - 284px));width:46px;height:46px;border-radius:50%;border:none;background:var(--brand);color:#fff;font-size:19px;font-weight:700;z-index:35;box-shadow:var(--shadow-lg);cursor:pointer;opacity:0;pointer-events:none;transition:.2s}
+  .totop.on{opacity:1;pointer-events:auto}
+  @media (min-width:760px) and (max-width:1099px){
+    main{max-width:760px;padding:24px}
     nav.topnav{justify-content:center}
     #v-home .grid2{grid-template-columns:repeat(4,1fr)}
-    .kpi .n{font-size:26px}
   }
-  .totop{position:fixed;bottom:24px;right:max(14px,calc(50% - 226px));width:46px;height:46px;border-radius:50%;border:none;background:var(--brand);color:#fff;font-size:20px;font-weight:800;z-index:35;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;opacity:0;pointer-events:none;transition:.2s}
-  .totop.on{opacity:1;pointer-events:auto}
-  .rec-item .body{font-size:13.5px;margin-top:6px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
-  .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.7;padding:6px 0 2px}
-  .subttl{font-weight:800;font-size:14px;margin:2px 0 8px;color:var(--brand-d)}
+  @media (min-width:1100px){
+    body{display:grid;grid-template-columns:260px minmax(0,1fr);grid-template-rows:1fr auto}
+    .topbar{grid-column:1;grid-row:1/3;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;border-right:1px solid var(--line);box-shadow:none;background:var(--card)}
+    header.appbar{background:transparent;padding:24px 20px 10px;box-shadow:none}
+    header.appbar{flex-wrap:wrap}
+    header.appbar .logo{color:var(--brand-d);font-size:18px;white-space:nowrap}
+    header.appbar .tag{background:var(--brand-l);color:var(--brand-d)}
+    nav.topnav{flex-direction:column;overflow:visible;border-bottom:none;background:transparent;padding:10px 14px;gap:3px}
+    nav.topnav button{width:100%;justify-content:flex-start;border-radius:11px;padding:11px 15px;font-size:14.5px;gap:11px}
+    main{grid-column:2;max-width:920px;width:100%;padding:32px 40px;margin:0}
+    .foot{grid-column:2}
+    .totop{right:32px}
+    #v-home .grid2{grid-template-columns:repeat(4,1fr)}
+    .kpi .n{font-size:30px}
+    h2.title{font-size:22px}
+  }
 </style>
 
 <div class="topbar">
@@ -138,6 +189,7 @@
     <button data-t="report" onclick="go('report')">📋 報告</button>
     <button data-t="trip" onclick="go('trip')">🚗 移動</button>
     <button data-t="shop" onclick="go('shop')">🛒 買い物</button>
+    <button data-t="billing" onclick="go('billing')">🧾 実績・請求</button>
     <button data-t="users" onclick="go('users')">🏡 利用者</button>
     <button data-t="setting" onclick="go('setting')">⚙️ 設定</button>
 </nav>
@@ -245,6 +297,29 @@
     </div>
   </section>
 
+  <!-- ============ 実績・請求 ============ -->
+  <section id="v-billing" class="view">
+    <h2 class="title">🧾 実績・請求(国保連)</h2>
+    <div class="banner">🏢 オールインワン方針:記録→月次実績→給付費明細→国保連への伝送(電子請求受付システム)まで、本アプリだけで完結させます。検証版は実績集計とCSV出力まで対応しています。</div>
+    <div class="card">
+      <div class="subttl">月次実績(📋報告タブから自動集計)</div>
+      <label class="fld">対象月</label>
+      <input type="month" id="bill-month" onchange="renderBilling()">
+      <div id="bill-summary" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn sec" onclick="exportBillCsv()">⬇ 実績CSV</button>
+        <button class="btn" onclick="alert('(検証版)本番では給付費明細書・請求書を自動作成し、電子請求受付システムへインターネット伝送します。')">📤 国保連へ伝送(本番機能)</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="subttl">⭐ 特定事業所加算 要件チェック(2024年度改定対応)</div>
+      <p class="muted">日々の報告記録と体制情報から、算定要件の充足状況を自動チェックします。会議・健診の記録もここに残せます。</p>
+      <div id="tk-list"></div>
+      <div id="tk-judge" style="margin-top:14px"></div>
+      <p class="muted" style="margin-top:10px">※区分判定は目安です。実際の届出・算定は最新の告示・自治体の手引きをご確認ください。</p>
+    </div>
+  </section>
+
   <!-- ============ 利用者一覧 ============ -->
   <section id="v-users" class="view">
     <h2 class="title">🏡 利用者一覧</h2>
@@ -328,11 +403,12 @@ const seed = {
       history:['お粥パック','経口補水液','ティッシュ'],
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
-  reports: [], trips: []
+  reports: [], trips: [],
+  tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false }
 };
 let db = load();
 let shopSel = [];
-function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users) return d; }catch(e){} return structuredClone(seed); }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function user(id){ return db.users.find(u=>u.id===id); }
 function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -353,6 +429,7 @@ function go(t){
   if(t==='report') renderReports();
   if(t==='trip') renderTrips();
   if(t==='shop') renderShop();
+  if(t==='billing') renderBilling();
   if(t==='users') renderUsers();
   if(t==='setting') renderSetUsers();
 }
@@ -485,7 +562,8 @@ function copyText(id){
 }
 function saveReport(uid){
   const summary = document.getElementById('visit-out').dataset.summary || '';
-  db.reports.push({id:'p'+Date.now(), userId:uid, summary, date:fullDate()});
+  const start=document.getElementById('visit-start').value, end=document.getElementById('visit-end').value;
+  db.reports.push({id:'p'+Date.now(), userId:uid, summary, date:fullDate(), start, end, mins:calcMins(start,end)});
   save(); renderReports(); renderHome();
   alert('報告を履歴に保存しました。');
 }
@@ -517,6 +595,77 @@ function renderTrips(){
   if(!db.trips.length){ l.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
   l.innerHTML = db.trips.slice().reverse().map(t=>`
     <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('');
+}
+
+/* ---------- 実績・請求 ---------- */
+function calcMins(s,e){ if(!s||!e) return 0; const [sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number); let m=(eh*60+em)-(sh*60+sm); if(m<0) m+=1440; return m; }
+function renderBilling(){
+  const m=document.getElementById('bill-month');
+  if(!m.value) m.value=fullDate().slice(0,7);
+  const ym=m.value;
+  const rows=db.users.map(u=>{
+    const rs=db.reports.filter(r=>r.userId===u.id&&r.date.slice(0,7)===ym);
+    const mins=rs.reduce((a,r)=>a+(r.mins||0),0);
+    return `<tr><td>${esc(u.name)}</td><td class="num">${rs.length}回</td><td class="num">${Math.floor(mins/60)}時間${mins%60}分</td></tr>`;
+  }).join('');
+  document.getElementById('bill-summary').innerHTML = `<div class="tblwrap"><table class="tbl">
+    <tr><th>利用者</th><th class="num">提供回数</th><th class="num">提供時間</th></tr>${rows}</table></div>
+    <p class="muted" style="margin-top:8px">本番では、ここから加算・減算を反映した給付費明細書(サービス提供実績記録票)を自動作成します。</p>`;
+  renderTokutei();
+}
+function exportBillCsv(){
+  const ym=document.getElementById('bill-month').value || fullDate().slice(0,7);
+  const rows=[['日付','利用者','開始','終了','提供分数','要約']];
+  db.reports.filter(r=>r.date.slice(0,7)===ym).sort((x,y)=>x.date<y.date?-1:1).forEach(r=>{
+    rows.push([r.date, (user(r.userId)||{}).name||'', r.start||'', r.end||'', r.mins||0, '"'+(r.summary||'').replace(/"/g,'""')+'"']);
+  });
+  if(rows.length===1){ alert(ym+' の報告記録がまだありません。'); return; }
+  const csv='\uFEFF'+rows.map(r=>r.join(',')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`kakehashi_jisseki_${ym}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- 特定事業所加算チェック ---------- */
+function tkSet(key,val){ db.tokutei[key]=val; save(); renderTokutei(); }
+function daysSince(d){ if(!d) return Infinity; return Math.floor((new Date(fullDate())-new Date(d))/86400000); }
+function renderTokutei(){
+  const t=db.tokutei;
+  const ym=fullDate().slice(0,7);
+  const monthReports=db.reports.filter(r=>r.date.slice(0,7)===ym).length;
+  const kaigiOk=daysSince(t.kaigiDate)<=35;
+  const kenshinOk=daysSince(t.kenshinDate)<=365;
+  const items=[
+    {ok:t.kenshu, t:'訪問介護員ごとの個別研修計画', d:'2024年度改定で「個別」の研修計画作成が必須になりました。',
+     act:`<button class="btn mini ${t.kenshu?'':'sec'}" onclick="tkSet('kenshu',${!t.kenshu})">${t.kenshu?'✔ 整備済':'未整備 → タップで記録'}</button>`},
+    {ok:kaigiOk, t:'定期会議の開催(おおむね月1回以上)+記録', d:t.kaigiDate?`最終開催: ${t.kaigiDate}${kaigiOk?'(期限内)':'(⚠ 1ヶ月超過)'}。`:'開催記録がありません。',
+     act:`<button class="btn mini sec" onclick="tkSet('kaigiDate','${fullDate()}')">今日の開催を記録</button>`},
+    {ok:t.shiji&&monthReports>0, t:'文書での事前指示+サービス提供後の報告', d:`事前指示の運用: ${t.shiji?'あり':'なし'} / 提供後の報告: 今月${monthReports}件(📋報告タブから自動集計)`,
+     act:`<button class="btn mini ${t.shiji?'':'sec'}" onclick="tkSet('shiji',${!t.shiji})">${t.shiji?'✔ 事前指示 運用中':'事前指示 未運用'}</button>`},
+    {ok:kenshinOk, t:'健康診断の定期実施(年1回以上・事業主負担)', d:t.kenshinDate?`最終実施: ${t.kenshinDate}${kenshinOk?'(期限内)':'(⚠ 1年超過)'}`:'実施記録がありません。',
+     act:`<input type="date" value="${t.kenshinDate||''}" onchange="tkSet('kenshinDate',this.value)" style="max-width:180px">`},
+    {ok:t.kinkyu, t:'緊急時等の対応方針の明示', d:'緊急時の対応方法を利用者に文書で明示していること。',
+     act:`<button class="btn mini ${t.kinkyu?'':'sec'}" onclick="tkSet('kinkyu',${!t.kinkyu})">${t.kinkyu?'✔ 明示済':'未対応 → タップで記録'}</button>`},
+  ];
+  const jinzaiOk=(+t.fukushiPct||0)>=30;
+  const row=i=>`<div class="check-row"><div class="check-ic">${i.ok?'✅':'⚠️'}</div><div style="flex:1;min-width:0"><div class="t">${i.t}</div><div class="d">${i.d}</div><div style="margin-top:7px">${i.act}</div></div></div>`;
+  document.getElementById('tk-list').innerHTML =
+    `<div class="subttl" style="margin-top:6px">① 体制要件(全区分で必須)</div>` + items.map(row).join('') +
+    `<div class="subttl" style="margin-top:16px">② 人材要件(区分Ⅰ・Ⅱ)</div>` +
+    row({ok:jinzaiOk, t:'介護福祉士の割合 30%以上 等', d:'在籍する訪問介護員のうち介護福祉士の占める割合(実務者研修修了者等の基準もあり)。',
+         act:`<span style="display:inline-flex;gap:8px;align-items:center">介護福祉士 <input type="number" value="${esc(String(t.fukushiPct||''))}" onchange="tkSet('fukushiPct',this.value)" style="max-width:100px" placeholder="0"> %</span>`}) +
+    `<div class="subttl" style="margin-top:16px">③ 重度者等対応要件(区分Ⅰ・Ⅲ)</div>` +
+    row({ok:t.judo, t:'重度要介護者等 20%以上 または 看取り対応実績', d:'要介護4・5、認知症日常生活自立度Ⅲ以上等の利用者が20%以上、または看取り期の対応実績1名以上(選択式)。',
+         act:`<button class="btn mini ${t.judo?'':'sec'}" onclick="tkSet('judo',${!t.judo})">${t.judo?'✔ 充足':'未充足'}</button>`});
+  const taiseiOk=items.every(i=>i.ok);
+  let judge;
+  if(!taiseiOk){
+    judge='<span class="chip y">体制要件が未充足です</span> <span class="muted">上の⚠️を解消すると区分Ⅳ(+3%)から算定の可能性があります。</span>';
+  } else if(jinzaiOk&&t.judo){ judge='<span class="chip g">特定事業所加算Ⅰ(+20%)相当の体制です</span>'; }
+  else if(jinzaiOk){ judge='<span class="chip g">特定事業所加算Ⅱ(+10%)相当の体制です</span> <span class="muted">重度者等対応も満たすとⅠ(+20%)。</span>'; }
+  else if(t.judo){ judge='<span class="chip g">特定事業所加算Ⅲ(+10%)相当の体制です</span> <span class="muted">介護福祉士30%以上も満たすとⅠ(+20%)。</span>'; }
+  else { judge='<span class="chip g">特定事業所加算Ⅳ(+3%)相当の体制です</span> <span class="muted">人材要件・重度者等対応を満たすと上位区分へ。</span>'; }
+  document.getElementById('tk-judge').innerHTML=`<div style="font-weight:700;margin-bottom:6px">判定(目安)</div>${judge}`;
 }
 
 /* ---------- 買い物 ---------- */
