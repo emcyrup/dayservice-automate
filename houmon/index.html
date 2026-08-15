@@ -467,8 +467,12 @@
         <label class="ckl"><input type="checkbox" id="of-gyakutai">高齢者虐待防止措置未実施(−1％)</label>
         <label class="ckl"><input type="checkbox" id="of-bcp">業務継続計画未策定(−1％)</label>
       </div>
-      <label class="fld" style="margin-top:12px">単位数マスタ</label>
-      <div id="master-list"></div>
+      <label class="fld" style="margin-top:12px">単位数マスタ(改定版ごとに管理)</label>
+      <div class="row">
+        <select id="mst-ver" onchange="renderMaster()" style="max-width:230px"></select>
+        <button class="btn mini sec" onclick="addMasterVersion()">＋ 新しい改定版</button>
+      </div>
+      <div id="master-list" style="margin-top:10px"></div>
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
     </div>
     <div class="card">
@@ -520,17 +524,17 @@ const seed = {
   tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
   office: { no:'', name:'', city:'', tanka:10, shogu:0, tokutei:0, chiiki:0, gyakutai:false, bcp:false },
   master: [
-    { code:'B01', name:'身体介護 20分未満', unit:163 },
-    { code:'B02', name:'身体介護 20分以上30分未満', unit:244 },
-    { code:'B03', name:'身体介護 30分以上1時間未満', unit:387 },
-    { code:'B04', name:'身体介護 1時間以上1時間30分未満', unit:567 },
-    { code:'B05', name:'身体介護 以降30分ごと', unit:82 },
-    { code:'B06', name:'身体に引き続く生活援助(20分ごと・最大3)', unit:65 },
-    { code:'S01', name:'生活援助 20分以上45分未満', unit:179 },
-    { code:'S02', name:'生活援助 45分以上', unit:220 },
-    { code:'J01', name:'通院等乗降介助(1回)', unit:97 },
-    { code:'K01', name:'緊急時訪問介護加算(1回)', unit:100 },
-    { code:'K02', name:'初回加算(月1回)', unit:200 }
+    { code:'B01', name:'身体介護 20分未満', unit:163, from:'2024-04', to:'' },
+    { code:'B02', name:'身体介護 20分以上30分未満', unit:244, from:'2024-04', to:'' },
+    { code:'B03', name:'身体介護 30分以上1時間未満', unit:387, from:'2024-04', to:'' },
+    { code:'B04', name:'身体介護 1時間以上1時間30分未満', unit:567, from:'2024-04', to:'' },
+    { code:'B05', name:'身体介護 以降30分ごと', unit:82, from:'2024-04', to:'' },
+    { code:'B06', name:'身体に引き続く生活援助(20分ごと・最大3)', unit:65, from:'2024-04', to:'' },
+    { code:'S01', name:'生活援助 20分以上45分未満', unit:179, from:'2024-04', to:'' },
+    { code:'S02', name:'生活援助 45分以上', unit:220, from:'2024-04', to:'' },
+    { code:'J01', name:'通院等乗降介助(1回)', unit:97, from:'2024-04', to:'' },
+    { code:'K01', name:'緊急時訪問介護加算(1回)', unit:100, from:'2024-04', to:'' },
+    { code:'K02', name:'初回加算(月1回)', unit:200, from:'2024-04', to:'' }
   ]
 };
 let db = load();
@@ -538,6 +542,7 @@ let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.master=d.master||structuredClone(seed.master);
+        d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
         d.users.forEach(u=>{ u.care=u.care||'要介護1'; u.wari=u.wari||1; u.tatemono=u.tatemono||0; u.hokenNo=u.hokenNo||''; });
         d.reports.forEach(r=>{ r.kubun=r.kubun||'shintai'; }); d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
@@ -748,27 +753,31 @@ function calcMins(s,e){ if(!s||!e) return 0; const [sh,sm]=s.split(':').map(Numb
    ============================================================ */
 const GENDO={'要支援1':5032,'要支援2':10531,'要介護1':16765,'要介護2':19705,
              '要介護3':27048,'要介護4':30938,'要介護5':36217};
-function mst(code){ return (db.master||[]).find(x=>x.code===code)||{name:code,unit:0}; }
-function mu(code){ return +mst(code).unit||0; }
+function mst(code, ym){
+  const c=(db.master||[]).filter(x=>x.code===code && mstVer(x)<=(ym||'9999-99') && (!x.to||(ym||'0000-00')<=x.to));
+  if(c.length) return c.sort((a,b)=>mstVer(a)<mstVer(b)?1:-1)[0];
+  return (db.master||[]).find(x=>x.code===code)||{name:code,unit:0};
+}
+function mu(code, ym){ return +mst(code, ym).unit||0; }
 function yen(n){ return Math.round(n||0).toLocaleString('ja-JP'); }
 
 /* 訪問1件の基本単位数(区分と所要時間から) */
-function baseUnits(kubun, mins, smins){
-  if(kubun==='joukou') return {unit:mu('J01'), label:mst('J01').name};
+function baseUnits(kubun, mins, smins, ym){
+  if(kubun==='joukou') return {unit:mu('J01',ym), label:mst('J01',ym).name};
   if(kubun==='seikatsu'){
     if(mins<20) return {unit:0, label:'生活援助(20分未満・算定外)'};
-    return mins<45 ? {unit:mu('S01'), label:mst('S01').name} : {unit:mu('S02'), label:mst('S02').name};
+    return mins<45 ? {unit:mu('S01',ym), label:mst('S01',ym).name} : {unit:mu('S02',ym), label:mst('S02',ym).name};
   }
   // 身体介護(both は身体部分＋生活援助加算)
   const sm = kubun==='both' ? Math.max(0, +smins||0) : 0;
   const bm = Math.max(0, mins - sm);
   let u, label;
-  if(bm<20){ u=mu('B01'); label=mst('B01').name; }
-  else if(bm<30){ u=mu('B02'); label=mst('B02').name; }
-  else if(bm<60){ u=mu('B03'); label=mst('B03').name; }
-  else if(bm<90){ u=mu('B04'); label=mst('B04').name; }
-  else { const ex=Math.ceil((bm-90)/30); u=mu('B04')+mu('B05')*ex; label=mst('B04').name+'＋30分毎×'+ex; }
-  if(kubun==='both'&&sm>=20){ const n=Math.min(3, Math.floor(sm/20)); u+=mu('B06')*n; label+='＋生活援助加算×'+n; }
+  if(bm<20){ u=mu('B01',ym); label=mst('B01',ym).name; }
+  else if(bm<30){ u=mu('B02',ym); label=mst('B02',ym).name; }
+  else if(bm<60){ u=mu('B03',ym); label=mst('B03',ym).name; }
+  else if(bm<90){ u=mu('B04',ym); label=mst('B04',ym).name; }
+  else { const ex=Math.ceil((bm-90)/30); u=mu('B04',ym)+mu('B05',ym)*ex; label=mst('B04',ym).name+'＋30分毎×'+ex; }
+  if(kubun==='both'&&sm>=20){ const n=Math.min(3, Math.floor(sm/20)); u+=mu('B06',ym)*n; label+='＋生活援助加算×'+n; }
   return {unit:u, label};
 }
 /* 時間帯加算率(開始時刻) */
@@ -784,7 +793,7 @@ function calcUser(u, ym){
   const rs=db.reports.filter(r=>r.userId===u.id&&r.date.slice(0,7)===ym)
                      .sort((a,b)=>a.date<b.date?-1:1);
   const visits=rs.map(r=>{
-    const b=baseUnits(r.kubun||'shintai', r.mins||0, r.smins||0);
+    const b=baseUnits(r.kubun||'shintai', r.mins||0, r.smins||0, ym);
     const t=timeRate(r.start);
     const futari=r.futari?2:1;
     const unit=Math.round(b.unit*futari*t.rate);
@@ -798,9 +807,9 @@ function calcUser(u, ym){
     steps.push({t:`同一建物等の減算(−${tate}%)`, v:units-before}); }
   // ④ 回数・月次加算
   const kin=visits.filter(v=>v.kinkyu).length;
-  if(kin){ const v=mu('K01')*kin; units+=v; steps.push({t:`緊急時訪問介護加算 ×${kin}回`, v}); }
+  if(kin){ const v=mu('K01',ym)*kin; units+=v; steps.push({t:`緊急時訪問介護加算 ×${kin}回`, v}); }
   const first=(db.reports.filter(r=>r.userId===u.id).sort((a,b)=>a.date<b.date?-1:1)[0]||{}).date;
-  if(first&&first.slice(0,7)===ym&&rs.length){ const v=mu('K02'); units+=v; steps.push({t:'初回加算', v}); }
+  if(first&&first.slice(0,7)===ym&&rs.length){ const v=mu('K02',ym); units+=v; steps.push({t:'初回加算', v}); }
   // ⑤ 特定事業所加算・地域加算
   const tk=+o.tokutei||0;
   if(tk&&units){ const v=Math.round(units*Math.floor(tk)/100); units+=v; steps.push({t:`特定事業所加算(＋${Math.floor(tk)}%)`, v}); }
@@ -842,7 +851,7 @@ function renderBilling(){
       <tr><td><b>合計 ${list.length}名</b></td><td class="num"></td><td class="num"></td><td class="num"><b>${yen(sum('units'))}</b></td>
         <td class="num"><b>${yen(sum('total'))}</b></td><td class="num"><b>${yen(sum('seikyu'))}</b></td><td class="num"><b>${yen(sum('futan'))}</b></td></tr>
     </table></div>
-    <p class="muted" style="margin-top:8px">単位単価 ${(+(db.office||{}).tanka||10)}円。国保連へは「請求額」を、利用者へは「自己負担」を請求します。</p>`
+    <p class="muted" style="margin-top:8px">単位単価 ${(+(db.office||{}).tanka||10)}円 / 単位数は <b>${esc(verForYm(ym).replace('-','年'))}月〜の改定版</b>で計算。国保連へは「請求額」を、利用者へは「自己負担」を請求します。</p>`
     : `<p class="muted">${esc(ym)} の報告記録がありません。📋報告タブで保存してください。</p>`;
   renderBillCheck(ym, list);
   const opts=db.users.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
@@ -910,16 +919,55 @@ function renderMeisai(){
     </div>`;
 }
 
-/* ---------- 単位数マスタ ---------- */
+/* ---------- 単位数マスタ(改定版) ----------
+   改定は4月施行だが、4月に行うのは3月分の請求。対象月に応じて版を自動で切り替える。 */
+const MST_BASE='2024-04';
+function mstVer(m){ return m.from||MST_BASE; }
+function masterVersions(){ return [...new Set((db.master||[]).map(mstVer))].sort().reverse(); }
+function verForYm(ym){
+  const vs=masterVersions().filter(v=>v<=ym);
+  return vs.length?vs[0]:masterVersions().slice(-1)[0]||MST_BASE;
+}
+function prevMonth(ym){ const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-2,1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function renderMasterVer(){
+  const sel=document.getElementById('mst-ver'); if(!sel) return;
+  const vs=masterVersions(); const keep=sel.value;
+  sel.innerHTML=vs.map(v=>`<option value="${v}">${v.replace('-','年')}月〜 適用</option>`).join('');
+  if(keep&&vs.includes(keep)) sel.value=keep;
+}
 function renderMaster(){
   const el=document.getElementById('master-list'); if(!el) return;
+  renderMasterVer();
+  const sel=document.getElementById('mst-ver');
+  const ver=sel.value||masterVersions()[0]||MST_BASE;
+  const rows=(db.master||[]).map((m,i)=>({m,i})).filter(x=>mstVer(x.m)===ver);
   el.innerHTML=`<div class="tblwrap"><table class="tbl">
     <tr><th>コード</th><th>サービス内容</th><th class="num">単位数</th></tr>
-    ${(db.master||[]).map((m,i)=>`<tr><td>${esc(m.code)}</td><td style="text-align:left">${esc(m.name)}</td>
-      <td class="num"><input type="number" value="${esc(String(m.unit))}" onchange="setMaster(${i}, this.value)" style="max-width:92px;text-align:right"></td></tr>`).join('')}
-  </table></div>`;
+    ${rows.map(x=>`<tr><td>${esc(x.m.code)}</td><td style="text-align:left">${esc(x.m.name)}</td>
+      <td class="num"><input type="number" value="${esc(String(x.m.unit))}" onchange="setMaster(${x.i}, this.value)" style="max-width:92px;text-align:right"></td></tr>`).join('')}
+  </table></div>
+  <p class="muted" style="margin-top:8px">この版は <b>${esc(ver.replace('-','年'))}月サービス提供分</b>から適用されます${(db.master||[]).some(m=>mstVer(m)===ver&&m.to)?`(〜${esc(((db.master||[]).find(m=>mstVer(m)===ver&&m.to)||{}).to.replace('-','年'))}月分)`:''}。報酬改定のときは「＋ 新しい改定版」で新しい版を作り、単位数を更新してください。過去の月は当時の版で計算されます。</p>`;
 }
 function setMaster(i, v){ db.master[i].unit=+v||0; save(); }
+function addMasterVersion(){
+  const v=(prompt('新しい改定版の適用開始年月を入力してください(例: 2027-04)')||'').trim();
+  if(!v) return;
+  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){ alert('YYYY-MM の形式で入力してください(例: 2027-04)。'); return; }
+  if(masterVersions().includes(v)){ alert('その年月の改定版はすでにあります。'); return; }
+  const base=verForYm(v);
+  const src=(db.master||[]).filter(m=>mstVer(m)===base);
+  if(!src.length){ alert('複製元の版が見つかりません。'); return; }
+  src.forEach(m=>db.master.push({code:m.code, name:m.name, unit:m.unit, from:v, to:''}));
+  const end=prevMonth(v);
+  db.master.forEach(m=>{ if(mstVer(m)===base && (!m.to||m.to>end)) m.to=end; });
+  save();
+  const sel=document.getElementById('mst-ver'); renderMasterVer(); if(sel) sel.value=v;
+  renderMaster();
+  alert(v.replace('-','年')+'月〜の改定版を作成しました。単位数を新しい値に更新してください。\n' +
+        end.replace('-','年')+'月分までは、これまでの版で計算されます。');
+}
+
 
 function exportBillCsv(){
   const ym=document.getElementById('bill-month').value || fullDate().slice(0,7);
