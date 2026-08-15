@@ -150,6 +150,18 @@
   #master-list select{min-width:104px}
   #master-list input[type=text]{font-size:12.5px}
   #master-list td,#master-list th{padding:6px 7px}
+  .navsec{display:none}
+  .subnav{display:flex;gap:6px;overflow-x:auto;margin:0 0 14px;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .subnav::-webkit-scrollbar{display:none}
+  .subnav button{flex:none;border:1.5px solid var(--line);background:var(--card);color:var(--sub);font-weight:700;font-size:13px;padding:8px 15px;border-radius:99px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:.15s}
+  .subnav button:hover{border-color:var(--brand);color:var(--brand-d)}
+  .subnav button.on{background:var(--brand-l);border-color:color-mix(in srgb, var(--brand) 35%, var(--line));color:var(--brand-d)}
+  details.acc{border:1px solid var(--line);border-radius:12px;background:var(--bg);margin-top:12px}
+  details.acc>summary{cursor:pointer;padding:12px 14px;font-weight:700;font-size:14px;list-style:none}
+  details.acc>summary::-webkit-details-marker{display:none}
+  details.acc>summary::before{content:"▸ ";color:var(--sub)}
+  details.acc[open]>summary::before{content:"▾ "}
+  details.acc>.accbody{padding:0 14px 14px}
   .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
   .ckl input{accent-color:var(--brand);width:16px;height:16px}
   @media print{
@@ -190,6 +202,9 @@
     header.appbar .tag{background:var(--brand-l);color:var(--brand-d)}
     nav.topnav{flex-direction:column;overflow:visible;border-bottom:none;background:transparent;padding:10px 14px;gap:3px}
     nav.topnav button{width:100%;justify-content:flex-start;border-radius:11px;padding:11px 15px;font-size:14.5px;gap:11px}
+    .navsec{display:block;font-size:10.5px;font-weight:800;color:var(--sub);letter-spacing:.09em;padding:15px 16px 5px}
+    .navsec:first-of-type{padding-top:6px}
+
     main{grid-column:2;max-width:920px;width:100%;padding:32px 40px;margin:0}
     .foot{grid-column:2}
     .totop{right:32px}
@@ -208,13 +223,16 @@
 </header>
 <nav class="topnav">
     <button data-t="home" class="on" onclick="go('home')">📊 ダッシュボード</button>
+    <div class="navsec">日々の支援</div>
     <button data-t="record" onclick="go('record')">💬 記録</button>
     <button data-t="report" onclick="go('report')">✉️ 報告</button>
     <button data-t="plan" onclick="go('plan')">📝 計画</button>
+    <button data-t="share" onclick="go('share')">👥 共有</button>
+    <div class="navsec">実績・請求</div>
     <button data-t="attend" onclick="go('attend')">🗓 実績</button>
     <button data-t="bill" onclick="go('bill')">💴 請求</button>
-    <button data-t="check" onclick="go('check')">✅ 加算</button>
-    <button data-t="share" onclick="go('share')">👥 共有</button>
+    <button data-t="check" onclick="go('check')">✅ 加算チェック</button>
+    <div class="navsec">管理</div>
     <button data-t="children" onclick="go('children')">👦 児童</button>
     <button data-t="setting" onclick="go('setting')">⚙️ 設定</button>
 </nav>
@@ -376,7 +394,7 @@
   <!-- ============ 請求 ============ -->
   <section id="v-bill" class="view">
     <h2 class="title noprint">💴 請求(国保連)</h2>
-    <div class="banner noprint">🏢 実績から<b>総費用額・給付費・利用者負担額</b>を自動計算し、請求書・明細書・上限額管理結果票までまとめて作ります。単位数は⚙️設定のマスタで編集できます(<b>初期値は暫定</b>。最新の単位数表で更新してください)。</div>
+    <div class="banner noprint">🏢 実績から<b>総費用額・給付費・利用者負担額</b>を自動計算します。単位数は⚙️設定のマスタで編集できます(<b>初期値は暫定</b>。最新の単位数表で更新してください)。</div>
     <div class="card noprint">
       <label class="fld">請求対象月</label>
       <input type="month" id="bl-month" onchange="renderBill()">
@@ -385,33 +403,40 @@
         <button class="btn sec" onclick="exportSeikyuCsv()">⬇ 請求データCSV</button>
       </div>
     </div>
-    <div class="card noprint">
+    <div class="subnav noprint">
+      <button data-s="sum" class="on" onclick="billSec('sum')">📊 サマリー・点検</button>
+      <button data-s="meisai" onclick="billSec('meisai')">📄 明細書</button>
+      <button data-s="manual" onclick="billSec('manual')">➕ 回数入力</button>
+      <button data-s="kanri" onclick="billSec('kanri')">🧮 上限額管理</button>
+      <button data-s="diff" onclick="billSec('diff')">🔀 改定差分</button>
+    </div>
+    <div data-sec="sum" class="card noprint">
       <div class="subttl">🔍 請求前チェック</div>
       <div id="bl-check"><p class="muted">「集計する」を押すと点検します。</p></div>
     </div>
-    <div class="card">
+    <div data-sec="sum" class="card">
       <div class="subttl">📊 請求サマリー(障害児通所給付費等請求書 相当)</div>
       <div id="bl-sum"></div>
     </div>
-    <div class="card noprint">
+    <div data-sec="meisai" class="card noprint">
       <div class="subttl">📄 給付費明細書</div>
       <label class="fld">児童</label>
       <select id="bl-child" onchange="renderMeisai()"></select>
       <div id="bl-meisai" style="margin-top:12px"></div>
     </div>
-    <div class="card noprint">
+    <div data-sec="manual" class="card noprint">
       <div class="subttl">➕ 回数を入力する加算</div>
       <p class="muted">家庭連携加算のように「実施した回数」で算定する加算です。⚙️設定のマスタで「きっかけ＝手入力」にした加算がここに並びます。</p>
       <div id="manual-list"></div>
     </div>
-    <div class="card noprint">
+    <div data-sec="diff" class="card noprint">
       <div class="subttl">🔀 改定の新旧差分チェック</div>
       <p class="muted">同じ実績を別の改定版で計算し、差額を確認します。改定版を作ったら必ず前月実績で確認してください。</p>
       <label class="fld">比較する版</label>
       <select id="diff-ver" onchange="renderDiff()"></select>
       <div id="diff-out" style="margin-top:12px"></div>
     </div>
-    <div class="card noprint">
+    <div data-sec="kanri" class="card noprint">
       <div class="subttl">🧮 利用者負担上限額管理結果票</div>
       <p class="muted">複数の事業所を利用していて、自事業所が上限額管理事業所になっている児童の調整を行います。</p>
       <label class="fld">対象児童</label>
@@ -530,13 +555,17 @@
       <p class="muted">請求の計算に使います。<b>単位数の初期値は暫定です。</b>最新の告示・単位数表に合わせて必ず更新してください。</p>
       <label class="fld">単位単価(地域区分・円)</label>
       <input type="number" id="of-tanka" step="0.01" placeholder="10.00">
-      <label class="fld" style="margin-top:12px">単位数・加算のマスタ(改定版ごとに管理)</label>
-      <div class="row">
-        <select id="mst-ver" onchange="renderMaster()" style="max-width:230px"></select>
-        <button class="btn mini sec" onclick="addMasterVersion()">＋ 新しい改定版</button>
-        <button class="btn mini sec" onclick="addMst()">＋ 加算を追加</button>
-      </div>
-      <div id="master-list" style="margin-top:10px"></div>
+      <details class="acc">
+        <summary>単位数・加算のマスタ(改定版ごとに管理)</summary>
+        <div class="accbody">
+          <div class="row">
+            <select id="mst-ver" onchange="renderMaster()" style="max-width:230px"></select>
+            <button class="btn mini sec" onclick="addMasterVersion()">＋ 新しい改定版</button>
+            <button class="btn mini sec" onclick="addMst()">＋ 加算を追加</button>
+          </div>
+          <div id="master-list" style="margin-top:10px"></div>
+        </div>
+      </details>
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
     </div>
     <div class="card">
@@ -1219,6 +1248,7 @@ function renderBill(){
   if(keep1) bc.value=keep1; if(keep2) kc.value=keep2;
   renderManual(ym);
   renderMeisai(); renderKanri(); renderDiff();
+  billSec(billSecCur());
 }
 function renderManual(ym){
   const el=document.getElementById('manual-list'); if(!el) return;
@@ -1284,6 +1314,13 @@ function renderMeisai(){
       <p class="muted" style="margin-top:8px">※検証版の試作様式です。単位数・様式は最新の告示および自治体の指定様式でご確認ください。</p>
     </div>`;
 }
+
+/* ---------- 請求画面のセクション切替 ---------- */
+function billSec(s){
+  document.querySelectorAll('#v-bill [data-sec]').forEach(el=>{ el.style.display = el.dataset.sec===s ? '' : 'none'; });
+  document.querySelectorAll('#v-bill .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+}
+function billSecCur(){ const b=document.querySelector('#v-bill .subnav button.on'); return b?b.dataset.s:'sum'; }
 
 /* ---------- 上限額管理結果票 ---------- */
 function knRec(ym, cid){ return (db.kanri||[]).find(k=>k.ym===ym&&k.childId===cid); }
