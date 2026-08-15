@@ -147,6 +147,9 @@
   .sheet .tbl tr.sun td{color:#b3362b}
   .sheet .tbl tr.sat td{color:#2b62b3}
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
+  #master-list select{min-width:104px}
+  #master-list input[type=text]{font-size:12.5px}
+  #master-list td,#master-list th{padding:6px 7px}
   .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
   .ckl input{accent-color:var(--brand);width:16px;height:16px}
   @media print{
@@ -397,6 +400,18 @@
       <div id="bl-meisai" style="margin-top:12px"></div>
     </div>
     <div class="card noprint">
+      <div class="subttl">➕ 回数を入力する加算</div>
+      <p class="muted">家庭連携加算のように「実施した回数」で算定する加算です。⚙️設定のマスタで「きっかけ＝手入力」にした加算がここに並びます。</p>
+      <div id="manual-list"></div>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">🔀 改定の新旧差分チェック</div>
+      <p class="muted">同じ実績を別の改定版で計算し、差額を確認します。改定版を作ったら必ず前月実績で確認してください。</p>
+      <label class="fld">比較する版</label>
+      <select id="diff-ver" onchange="renderDiff()"></select>
+      <div id="diff-out" style="margin-top:12px"></div>
+    </div>
+    <div class="card noprint">
       <div class="subttl">🧮 利用者負担上限額管理結果票</div>
       <p class="muted">複数の事業所を利用していて、自事業所が上限額管理事業所になっている児童の調整を行います。</p>
       <label class="fld">対象児童</label>
@@ -513,20 +528,13 @@
     <div class="card">
       <div class="subttl">報酬・単位数の設定</div>
       <p class="muted">請求の計算に使います。<b>単位数の初期値は暫定です。</b>最新の告示・単位数表に合わせて必ず更新してください。</p>
-      <div class="grid2">
-        <div><label class="fld">単位単価(地域区分・円)</label><input type="number" id="of-tanka" step="0.01" placeholder="10.00"></div>
-        <div><label class="fld">処遇改善加算(％)</label><input type="number" id="of-shogu" step="0.1" placeholder="0"></div>
-      </div>
-      <label class="fld">事業所体制による加算(算定日ごとに加算)</label>
-      <div class="row">
-        <label class="ckl"><input type="checkbox" id="of-kahai">児童指導員等加配</label>
-        <label class="ckl"><input type="checkbox" id="of-senmon">専門的支援体制</label>
-        <label class="ckl"><input type="checkbox" id="of-fukushi">福祉専門職員配置等</label>
-      </div>
-      <label class="fld" style="margin-top:12px">単位数マスタ(改定版ごとに管理)</label>
+      <label class="fld">単位単価(地域区分・円)</label>
+      <input type="number" id="of-tanka" step="0.01" placeholder="10.00">
+      <label class="fld" style="margin-top:12px">単位数・加算のマスタ(改定版ごとに管理)</label>
       <div class="row">
         <select id="mst-ver" onchange="renderMaster()" style="max-width:230px"></select>
         <button class="btn mini sec" onclick="addMasterVersion()">＋ 新しい改定版</button>
+        <button class="btn mini sec" onclick="addMst()">＋ 加算を追加</button>
       </div>
       <div id="master-list" style="margin-top:10px"></div>
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
@@ -586,24 +594,45 @@ const seed = {
              bus:'飛び出し注意。駐車場では大人が先に降りる' } },
   ],
   records: [], stock: [], attend: [],
-  office: { no:'', name:'', city:'', svc:'放課後等デイサービス', tanka:10, shogu:0,
-             addons:{ kahai:false, senmon:false, fukushi:false } },
+  office: { no:'', name:'', city:'', svc:'放課後等デイサービス', tanka:10 },
   kanri: [],
   master: [
-    { code:'B01', name:'放課後等デイサービス 基本報酬(平日)', unit:604, from:'2024-04', to:'' },
-    { code:'B02', name:'放課後等デイサービス 基本報酬(休日)', unit:721, from:'2024-04', to:'' },
-    { code:'T01', name:'児童指導員等加配加算', unit:187, from:'2024-04', to:'' },
-    { code:'T02', name:'専門的支援体制加算', unit:123, from:'2024-04', to:'' },
-    { code:'T03', name:'福祉専門職員配置等加算', unit:15, from:'2024-04', to:'' },
-    { code:'A01', name:'送迎加算(片道につき)', unit:54, from:'2024-04', to:'' },
-    { code:'A02', name:'欠席時対応加算(月4回まで)', unit:94, from:'2024-04', to:'' }
+    { code:'635101', name:'放課後等デイサービス 基本報酬(平日)', unit:604, per:'day',   trig:'weekday', on:true,  order:0, from:'2024-04', to:'' },
+    { code:'635102', name:'放課後等デイサービス 基本報酬(休日)', unit:721, per:'day',   trig:'holiday', on:true,  order:0, from:'2024-04', to:'' },
+    { code:'636101', name:'児童指導員等加配加算',               unit:187, per:'day',   trig:'present', on:false, order:0, from:'2024-04', to:'' },
+    { code:'636141', name:'専門的支援体制加算',                 unit:123, per:'day',   trig:'present', on:false, order:0, from:'2024-04', to:'' },
+    { code:'636401', name:'福祉専門職員配置等加算(Ⅰ)',          unit:15,  per:'day',   trig:'present', on:false, order:0, from:'2024-04', to:'' },
+    { code:'636821', name:'個別サポート加算(Ⅰ)',                unit:120, per:'day',   trig:'present', on:false, order:0, from:'2024-04', to:'' },
+    { code:'636310', name:'送迎加算(片道につき)',               unit:54,  per:'count', trig:'trip',    on:true,  order:0, from:'2024-04', to:'' },
+    { code:'636740', name:'欠席時対応加算',                     unit:94,  per:'count', trig:'absent',  on:true,  order:0, max:4, from:'2024-04', to:'' },
+    { code:'636501', name:'家庭連携加算',                       unit:280, per:'count', trig:'manual',  on:false, order:0, max:4, from:'2024-04', to:'' },
+    { code:'636521', name:'事業所内相談支援加算(Ⅰ)',            unit:100, per:'count', trig:'manual',  on:false, order:0, max:1, from:'2024-04', to:'' },
+    { code:'636601', name:'保育・教育等移行支援加算',           unit:500, per:'count', trig:'manual',  on:false, order:0, from:'2024-04', to:'' },
+    { code:'639101', name:'福祉・介護職員等処遇改善加算',       unit:0,   per:'rate',  rate:0, on:false, order:90, from:'2024-04', to:'' }
   ]
 };
 let db = load();
+function masterVersionsOf(d){ return [...new Set((d.master||[]).map(m=>m.from||'2024-04'))]; }
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children){ d.attend=d.attend||[]; d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.addons=d.office.addons||{kahai:false,senmon:false,fukushi:false};
-        d.kanri=d.kanri||[]; d.master=d.master||structuredClone(seed.master);
-        d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
+        d.kanri=d.kanri||[]; d.manual=d.manual||{};
+        d.master=d.master||structuredClone(seed.master);
+        const MIG={B01:{per:'day',trig:'weekday',on:true},   B02:{per:'day',trig:'holiday',on:true},
+                   T01:{per:'day',trig:'present'},           T02:{per:'day',trig:'present'},
+                   T03:{per:'day',trig:'present'},           A01:{per:'count',trig:'trip',on:true},
+                   A02:{per:'count',trig:'absent',on:true,max:4}};
+        const OLD={T01:'kahai', T02:'senmon', T03:'fukushi'};
+        const ad=(d.office||{}).addons||{};
+        d.master.forEach(m=>{
+          m.from=m.from||'2024-04'; if(m.to===undefined) m.to='';
+          if(!m.per){ const g=MIG[m.code]||{per:'day',trig:'present'};
+            m.per=g.per; m.trig=g.trig; m.max=g.max||null; m.order=0; m.rate=0;
+            m.on = g.on!==undefined ? g.on : (OLD[m.code] ? !!ad[OLD[m.code]] : false); }
+        });
+        if((d.office||{}).shogu && !d.master.some(m=>m.per==='rate')){
+          masterVersionsOf(d).forEach(v=>d.master.push({code:'639101', name:'福祉・介護職員等処遇改善加算',
+            unit:0, per:'rate', rate:+d.office.shogu||0, on:true, order:90, from:v, to:''}));
+        }
         d.children.forEach(c=>{ c.cert=c.cert||{}; if(c.cert.limit===undefined) c.cert.limit=4600; c.cert.kanri=c.cert.kanri||'none'; }); d.children.forEach(c=>c.cert=c.cert||{no:'',days:'',expiry:''}); return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function child(id){ return db.children.find(c=>c.id===id); }
@@ -999,23 +1028,16 @@ function exportAttendCsv(){
 /* ---------- 事業所情報 ---------- */
 const OF_IDS=['of-no','of-name','of-city','of-svc'];
 function renderOffice(){
-  const o=db.office||{}, ad=o.addons||{};
+  const o=db.office||{};
   const v=[o.no,o.name,o.city,o.svc];
   OF_IDS.forEach((id,i)=>{ const el=document.getElementById(id); if(el&&v[i]) el.value=v[i]; });
   document.getElementById('of-tanka').value = o.tanka||10;
-  document.getElementById('of-shogu').value = o.shogu||0;
-  document.getElementById('of-kahai').checked = !!ad.kahai;
-  document.getElementById('of-senmon').checked = !!ad.senmon;
-  document.getElementById('of-fukushi').checked = !!ad.fukushi;
 }
 function saveOffice(){
-  db.office={ no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(),
-              city:document.getElementById('of-city').value.trim(), svc:document.getElementById('of-svc').value,
-              tanka:+document.getElementById('of-tanka').value||10,
-              shogu:+document.getElementById('of-shogu').value||0,
-              addons:{ kahai:document.getElementById('of-kahai').checked,
-                       senmon:document.getElementById('of-senmon').checked,
-                       fukushi:document.getElementById('of-fukushi').checked } };
+  db.office=Object.assign(db.office||{}, {
+    no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(),
+    city:document.getElementById('of-city').value.trim(), svc:document.getElementById('of-svc').value,
+    tanka:+document.getElementById('of-tanka').value||10 });
   save(); alert('設定を保存しました。');
 }
 
@@ -1096,46 +1118,85 @@ function exportSeikyuCsv(){
    - 計算: 単位数 → 総費用額 → 給付費(9割) → 利用者負担(1割)
            → 負担上限月額で調整 → 上限額管理 → 決定利用者負担額 → 請求額
    ============================================================ */
-function mst(code, ym){
-  const c=(db.master||[]).filter(x=>x.code===code && mstVer(x)<=(ym||'9999-99') && (!x.to||(ym||'0000-00')<=x.to));
-  if(c.length) return c.sort((a,b)=>mstVer(a)<mstVer(b)?1:-1)[0];
-  return (db.master||[]).find(x=>x.code===code) || {name:code, unit:0};
+/* ============================================================
+   請求(障害児通所給付費) ― 計算は「単位数マスタ」駆動
+   マスタの1行が1つのサービス／加算。per(算定単位)とtrig(算定のきっかけ)で
+   実績から回数を自動で数える。加算の新設は行の追加だけで対応できる。
+     per : day(日ごと) / count(回ごと) / month(月1回) / rate(率)
+     trig: weekday 平日提供日 / holiday 休日提供日 / present 提供日 /
+           trip 送迎回数 / absent 欠席日 / month 提供があれば1 / manual 手入力
+   ============================================================ */
+function mstVer(m){ return m.from||'2024-04'; }
+function masterVersions(){ return [...new Set((db.master||[]).map(mstVer))].sort().reverse(); }
+function verForYm(ym){
+  const vs=masterVersions().filter(v=>v<=ym);
+  return vs.length?vs[0]:masterVersions().slice(-1)[0]||'2024-04';
+}
+function prevMonth(ym){ const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-2,1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+/* 対象月(または指定版)で有効なマスタ行をコードごとに1つ返す */
+function activeMaster(ym, ver){
+  const pick={};
+  (db.master||[]).forEach(m=>{
+    if(ver){ if(mstVer(m)!==ver) return; }
+    else{
+      if(mstVer(m)>(ym||'9999-99')) return;
+      if(m.to && (ym||'0000-00')>m.to) return;
+    }
+    const cur=pick[m.code];
+    if(!cur || mstVer(cur)<mstVer(m)) pick[m.code]=m;
+  });
+  return Object.values(pick);
 }
 function isHolidayDate(ds){ const d=new Date(ds+'T00:00:00'); return d.getDay()===0||d.getDay()===6; }
-function yen(n){ return (n||0).toLocaleString('ja-JP'); }
+function yen(n){ return Math.round(n||0).toLocaleString('ja-JP'); }
+function mKey(ym,cid,code){ return ym+'|'+cid+'|'+code; }
+function manualCount(ym,cid,code){ return +((db.manual||{})[mKey(ym,cid,code)])||0; }
+function setManual(ym,cid,code,v){ db.manual=db.manual||{}; db.manual[mKey(ym,cid,code)]=Math.max(0,+v||0); save(); renderBill(); }
 
-function calcChild(c, ym){
-  const o=db.office||{}, ad=o.addons||{};
+function calcChild(c, ym, ver){
   const as=db.attend.filter(a=>a.childId===c.id&&a.date.slice(0,7)===ym);
   const pres=as.filter(a=>a.status==='present');
   const abs=as.filter(a=>a.status==='absent');
+  const cnt={
+    weekday: pres.filter(a=>!isHolidayDate(a.date)).length,
+    holiday: pres.filter(a=>isHolidayDate(a.date)).length,
+    present: pres.length,
+    trip:    pres.reduce((n,a)=>n+(a.pickup?1:0)+(a.dropoff?1:0), 0),
+    absent:  abs.length,
+    month:   pres.length?1:0
+  };
+  const ms=activeMaster(ym, ver);
   const rows=[];
-  const push=(code,count)=>{ const m=mst(code, ym); const u=+m.unit||0;
-    if(count>0&&u>0) rows.push({code, name:m.name, unit:u, count, sub:u*count}); };
-  push('B01', pres.filter(a=>!isHolidayDate(a.date)).length);
-  push('B02', pres.filter(a=>isHolidayDate(a.date)).length);
-  if(ad.kahai)   push('T01', pres.length);
-  if(ad.senmon)  push('T02', pres.length);
-  if(ad.fukushi) push('T03', pres.length);
-  push('A01', pres.reduce((n,a)=>n+(a.pickup?1:0)+(a.dropoff?1:0), 0));
-  push('A02', Math.min(abs.length, 4));
+  ms.filter(m=>m.per!=='rate' && m.on!==false).forEach(m=>{
+    let n = m.trig==='manual' ? manualCount(ym,c.id,m.code) : (cnt[m.trig]||0);
+    if(m.max) n=Math.min(n, +m.max);
+    const u=+m.unit||0;
+    if(n>0 && u!==0) rows.push({code:m.code, name:m.name, unit:u, count:n, sub:u*n});
+  });
   let units=rows.reduce((s,r)=>s+r.sub, 0);
-  const sg=+o.shogu||0;
-  if(sg>0&&units>0){ const u=Math.floor(units*sg/100); rows.push({code:'A99', name:'処遇改善加算('+sg+'%)', unit:'-', count:'-', sub:u}); units+=u; }
+  ms.filter(m=>m.per==='rate' && m.on!==false && +m.rate)
+    .sort((a,b)=>(+a.order||0)-(+b.order||0))
+    .forEach(m=>{
+      if(!units) return;
+      const v=Math.round(units*(+m.rate)/100); units+=v;
+      rows.push({code:m.code, name:m.name+'('+((+m.rate)>0?'+':'')+m.rate+'%)', unit:'-', count:'-', sub:v});
+    });
+  const o=db.office||{};
   const tanka=+o.tanka||10;
-  const total=Math.floor(units*tanka);          // 総費用額
-  const kyufu=Math.floor(total*0.9);            // 給付費(給付率90%)
-  const futan=total-kyufu;                      // 利用者負担(1割)
+  const total=Math.floor(units*tanka);
+  const kyufu=Math.floor(total*0.9);
+  const futan=total-kyufu;
   const cert=c.cert||{};
   const limit=cert.limit===undefined?4600:+cert.limit;
-  const capped=Math.min(futan, limit);          // 負担上限月額で調整
+  const capped=Math.min(futan, limit);
   const kn=(db.kanri||[]).find(k=>k.ym===ym&&k.childId===c.id);
-  const decided=(cert.kanri==='none'||!cert.kanri) ? capped
-              : (kn ? (kn.selfAdj||0) : capped); // 上限管理の調整結果
+  const decided=(cert.kanri==='none'||!cert.kanri) ? capped : (kn ? (kn.selfAdj||0) : capped);
   return {c, rows, units, total, kyufu, futan, limit, capped, decided,
           seikyu: total-decided, days:pres.length, absent:abs.length, kn};
 }
-function calcAll(ym){ return db.children.map(c=>calcChild(c, ym)).filter(r=>r.units>0); }
+function calcAll(ym, ver){ return db.children.map(c=>calcChild(c, ym, ver)).filter(r=>r.units>0); }
+
 function billYm(){ const el=document.getElementById('bl-month'); if(el&&!el.value) el.value=fullDate().slice(0,7); return el?el.value:fullDate().slice(0,7); }
 
 function renderBill(){
@@ -1156,7 +1217,19 @@ function renderBill(){
   const keep1=bc.value, keep2=kc.value;
   bc.innerHTML=opts; kc.innerHTML=opts;
   if(keep1) bc.value=keep1; if(keep2) kc.value=keep2;
-  renderMeisai(); renderKanri();
+  renderManual(ym);
+  renderMeisai(); renderKanri(); renderDiff();
+}
+function renderManual(ym){
+  const el=document.getElementById('manual-list'); if(!el) return;
+  const ms=activeMaster(ym).filter(m=>m.trig==='manual'&&m.on!==false&&m.per!=='rate');
+  if(!ms.length){ el.innerHTML='<p class="muted">手入力の加算は設定されていません。</p>'; return; }
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th>児童</th>${ms.map(m=>`<th class="num">${esc(m.name)}${m.max?`<div class="muted">上限${m.max}回</div>`:''}</th>`).join('')}</tr>
+    ${db.children.map(c=>`<tr><td>${esc(c.name)}</td>${ms.map(m=>`<td class="num">
+      <input type="number" min="0" value="${esc(String(manualCount(ym,c.id,m.code)||''))}" placeholder="0"
+        onchange="setManual('${ym}','${c.id}','${m.code}',this.value)" style="max-width:72px;text-align:right"></td>`).join('')}</tr>`).join('')}
+  </table></div>`;
 }
 
 function renderBillCheck(ym, list){
@@ -1294,17 +1367,10 @@ function saveKanri(){
   alert('管理結果(区分'+j.code+')を確定しました。決定利用者負担額に反映しています。');
 }
 
-/* ---------- 単位数マスタ(改定版) ----------
-   改定は4月施行だが、4月に行うのは3月分の請求。対象月に応じて版を自動で切り替える。 */
-const MST_BASE='2024-04';
-function mstVer(m){ return m.from||MST_BASE; }
-function masterVersions(){ return [...new Set((db.master||[]).map(mstVer))].sort().reverse(); }
-function verForYm(ym){
-  const vs=masterVersions().filter(v=>v<=ym);
-  return vs.length?vs[0]:masterVersions().slice(-1)[0]||MST_BASE;
-}
-function prevMonth(ym){ const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-2,1);
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+/* ---------- 単位数マスタ(改定版・加算定義) ---------- */
+const PER_LABEL={day:'日ごと', count:'回ごと', month:'月1回', rate:'率'};
+const TRIG_LABEL={weekday:'平日の提供日', holiday:'休日の提供日', present:'提供日', trip:'送迎回数',
+                  absent:'欠席日', month:'提供があれば1', manual:'手入力'};
 function renderMasterVer(){
   const sel=document.getElementById('mst-ver'); if(!sel) return;
   const vs=masterVersions(); const keep=sel.value;
@@ -1315,16 +1381,46 @@ function renderMaster(){
   const el=document.getElementById('master-list'); if(!el) return;
   renderMasterVer();
   const sel=document.getElementById('mst-ver');
-  const ver=sel.value||masterVersions()[0]||MST_BASE;
+  const ver=sel.value||masterVersions()[0]||'2024-04';
   const rows=(db.master||[]).map((m,i)=>({m,i})).filter(x=>mstVer(x.m)===ver);
   el.innerHTML=`<div class="tblwrap"><table class="tbl">
-    <tr><th>コード</th><th>サービス内容</th><th class="num">単位数</th></tr>
-    ${rows.map(x=>`<tr><td>${esc(x.m.code)}</td><td style="text-align:left">${esc(x.m.name)}</td>
-      <td class="num"><input type="number" value="${esc(String(x.m.unit))}" onchange="setMaster(${x.i}, this.value)" style="max-width:92px;text-align:right"></td></tr>`).join('')}
+    <tr><th>算定</th><th>サービスコード</th><th>名称</th><th>算定単位</th><th>きっかけ</th><th class="num">単位数/率</th><th class="num">月上限</th><th></th></tr>
+    ${rows.map(x=>{
+      const m=x.m, i=x.i, isRate=m.per==='rate';
+      return `<tr>
+        <td><input type="checkbox" ${m.on!==false?'checked':''} onchange="setMst(${i},'on',this.checked)"></td>
+        <td><input type="text" value="${esc(m.code)}" onchange="setMst(${i},'code',this.value)" style="max-width:88px"></td>
+        <td style="text-align:left"><input type="text" value="${esc(m.name)}" onchange="setMst(${i},'name',this.value)" style="min-width:190px"></td>
+        <td><select onchange="setMst(${i},'per',this.value)">${Object.keys(PER_LABEL).map(k=>`<option value="${k}" ${m.per===k?'selected':''}>${PER_LABEL[k]}</option>`).join('')}</select></td>
+        <td>${isRate?'<span class="muted">―</span>':`<select onchange="setMst(${i},'trig',this.value)">${Object.keys(TRIG_LABEL).map(k=>`<option value="${k}" ${m.trig===k?'selected':''}>${TRIG_LABEL[k]}</option>`).join('')}</select>`}</td>
+        <td class="num"><input type="number" step="0.1" value="${esc(String(isRate?(m.rate||0):(m.unit||0)))}" onchange="setMst(${i},'${isRate?'rate':'unit'}',this.value)" style="max-width:84px;text-align:right">${isRate?' %':''}</td>
+        <td class="num">${isRate?`<input type="number" value="${esc(String(m.order||0))}" onchange="setMst(${i},'order',this.value)" style="max-width:64px;text-align:right" title="率の適用順">`:`<input type="number" value="${esc(String(m.max||''))}" onchange="setMst(${i},'max',this.value)" style="max-width:64px;text-align:right" placeholder="―">`}</td>
+        <td><button class="btn mini sec" onclick="delMst(${i})">削除</button></td>
+      </tr>`;
+    }).join('')}
   </table></div>
-  <p class="muted" style="margin-top:8px">この版は <b>${esc(ver.replace('-','年'))}月サービス提供分</b>から適用されます${(db.master||[]).some(m=>mstVer(m)===ver&&m.to)?`(〜${esc(((db.master||[]).find(m=>mstVer(m)===ver&&m.to)||{}).to.replace('-','年'))}月分)`:''}。報酬改定のときは「＋ 新しい改定版」で新しい版を作り、単位数を更新してください。過去の月は当時の版で計算されます。</p>`;
+  <p class="muted" style="margin-top:8px">この版は <b>${esc(ver.replace('-','年'))}月サービス提供分</b>から適用されます。
+  「算定」のチェックを外すと計算に含めません。率の行は「月上限」欄が<b>適用順</b>(小さいほど先)になります。
+  <b>加算が新設されたときは、行を追加して算定単位ときっかけを選ぶだけで計算に反映されます。</b></p>`;
 }
-function setMaster(i, v){ db.master[i].unit=+v||0; save(); }
+function setMst(i, key, v){
+  const m=db.master[i]; if(!m) return;
+  if(key==='on') m.on=!!v;
+  else if(key==='unit'||key==='rate'||key==='order') m[key]=+v||0;
+  else if(key==='max') m.max=(v===''||v===null)?null:(+v||null);
+  else m[key]=String(v).trim();
+  save(); renderMaster();
+}
+function delMst(i){
+  const m=db.master[i]; if(!m) return;
+  if(!confirm(`「${m.name}」をこの改定版から削除します。よろしいですか?`)) return;
+  db.master.splice(i,1); save(); renderMaster();
+}
+function addMst(){
+  const ver=document.getElementById('mst-ver').value||masterVersions()[0]||'2024-04';
+  db.master.push({code:'', name:'新しい加算', unit:0, per:'day', trig:'present', on:false, order:0, max:null, rate:0, from:ver, to:''});
+  save(); renderMaster();
+}
 function addMasterVersion(){
   const v=(prompt('新しい改定版の適用開始年月を入力してください(例: 2027-04)')||'').trim();
   if(!v) return;
@@ -1333,15 +1429,40 @@ function addMasterVersion(){
   const base=verForYm(v);
   const src=(db.master||[]).filter(m=>mstVer(m)===base);
   if(!src.length){ alert('複製元の版が見つかりません。'); return; }
-  src.forEach(m=>db.master.push({code:m.code, name:m.name, unit:m.unit, from:v, to:''}));
+  src.forEach(m=>db.master.push(Object.assign({}, m, {from:v, to:''})));
   const end=prevMonth(v);
   db.master.forEach(m=>{ if(mstVer(m)===base && (!m.to||m.to>end)) m.to=end; });
   save();
   const sel=document.getElementById('mst-ver'); renderMasterVer(); if(sel) sel.value=v;
   renderMaster();
-  alert(v.replace('-','年')+'月〜の改定版を作成しました。単位数を新しい値に更新してください。\n' +
+  alert(v.replace('-','年')+'月〜の改定版を作成しました。単位数を新しい値に更新してください。\n'+
         end.replace('-','年')+'月分までは、これまでの版で計算されます。');
 }
+
+/* ---------- 改定の新旧差分チェック ---------- */
+function renderDiff(){
+  const el=document.getElementById('diff-out'); if(!el) return;
+  const sel=document.getElementById('diff-ver'); if(!sel) return;
+  const vs=masterVersions();
+  if(!sel.options.length){ sel.innerHTML=vs.map(v=>`<option value="${v}">${v.replace('-','年')}月〜 版</option>`).join(''); }
+  const ym=billYm(), cur=verForYm(ym), other=sel.value||vs[0];
+  if(other===cur){ el.innerHTML=`<p class="muted">比較する版が現在の適用版(${esc(cur.replace('-','年'))}月〜)と同じです。別の版を選んでください。</p>`; return; }
+  const a=calcAll(ym), b=calcAll(ym, other);
+  if(!a.length){ el.innerHTML='<p class="muted">対象月の実績がありません。</p>'; return; }
+  const find=(l,id)=>l.find(r=>r.c.id===id)||{units:0,total:0};
+  const sum=(l,k)=>l.reduce((s,r)=>s+r[k],0);
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th>児童</th><th class="num">現行 ${esc(cur.replace('-','年'))}月版</th><th class="num">${esc(other.replace('-','年'))}月版</th><th class="num">差額</th></tr>
+    ${a.map(r=>{ const o=find(b,r.c.id); const d=o.total-r.total;
+      return `<tr><td>${esc(r.c.name)}</td><td class="num">${yen(r.total)}</td><td class="num">${yen(o.total)}</td>
+      <td class="num" style="color:${d>0?'#0b7a5d':d<0?'#b3362b':'inherit'}">${d>0?'+':''}${yen(d)}</td></tr>`;
+    }).join('')}
+    <tr><td><b>合計</b></td><td class="num"><b>${yen(sum(a,'total'))}</b></td><td class="num"><b>${yen(sum(b,'total'))}</b></td>
+      <td class="num"><b>${sum(b,'total')-sum(a,'total')>0?'+':''}${yen(sum(b,'total')-sum(a,'total'))}</b></td></tr>
+  </table></div>
+  <p class="muted" style="margin-top:8px">同じ実績を両方の版で計算した総費用額の比較です。改定版を作ったら、前月の実績でこの差額を確認してから運用に入ってください。</p>`;
+}
+
 
 
 /* ---------- セーフティノート ---------- */
