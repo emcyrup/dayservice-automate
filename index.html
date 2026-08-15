@@ -209,6 +209,7 @@
     <button data-t="report" onclick="go('report')">✉️ 報告</button>
     <button data-t="plan" onclick="go('plan')">📝 計画</button>
     <button data-t="attend" onclick="go('attend')">🗓 実績</button>
+    <button data-t="bill" onclick="go('bill')">💴 請求</button>
     <button data-t="check" onclick="go('check')">✅ 加算</button>
     <button data-t="share" onclick="go('share')">👥 共有</button>
     <button data-t="children" onclick="go('children')">👦 児童</button>
@@ -360,13 +361,47 @@
       <div id="jis-sheet" class="sheet" style="margin-top:14px"></div>
     </div>
     <div class="card noprint">
-      <div class="subttl">📤 国保連への請求データ</div>
-      <p class="muted">実績から請求データ(コントロール・データ・エンドの3レコード構成)を作成します。検証版は構造のみの試作で、交換情報識別番号・項目順は正式なインタフェース仕様書に合わせて確定します。</p>
-      <div id="bill-preview" style="margin-top:10px"></div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn sec" onclick="exportAttendCsv()">⬇ 実績CSV(簡易・確認用)</button>
-        <button class="btn" onclick="exportSeikyuCsv()">⬇ 請求データ(様式準拠・試作)</button>
+      <div class="subttl">📤 データ出力</div>
+      <p class="muted">金額の計算・請求書・上限額管理は <b>💴請求タブ</b> で行います。</p>
+      <div class="row" style="margin-top:10px">
+        <button class="btn sec" onclick="exportAttendCsv()">⬇ 実績CSV(確認用)</button>
+        <button class="btn sec" onclick="go('bill')">💴 請求タブへ</button>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ 請求 ============ -->
+  <section id="v-bill" class="view">
+    <h2 class="title noprint">💴 請求(国保連)</h2>
+    <div class="banner noprint">🏢 実績から<b>総費用額・給付費・利用者負担額</b>を自動計算し、請求書・明細書・上限額管理結果票までまとめて作ります。単位数は⚙️設定のマスタで編集できます(<b>初期値は暫定</b>。最新の単位数表で更新してください)。</div>
+    <div class="card noprint">
+      <label class="fld">請求対象月</label>
+      <input type="month" id="bl-month" onchange="renderBill()">
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="renderBill()">🔄 集計する</button>
+        <button class="btn sec" onclick="exportSeikyuCsv()">⬇ 請求データCSV</button>
+      </div>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">🔍 請求前チェック</div>
+      <div id="bl-check"><p class="muted">「集計する」を押すと点検します。</p></div>
+    </div>
+    <div class="card">
+      <div class="subttl">📊 請求サマリー(障害児通所給付費等請求書 相当)</div>
+      <div id="bl-sum"></div>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">📄 給付費明細書</div>
+      <label class="fld">児童</label>
+      <select id="bl-child" onchange="renderMeisai()"></select>
+      <div id="bl-meisai" style="margin-top:12px"></div>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">🧮 利用者負担上限額管理結果票</div>
+      <p class="muted">複数の事業所を利用していて、自事業所が上限額管理事業所になっている児童の調整を行います。</p>
+      <label class="fld">対象児童</label>
+      <select id="kn-child" onchange="renderKanri()"></select>
+      <div id="kn-body" style="margin-top:12px"></div>
     </div>
   </section>
 
@@ -452,6 +487,13 @@
         <label class="fld">受給者証番号</label><input type="text" id="cf-certno" placeholder="例: 1310012345">
         <label class="fld">契約支給量(日/月)</label><input type="number" id="cf-days" placeholder="例: 15">
         <label class="fld">有効期限</label><input type="date" id="cf-expiry">
+        <div class="grid2">
+          <div><label class="fld">負担上限月額</label>
+            <select id="cf-limit"><option value="0">0円(生保・非課税)</option><option value="4600">4,600円</option><option value="37200">37,200円</option></select></div>
+          <div><label class="fld">上限額管理</label>
+            <select id="cf-kanri"><option value="none">対象外(1事業所のみ利用)</option><option value="self">自事業所が管理</option><option value="other">他事業所が管理</option></select></div>
+        </div>
+        <label class="fld">上限額管理事業所番号(他事業所が管理の場合)</label><input type="text" id="cf-kanrino" placeholder="例: 1350100002">
         <div class="row" style="margin-top:12px">
           <button class="btn" onclick="saveChild()">保存</button>
           <button class="btn sec" onclick="hideChildForm()">キャンセル</button>
@@ -466,6 +508,23 @@
       <label class="fld">市町村番号(6桁)</label><input type="text" id="of-city" placeholder="例: 131059">
       <label class="fld">サービス種別</label>
       <select id="of-svc"><option>放課後等デイサービス</option><option>児童発達支援</option><option>保育所等訪問支援</option></select>
+      <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
+    </div>
+    <div class="card">
+      <div class="subttl">報酬・単位数の設定</div>
+      <p class="muted">請求の計算に使います。<b>単位数の初期値は暫定です。</b>最新の告示・単位数表に合わせて必ず更新してください。</p>
+      <div class="grid2">
+        <div><label class="fld">単位単価(地域区分・円)</label><input type="number" id="of-tanka" step="0.01" placeholder="10.00"></div>
+        <div><label class="fld">処遇改善加算(％)</label><input type="number" id="of-shogu" step="0.1" placeholder="0"></div>
+      </div>
+      <label class="fld">事業所体制による加算(算定日ごとに加算)</label>
+      <div class="row">
+        <label class="ckl"><input type="checkbox" id="of-kahai">児童指導員等加配</label>
+        <label class="ckl"><input type="checkbox" id="of-senmon">専門的支援体制</label>
+        <label class="ckl"><input type="checkbox" id="of-fukushi">福祉専門職員配置等</label>
+      </div>
+      <label class="fld" style="margin-top:12px">単位数マスタ</label>
+      <div id="master-list"></div>
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
     </div>
     <div class="card">
@@ -499,7 +558,7 @@ const seed = {
   children: [
     { id:'c1', name:'たろう', kana:'た', grade:'小2',
       traits:'ブロック遊びが好き。順番を待つのが苦手。落ち着くと集中力が高い。',
-      plan:true, lastMonitoring:'2026-05-10', cert:{no:'1310012345', days:15, expiry:'2027-03-31'}, wish:'友だちと順番を守って遊べるようになってほしい。',
+      plan:true, lastMonitoring:'2026-05-10', cert:{no:'1310012345', days:15, expiry:'2027-03-31', limit:4600, kanri:'none', kanriNo:''}, wish:'友だちと順番を守って遊べるようになってほしい。',
       care:{ alert:'食物アレルギー:そば(要除去)。服薬なし。',
              dislike:'大きな音/突然の予定変更',
              calm:'ブロック遊び。静かな場所で1対1',
@@ -507,7 +566,7 @@ const seed = {
              bus:'降車時は必ず手をつなぐ' } },
     { id:'c2', name:'はなこ', kana:'は', grade:'小4',
       traits:'絵を描くのが得意。初めての活動に不安が強い。言葉より視覚支援が有効。',
-      plan:false, lastMonitoring:null, cert:{no:'1310023456', days:10, expiry:'2026-08-31'}, wish:'新しいことにも安心して取り組めるようになってほしい。',
+      plan:false, lastMonitoring:null, cert:{no:'1310023456', days:10, expiry:'2026-08-31', limit:37200, kanri:'self', kanriNo:''}, wish:'新しいことにも安心して取り組めるようになってほしい。',
       care:{ alert:'アレルギー・服薬なし。',
              dislike:'初めての場所/大きな声での指示',
              calm:'絵を描く。視覚スケジュールの提示',
@@ -515,7 +574,7 @@ const seed = {
              bus:'乗り物酔いしやすい→前方座席に' } },
     { id:'c3', name:'けんた', kana:'け', grade:'小1',
       traits:'体を動かすのが大好き。気持ちの切り替えに時間がかかる。',
-      plan:true, lastMonitoring:'2025-11-20', cert:{no:'1310034567', days:20, expiry:'2026-06-30'}, wish:'かんしゃくを減らし、気持ちを言葉で伝えられるように。',
+      plan:true, lastMonitoring:'2025-11-20', cert:{no:'1310034567', days:20, expiry:'2026-06-30', limit:0, kanri:'none', kanriNo:''}, wish:'かんしゃくを減らし、気持ちを言葉で伝えられるように。',
       care:{ alert:'卵アレルギー(加熱済みは可)。てんかん既往→発作時は時間を計り保護者へ連絡。',
              dislike:'活動の中断/負けること',
              calm:'トランポリンなど体を動かす活動',
@@ -523,10 +582,24 @@ const seed = {
              bus:'飛び出し注意。駐車場では大人が先に降りる' } },
   ],
   records: [], stock: [], attend: [],
-  office: { no:'', name:'', city:'', svc:'放課後等デイサービス' }
+  office: { no:'', name:'', city:'', svc:'放課後等デイサービス', tanka:10, shogu:0,
+             addons:{ kahai:false, senmon:false, fukushi:false } },
+  kanri: [],
+  master: [
+    { code:'B01', name:'放課後等デイサービス 基本報酬(平日)', unit:604 },
+    { code:'B02', name:'放課後等デイサービス 基本報酬(休日)', unit:721 },
+    { code:'T01', name:'児童指導員等加配加算', unit:187 },
+    { code:'T02', name:'専門的支援体制加算', unit:123 },
+    { code:'T03', name:'福祉専門職員配置等加算', unit:15 },
+    { code:'A01', name:'送迎加算(片道につき)', unit:54 },
+    { code:'A02', name:'欠席時対応加算(月4回まで)', unit:94 }
+  ]
 };
 let db = load();
-function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children){ d.attend=d.attend||[]; d.office=d.office||{no:'',name:'',city:'',svc:'放課後等デイサービス'}; d.children.forEach(c=>c.cert=c.cert||{no:'',days:'',expiry:''}); return d; } }catch(e){} return structuredClone(seed); }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children){ d.attend=d.attend||[]; d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
+        d.office.addons=d.office.addons||{kahai:false,senmon:false,fukushi:false};
+        d.kanri=d.kanri||[]; d.master=d.master||structuredClone(seed.master);
+        d.children.forEach(c=>{ c.cert=c.cert||{}; if(c.cert.limit===undefined) c.cert.limit=4600; c.cert.kanri=c.cert.kanri||'none'; }); d.children.forEach(c=>c.cert=c.cert||{no:'',days:'',expiry:''}); return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function child(id){ return db.children.find(c=>c.id===id); }
 function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -548,9 +621,10 @@ function go(t){
   if(t==='report') fillReportSelect();
   if(t==='record'){ renderHistory(); renderStock(); }
   if(t==='attend') renderAttend();
+  if(t==='bill') renderBill();
   if(t==='share') renderShareChips();
   if(t==='children') renderChildren();
-  if(t==='setting'){ renderSetChildren(); renderOffice(); }
+  if(t==='setting'){ renderSetChildren(); renderOffice(); renderMaster(); }
 }
 
 /* ---------- ホーム ---------- */
@@ -576,7 +650,7 @@ function renderHome(){
 /* ---------- セレクト初期化 ---------- */
 function fillChildSelects(){
   const opts = db.children.map(c=>`<option value="${c.id}">${esc(c.name)}(${esc(c.grade)})</option>`).join('');
-  ['rec-child','plan-child','check-child','jis-child'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=opts; });
+  ['rec-child','plan-child','check-child','jis-child','bl-child','kn-child'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=opts; });
 }
 function fillReportSelect(){
   const sel = document.getElementById('rep-record');
@@ -920,14 +994,24 @@ function exportAttendCsv(){
 /* ---------- 事業所情報 ---------- */
 const OF_IDS=['of-no','of-name','of-city','of-svc'];
 function renderOffice(){
-  const o=db.office||{};
+  const o=db.office||{}, ad=o.addons||{};
   const v=[o.no,o.name,o.city,o.svc];
   OF_IDS.forEach((id,i)=>{ const el=document.getElementById(id); if(el&&v[i]) el.value=v[i]; });
+  document.getElementById('of-tanka').value = o.tanka||10;
+  document.getElementById('of-shogu').value = o.shogu||0;
+  document.getElementById('of-kahai').checked = !!ad.kahai;
+  document.getElementById('of-senmon').checked = !!ad.senmon;
+  document.getElementById('of-fukushi').checked = !!ad.fukushi;
 }
 function saveOffice(){
   db.office={ no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(),
-              city:document.getElementById('of-city').value.trim(), svc:document.getElementById('of-svc').value };
-  save(); alert('事業所情報を保存しました。');
+              city:document.getElementById('of-city').value.trim(), svc:document.getElementById('of-svc').value,
+              tanka:+document.getElementById('of-tanka').value||10,
+              shogu:+document.getElementById('of-shogu').value||0,
+              addons:{ kahai:document.getElementById('of-kahai').checked,
+                       senmon:document.getElementById('of-senmon').checked,
+                       fukushi:document.getElementById('of-fukushi').checked } };
+  save(); alert('設定を保存しました。');
 }
 
 /* ---------- サービス提供実績記録票 ---------- */
@@ -970,7 +1054,6 @@ function renderSheet(){
     </table></div>
     <div class="sfoot"><span>算定日数 ${use}日</span><span>送迎加算 往${pu}回 / 復${dr}回</span><span>欠席時対応 ${ab}回</span></div>
     <p class="muted" style="margin-top:8px">※検証版の試作様式です。正式な様式・記載要領は自治体の指定様式をご確認ください。</p>`;
-  renderBillPreview(ym);
 }
 function renderBillPreview(ym){
   const el=document.getElementById('bill-preview'); if(!el) return;
@@ -983,21 +1066,17 @@ function renderBillPreview(ym){
 }
 function seikyuRows(ym){
   const o=db.office||{};
-  const body=[];
-  db.children.forEach(c=>{
-    const as=db.attend.filter(a=>a.childId===c.id&&a.date.slice(0,7)===ym);
-    const use=as.filter(a=>a.status==='present').length;
-    if(!use) return;
-    const cert=c.cert||{};
-    body.push(['2', String(body.length+1), '1211', o.city||'', o.no||'', ym.replace('-',''),
-               cert.no||'', c.name, o.svc||'放課後等デイサービス', String(use),
-               String(as.filter(a=>a.pickup).length), String(as.filter(a=>a.dropoff).length)]);
+  const body=calcAll(ym).map((r,i)=>{
+    const cert=r.c.cert||{};
+    return ['2', String(i+1), '1211', o.city||'', o.no||'', ym.replace('-',''),
+            cert.no||'', r.c.name, o.svc||'放課後等デイサービス',
+            String(r.days), String(r.units), String(r.total), String(r.decided), String(r.seikyu)];
   });
   if(!body.length) return [];
   return [['1','121',String(body.length),o.no||'',fullDate().replace(/-/g,'')], ...body, ['3']];
 }
 function exportSeikyuCsv(){
-  const ym=document.getElementById('jis-month').value||document.getElementById('att-month').value||fullDate().slice(0,7);
+  const ym=(document.getElementById('bl-month')||{}).value||document.getElementById('jis-month').value||fullDate().slice(0,7);
   const rows=seikyuRows(ym);
   if(!rows.length){ alert(ym+' の実績がありません。出欠を記録してからお試しください。'); return; }
   const csv='\uFEFF'+rows.map(r=>r.join(',')).join('\r\n')+'\r\n';
@@ -1005,6 +1084,217 @@ function exportSeikyuCsv(){
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`sodachi_seikyu_${ym}.csv`;
   a.click(); URL.revokeObjectURL(a.href);
 }
+
+/* ============================================================
+   請求(障害児通所給付費)
+   - 単位数マスタは db.master(⚙️設定で編集可)。初期値は暫定。
+   - 計算: 単位数 → 総費用額 → 給付費(9割) → 利用者負担(1割)
+           → 負担上限月額で調整 → 上限額管理 → 決定利用者負担額 → 請求額
+   ============================================================ */
+function mst(code){ return (db.master||[]).find(x=>x.code===code) || {name:code, unit:0}; }
+function isHolidayDate(ds){ const d=new Date(ds+'T00:00:00'); return d.getDay()===0||d.getDay()===6; }
+function yen(n){ return (n||0).toLocaleString('ja-JP'); }
+
+function calcChild(c, ym){
+  const o=db.office||{}, ad=o.addons||{};
+  const as=db.attend.filter(a=>a.childId===c.id&&a.date.slice(0,7)===ym);
+  const pres=as.filter(a=>a.status==='present');
+  const abs=as.filter(a=>a.status==='absent');
+  const rows=[];
+  const push=(code,count)=>{ const m=mst(code); const u=+m.unit||0;
+    if(count>0&&u>0) rows.push({code, name:m.name, unit:u, count, sub:u*count}); };
+  push('B01', pres.filter(a=>!isHolidayDate(a.date)).length);
+  push('B02', pres.filter(a=>isHolidayDate(a.date)).length);
+  if(ad.kahai)   push('T01', pres.length);
+  if(ad.senmon)  push('T02', pres.length);
+  if(ad.fukushi) push('T03', pres.length);
+  push('A01', pres.reduce((n,a)=>n+(a.pickup?1:0)+(a.dropoff?1:0), 0));
+  push('A02', Math.min(abs.length, 4));
+  let units=rows.reduce((s,r)=>s+r.sub, 0);
+  const sg=+o.shogu||0;
+  if(sg>0&&units>0){ const u=Math.floor(units*sg/100); rows.push({code:'A99', name:'処遇改善加算('+sg+'%)', unit:'-', count:'-', sub:u}); units+=u; }
+  const tanka=+o.tanka||10;
+  const total=Math.floor(units*tanka);          // 総費用額
+  const kyufu=Math.floor(total*0.9);            // 給付費(給付率90%)
+  const futan=total-kyufu;                      // 利用者負担(1割)
+  const cert=c.cert||{};
+  const limit=cert.limit===undefined?4600:+cert.limit;
+  const capped=Math.min(futan, limit);          // 負担上限月額で調整
+  const kn=(db.kanri||[]).find(k=>k.ym===ym&&k.childId===c.id);
+  const decided=(cert.kanri==='none'||!cert.kanri) ? capped
+              : (kn ? (kn.selfAdj||0) : capped); // 上限管理の調整結果
+  return {c, rows, units, total, kyufu, futan, limit, capped, decided,
+          seikyu: total-decided, days:pres.length, absent:abs.length, kn};
+}
+function calcAll(ym){ return db.children.map(c=>calcChild(c, ym)).filter(r=>r.units>0); }
+function billYm(){ const el=document.getElementById('bl-month'); if(el&&!el.value) el.value=fullDate().slice(0,7); return el?el.value:fullDate().slice(0,7); }
+
+function renderBill(){
+  const ym=billYm();
+  const list=calcAll(ym);
+  const sum=(k)=>list.reduce((s,r)=>s+r[k], 0);
+  document.getElementById('bl-sum').innerHTML = list.length ? `
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>児童</th><th class="num">日数</th><th class="num">単位数</th><th class="num">総費用額</th><th class="num">給付費(請求額)</th><th class="num">利用者負担</th></tr>
+      ${list.map(r=>`<tr><td>${esc(r.c.name)}</td><td class="num">${r.days}</td><td class="num">${yen(r.units)}</td><td class="num">${yen(r.total)}</td><td class="num">${yen(r.seikyu)}</td><td class="num">${yen(r.decided)}</td></tr>`).join('')}
+      <tr><td><b>合計 ${list.length}件</b></td><td class="num"></td><td class="num"><b>${yen(sum('units'))}</b></td><td class="num"><b>${yen(sum('total'))}</b></td><td class="num"><b>${yen(sum('seikyu'))}</b></td><td class="num"><b>${yen(sum('decided'))}</b></td></tr>
+    </table></div>
+    <p class="muted" style="margin-top:8px">単位単価 ${(+(db.office||{}).tanka||10)}円 / 給付率90%。国保連へは「給付費(請求額)」を請求し、「利用者負担」はご家庭に請求します。</p>`
+    : `<p class="muted">${esc(ym)} の実績がありません。🗓実績タブで出欠を記録してください。</p>`;
+  renderBillCheck(ym, list);
+  const opts=db.children.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  const bc=document.getElementById('bl-child'), kc=document.getElementById('kn-child');
+  const keep1=bc.value, keep2=kc.value;
+  bc.innerHTML=opts; kc.innerHTML=opts;
+  if(keep1) bc.value=keep1; if(keep2) kc.value=keep2;
+  renderMeisai(); renderKanri();
+}
+
+function renderBillCheck(ym, list){
+  const rows=[]; const o=db.office||{};
+  if(!o.no||!o.name) rows.push({ic:'⛔', t:'事業所情報が未登録', d:'⚙️設定で事業所番号・事業所名を登録してください。請求データを作成できません。'});
+  if(!(+o.tanka)) rows.push({ic:'⚠️', t:'単位単価が未設定', d:'⚙️設定で地域区分の単位単価を登録してください(未設定時は10円で計算します)。'});
+  db.children.forEach(c=>{
+    const r=calcChild(c, ym); if(!r.units) return;
+    const cert=c.cert||{};
+    if(!cert.no) rows.push({ic:'⛔', t:`${c.name}: 受給者証番号が未登録`, d:'⚙️設定の児童情報に受給者証番号を登録してください。'});
+    if(cert.expiry && new Date(cert.expiry) < new Date(ym+'-01')) rows.push({ic:'⛔', t:`${c.name}: 受給者証の期限切れ`, d:`有効期限 ${cert.expiry}。この月は請求できません。`});
+    if(cert.days && r.days > +cert.days) rows.push({ic:'⛔', t:`${c.name}: 契約支給量の超過`, d:`利用 ${r.days}日 / 支給量 ${cert.days}日。返戻の原因になります。`});
+    if(cert.kanri==='self' && !r.kn) rows.push({ic:'⚠️', t:`${c.name}: 上限額管理結果が未作成`, d:'自事業所が上限額管理事業所です。下の管理結果票を作成してください。'});
+    if(cert.kanri==='other' && !r.kn) rows.push({ic:'⚠️', t:`${c.name}: 他事業所の管理結果が未入力`, d:'上限額管理事業所から届く結果票の内容を入力してください。'});
+    if(!c.plan) rows.push({ic:'⚠️', t:`${c.name}: 個別支援計画が未作成`, d:'未作成減算の対象になります。'});
+  });
+  if(!rows.length) rows.push({ic:'✅', t:'請求前チェックOK', d:'エラー・警告はありません。請求データを作成できます。'});
+  const badge=rows.some(r=>r.ic==='⛔')?'<span class="chip r">要対応</span>':rows.some(r=>r.ic==='⚠️')?'<span class="chip y">確認推奨</span>':'<span class="chip g">良好</span>';
+  document.getElementById('bl-check').innerHTML=`<div style="margin-bottom:6px">${esc(ym)}分 ${badge}</div>`+
+    rows.map(r=>`<div class="check-row"><div class="check-ic">${r.ic}</div><div style="flex:1;min-width:0"><div class="t">${esc(r.t)}</div><div class="d">${esc(r.d)}</div></div></div>`).join('');
+}
+
+function renderMeisai(){
+  const el=document.getElementById('bl-meisai'); if(!el) return;
+  const c=child(document.getElementById('bl-child').value);
+  if(!c){ el.innerHTML='<p class="muted">児童がいません。</p>'; return; }
+  const ym=billYm(), r=calcChild(c, ym), o=db.office||{}, cert=c.cert||{};
+  if(!r.units){ el.innerHTML=`<p class="muted">${esc(c.name)}さんの ${esc(ym)} の実績がありません。</p>`; return; }
+  const KN={none:'対象外', self:'自事業所が管理', other:'他事業所が管理'};
+  el.innerHTML=`
+    <div class="sheet">
+      <div style="text-align:center;font-weight:800;font-size:15px;margin-bottom:10px">${esc(ym.replace('-','年'))}月分 障害児通所給付費・明細書</div>
+      <div class="shead">
+        <div><b>受給者証番号</b>${esc(cert.no||'(未登録)')}</div>
+        <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+        <div><b>支給決定障害児氏名</b>${esc(c.name)}</div>
+        <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+        <div><b>負担上限月額</b>${yen(r.limit)}円</div>
+        <div><b>上限額管理</b>${KN[cert.kanri||'none']}</div>
+      </div>
+      <div class="tblwrap"><table class="tbl">
+        <tr><th>コード</th><th>サービス内容</th><th class="num">単位数</th><th class="num">回数</th><th class="num">サービス単位数</th></tr>
+        ${r.rows.map(x=>`<tr><td>${esc(x.code)}</td><td style="text-align:left">${esc(x.name)}</td><td class="num">${x.unit}</td><td class="num">${x.count}</td><td class="num">${yen(x.sub)}</td></tr>`).join('')}
+        <tr><td colspan="4"><b>合計単位数</b></td><td class="num"><b>${yen(r.units)}</b></td></tr>
+      </table></div>
+      <div class="tblwrap" style="margin-top:10px"><table class="tbl">
+        <tr><td style="text-align:left">単位単価</td><td class="num">${(+o.tanka||10)}円</td><td style="text-align:left">総費用額</td><td class="num">${yen(r.total)}円</td></tr>
+        <tr><td style="text-align:left">給付率</td><td class="num">90%</td><td style="text-align:left">給付費(請求額)</td><td class="num"><b>${yen(r.seikyu)}円</b></td></tr>
+        <tr><td style="text-align:left">利用者負担(1割)</td><td class="num">${yen(r.futan)}円</td><td style="text-align:left">上限月額調整後</td><td class="num">${yen(r.capped)}円</td></tr>
+        <tr><td style="text-align:left">上限額管理調整後</td><td class="num">${r.kn?yen(r.kn.selfAdj):'―'}</td><td style="text-align:left"><b>決定利用者負担額</b></td><td class="num"><b>${yen(r.decided)}円</b></td></tr>
+      </table></div>
+      <p class="muted" style="margin-top:8px">※検証版の試作様式です。単位数・様式は最新の告示および自治体の指定様式でご確認ください。</p>
+    </div>`;
+}
+
+/* ---------- 上限額管理結果票 ---------- */
+function knRec(ym, cid){ return (db.kanri||[]).find(k=>k.ym===ym&&k.childId===cid); }
+function renderKanri(){
+  const el=document.getElementById('kn-body'); if(!el) return;
+  const c=child(document.getElementById('kn-child').value);
+  if(!c){ el.innerHTML='<p class="muted">児童がいません。</p>'; return; }
+  const cert=c.cert||{};
+  if(!cert.kanri||cert.kanri==='none'){
+    el.innerHTML=`<p class="muted">${esc(c.name)}さんは上限額管理の対象外です(⚙️設定の児童情報で変更できます)。</p>`; return; }
+  const ym=billYm(), r=calcChild(c, ym);
+  let k=knRec(ym, c.id);
+  if(!k){ k={ym, childId:c.id, others:[], code:2, selfAdj:0}; }
+  const rows=[{name:(db.office||{}).name||'自事業所', no:(db.office||{}).no||'', total:r.total, futan:r.capped, self:true},
+              ...k.others.map(o=>({...o, self:false}))];
+  const judged=judgeKanri(rows, r.limit);
+  el.innerHTML=`
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>事業所</th><th class="num">総費用額</th><th class="num">利用者負担額</th><th class="num">管理結果後の負担額</th><th></th></tr>
+      ${rows.map((x,i)=>`<tr><td>${esc(x.name)}${x.self?' <span class="chip g">自</span>':''}</td><td class="num">${yen(x.total)}</td><td class="num">${yen(x.futan)}</td><td class="num"><b>${yen(judged.adj[i])}</b></td>
+        <td class="num">${x.self?'':`<button class="btn mini sec" onclick="delKanriRow(${i-1})">削除</button>`}</td></tr>`).join('')}
+      <tr><td><b>合計</b></td><td class="num"><b>${yen(rows.reduce((s,x)=>s+x.total,0))}</b></td><td class="num"><b>${yen(judged.sum)}</b></td><td class="num"><b>${yen(judged.adj.reduce((a,b)=>a+b,0))}</b></td><td></td></tr>
+    </table></div>
+    <div style="margin-top:10px"><b>負担上限月額</b> ${yen(r.limit)}円 　<b>管理結果</b> <span class="chip ${judged.code===3?'y':'g'}">${judged.code}</span> ${esc(KANRI_TEXT[judged.code])}</div>
+    <div class="subttl" style="margin-top:14px">他事業所の利用者負担額を追加</div>
+    <div class="grid2">
+      <div><label class="fld">事業所名</label><input type="text" id="kn-name" placeholder="例: 児童発達支援センターB"></div>
+      <div><label class="fld">事業所番号</label><input type="text" id="kn-no" placeholder="例: 1350100002"></div>
+    </div>
+    <div class="grid2">
+      <div><label class="fld">総費用額(円)</label><input type="number" id="kn-total" placeholder="60000"></div>
+      <div><label class="fld">利用者負担額(円)</label><input type="number" id="kn-futan" placeholder="6000"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sec" onclick="addKanriRow()">＋ 追加</button>
+      <button class="btn" onclick="saveKanri()">💾 管理結果を確定</button>
+    </div>
+    <p class="muted" style="margin-top:8px">確定すると、明細書・請求サマリーの「決定利用者負担額」に反映されます。関係事業所へは結果票の送付が必要です。</p>`;
+}
+const KANRI_TEXT={
+  1:'管理事業所で利用者負担額を充当したため、他事業所の利用者負担は発生しない',
+  2:'利用者負担額の合算額が、負担上限月額以下のため、調整事務は行わない',
+  3:'利用者負担額の合算額が、負担上限月額を超過するため、下記のとおり調整した'
+};
+function judgeKanri(rows, limit){
+  const sum=rows.reduce((s,x)=>s+x.futan, 0);
+  if(sum<=limit) return {code:2, sum, adj:rows.map(x=>x.futan)};
+  if(rows[0].futan>=limit) return {code:1, sum, adj:rows.map((x,i)=>i===0?limit:0)};
+  let left=limit;
+  const adj=rows.map(x=>{ const v=Math.min(x.futan, left); left-=v; return v; });
+  return {code:3, sum, adj};
+}
+function addKanriRow(){
+  const ym=billYm(), cid=document.getElementById('kn-child').value;
+  const name=document.getElementById('kn-name').value.trim();
+  const total=+document.getElementById('kn-total').value||0;
+  const futan=+document.getElementById('kn-futan').value||0;
+  if(!name||!futan){ alert('事業所名と利用者負担額を入力してください。'); return; }
+  db.kanri=db.kanri||[];
+  let k=knRec(ym,cid);
+  if(!k){ k={ym, childId:cid, others:[], code:2, selfAdj:0}; db.kanri.push(k); }
+  k.others.push({name, no:document.getElementById('kn-no').value.trim(), total, futan});
+  save(); renderKanri();
+}
+function delKanriRow(i){
+  const k=knRec(billYm(), document.getElementById('kn-child').value);
+  if(!k) return;
+  k.others.splice(i,1); save(); renderKanri();
+}
+function saveKanri(){
+  const ym=billYm(), cid=document.getElementById('kn-child').value;
+  const c=child(cid); if(!c) return;
+  const r=calcChild(c, ym), o=db.office||{};
+  db.kanri=db.kanri||[];
+  let k=knRec(ym,cid);
+  if(!k){ k={ym, childId:cid, others:[], code:2, selfAdj:0}; db.kanri.push(k); }
+  const rows=[{name:o.name||'自事業所', no:o.no||'', total:r.total, futan:r.capped}, ...k.others];
+  const j=judgeKanri(rows, r.limit);
+  k.code=j.code; k.selfAdj=j.adj[0];
+  save(); renderBill();
+  alert('管理結果(区分'+j.code+')を確定しました。決定利用者負担額に反映しています。');
+}
+
+/* ---------- 単位数マスタ ---------- */
+function renderMaster(){
+  const el=document.getElementById('master-list'); if(!el) return;
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th>コード</th><th>サービス内容</th><th class="num">単位数</th></tr>
+    ${(db.master||[]).map((m,i)=>`<tr><td>${esc(m.code)}</td><td style="text-align:left">${esc(m.name)}</td>
+      <td class="num"><input type="number" value="${esc(String(m.unit))}" onchange="setMaster(${i}, this.value)" style="max-width:92px;text-align:right"></td></tr>`).join('')}
+  </table></div>`;
+}
+function setMaster(i, v){ db.master[i].unit=+v||0; save(); }
 
 /* ---------- セーフティノート ---------- */
 function renderShareChips(){
@@ -1075,7 +1365,7 @@ window.addEventListener('scroll', ()=>{ document.getElementById('totop').classLi
 
 /* ---------- 設定(検証用) ---------- */
 let editingChild=null;
-const CF_IDS=['cf-name','cf-grade','cf-traits','cf-wish','cf-alert','cf-dislike','cf-calm','cf-panic','cf-bus','cf-certno','cf-days','cf-expiry'];
+const CF_IDS=['cf-name','cf-grade','cf-traits','cf-wish','cf-alert','cf-dislike','cf-calm','cf-panic','cf-bus','cf-certno','cf-days','cf-expiry','cf-limit','cf-kanri','cf-kanrino'];
 function renderSetChildren(){
   const l=document.getElementById('set-child-list');
   l.innerHTML = db.children.length ? db.children.map(c=>`
@@ -1088,7 +1378,7 @@ function editChild(id){
   editingChild=id;
   const c = id ? child(id) : {name:'',grade:'',traits:'',wish:'',care:{alert:'',dislike:'',calm:'',panic:'',bus:''},cert:{no:'',days:'',expiry:''}};
   const ct=c.cert||{};
-  const vals=[c.name,c.grade,c.traits,c.wish,c.care.alert,c.care.dislike,c.care.calm,c.care.panic,c.care.bus,ct.no,ct.days,ct.expiry];
+  const vals=[c.name,c.grade,c.traits,c.wish,c.care.alert,c.care.dislike,c.care.calm,c.care.panic,c.care.bus,ct.no,ct.days,ct.expiry,ct.limit===undefined?4600:ct.limit,ct.kanri||'none',ct.kanriNo];
   CF_IDS.forEach((fid,i)=>document.getElementById(fid).value=vals[i]||'');
   document.getElementById('child-form').style.display='block';
   document.getElementById('cf-name').focus();
@@ -1101,7 +1391,8 @@ function saveChild(){
     traits:v['cf-traits'], wish:v['cf-wish'],
     care:{ alert:v['cf-alert']||'(未登録)', dislike:v['cf-dislike']||'(未登録)',
            calm:v['cf-calm']||'(未登録)', panic:v['cf-panic']||'(未登録)', bus:v['cf-bus']||'(未登録)' },
-    cert:{ no:v['cf-certno'], days:v['cf-days'], expiry:v['cf-expiry'] } };
+    cert:{ no:v['cf-certno'], days:v['cf-days'], expiry:v['cf-expiry'],
+           limit:+v['cf-limit']||0, kanri:v['cf-kanri'], kanriNo:v['cf-kanrino'] } };
   if(editingChild){ Object.assign(child(editingChild), data); }
   else { db.children.push(Object.assign({id:'c'+Date.now(), plan:false, lastMonitoring:null}, data)); }
   save(); hideChildForm(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
@@ -1113,6 +1404,7 @@ function delChild(id){
   db.records=db.records.filter(r=>r.childId!==id);
   db.stock=db.stock.filter(s=>s.childId!==id);
   db.attend=db.attend.filter(a=>a.childId!==id);
+  db.kanri=(db.kanri||[]).filter(k=>k.childId!==id);
   save(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
 }
 function exportData(){
