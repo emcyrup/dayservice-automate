@@ -138,8 +138,27 @@
   .tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
   .tbl th{font-size:11.5px;color:var(--sub);font-weight:700;letter-spacing:.04em}
   .tbl th.num,.tbl td.num{text-align:right}
+  .sheet{font-size:12px}
+  .sheet .shead{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:10px}
+  .sheet .shead div{border-bottom:1px solid var(--line);padding:4px 2px}
+  .sheet .shead b{color:var(--sub);font-weight:700;font-size:11px;margin-right:8px}
+  .sheet .tbl td,.sheet .tbl th{padding:5px 6px;text-align:center;white-space:nowrap}
+  .sheet .tbl td:first-child,.sheet .tbl th:first-child{text-align:right}
+  .sheet .tbl tr.sun td{color:#b3362b}
+  .sheet .tbl tr.sat td{color:#2b62b3}
+  .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
   .ckl input{accent-color:var(--brand);width:16px;height:16px}
+  @media print{
+    .topbar,.foot,.totop,.noprint{display:none!important}
+    body{display:block!important;background:#fff}
+    main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
+    .view{display:none!important}
+    .view.on{display:block!important;animation:none}
+    .card{box-shadow:none;border:1px solid #999;border-radius:0;margin:0;padding:6mm}
+    .sheet .tbl th,.sheet .tbl td{border:1px solid #999;padding:3px 5px;white-space:normal}
+    @page{size:A4 portrait;margin:12mm}
+  }
   .banner{font-size:12.5px;background:#fdf6e5;border:1px solid #f2e2bb;color:#8a6410;padding:10px 14px;border-radius:11px;margin-bottom:14px;line-height:1.6}
   .banner.safe{background:var(--brand-l);border-color:color-mix(in srgb, var(--brand) 20%, var(--line));color:var(--brand-d)}
   .kpi{display:flex;gap:10px;margin-bottom:16px}
@@ -315,18 +334,39 @@
   <!-- ============ 加算チェック ============ -->
   <!-- ============ 実績管理 ============ -->
   <section id="v-attend" class="view">
-    <h2 class="title">🗓 実績管理(出欠・送迎)</h2>
-    <div class="banner">🏢 オールインワン方針:日々の出欠を付けるだけで、月次の実績記録票・国保連請求データまで本アプリで作成します。検証版はCSV出力まで(国保連様式・伝送は本番で対応)。</div>
-    <div class="card">
+    <h2 class="title noprint">🗓 実績管理(出欠・送迎)</h2>
+    <div class="banner noprint">🏢 オールインワン方針:日々の出欠を付けるだけで、実績記録票・国保連請求データまで本アプリで作成します。検証版は様式プレビューとCSV出力まで(伝送は本番で対応)。</div>
+    <div class="card noprint">
       <div class="subttl">今日の出欠 <span class="muted" id="att-date" style="font-weight:400"></span></div>
       <div id="att-today"></div>
     </div>
-    <div class="card">
+    <div class="card noprint">
       <div class="subttl">月次実績サマリー</div>
       <label class="fld">対象月</label>
       <input type="month" id="att-month" onchange="renderAttSummary()">
       <div id="att-summary" style="margin-top:12px"></div>
-      <button class="btn sec" style="margin-top:12px" onclick="exportAttendCsv()">⬇ 実績記録票CSV(国保連様式準拠予定)</button>
+    </div>
+    <div class="card">
+      <div class="subttl">📄 サービス提供実績記録票</div>
+      <p class="muted noprint">選んだ児童・月の実績を、国保連提出様式に近い形で表示します。印刷して保護者確認印の欄にご利用ください。</p>
+      <div class="grid2 noprint">
+        <div><label class="fld">児童</label><select id="jis-child"></select></div>
+        <div><label class="fld">対象月</label><input type="month" id="jis-month"></div>
+      </div>
+      <div class="row noprint" style="margin-top:12px">
+        <button class="btn" onclick="renderSheet()">📄 実績記録票を表示</button>
+        <button class="btn sec" onclick="window.print()">🖨 印刷</button>
+      </div>
+      <div id="jis-sheet" class="sheet" style="margin-top:14px"></div>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">📤 国保連への請求データ</div>
+      <p class="muted">実績から請求データ(コントロール・データ・エンドの3レコード構成)を作成します。検証版は構造のみの試作で、交換情報識別番号・項目順は正式なインタフェース仕様書に合わせて確定します。</p>
+      <div id="bill-preview" style="margin-top:10px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn sec" onclick="exportAttendCsv()">⬇ 実績CSV(簡易・確認用)</button>
+        <button class="btn" onclick="exportSeikyuCsv()">⬇ 請求データ(様式準拠・試作)</button>
+      </div>
     </div>
   </section>
 
@@ -419,6 +459,16 @@
       </div>
     </div>
     <div class="card">
+      <div class="subttl">事業所情報(請求データに使用)</div>
+      <p class="muted">国保連への請求データ作成に必要な情報です。⚙️検証中は仮の番号で構いません。</p>
+      <label class="fld">事業所番号(10桁)</label><input type="text" id="of-no" placeholder="例: 1350100001">
+      <label class="fld">事業所名</label><input type="text" id="of-name" placeholder="例: 放課後等デイサービス そだち">
+      <label class="fld">市町村番号(6桁)</label><input type="text" id="of-city" placeholder="例: 131059">
+      <label class="fld">サービス種別</label>
+      <select id="of-svc"><option>放課後等デイサービス</option><option>児童発達支援</option><option>保育所等訪問支援</option></select>
+      <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
+    </div>
+    <div class="card">
       <div class="subttl">データ管理</div>
       <div class="row">
         <button class="btn sec" onclick="exportData()">⬇ バックアップ</button>
@@ -472,10 +522,11 @@ const seed = {
              panic:'クールダウンスペースへ。5分タイマーで切り替えやすい',
              bus:'飛び出し注意。駐車場では大人が先に降りる' } },
   ],
-  records: [], stock: [], attend: []
+  records: [], stock: [], attend: [],
+  office: { no:'', name:'', city:'', svc:'放課後等デイサービス' }
 };
 let db = load();
-function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children){ d.attend=d.attend||[]; d.children.forEach(c=>c.cert=c.cert||{no:'',days:'',expiry:''}); return d; } }catch(e){} return structuredClone(seed); }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children){ d.attend=d.attend||[]; d.office=d.office||{no:'',name:'',city:'',svc:'放課後等デイサービス'}; d.children.forEach(c=>c.cert=c.cert||{no:'',days:'',expiry:''}); return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function child(id){ return db.children.find(c=>c.id===id); }
 function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -499,7 +550,7 @@ function go(t){
   if(t==='attend') renderAttend();
   if(t==='share') renderShareChips();
   if(t==='children') renderChildren();
-  if(t==='setting') renderSetChildren();
+  if(t==='setting'){ renderSetChildren(); renderOffice(); }
 }
 
 /* ---------- ホーム ---------- */
@@ -525,7 +576,7 @@ function renderHome(){
 /* ---------- セレクト初期化 ---------- */
 function fillChildSelects(){
   const opts = db.children.map(c=>`<option value="${c.id}">${esc(c.name)}(${esc(c.grade)})</option>`).join('');
-  ['rec-child','plan-child','check-child'].forEach(id=>document.getElementById(id).innerHTML=opts);
+  ['rec-child','plan-child','check-child','jis-child'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=opts; });
 }
 function fillReportSelect(){
   const sel = document.getElementById('rep-record');
@@ -833,7 +884,10 @@ function renderAttend(){
   }).join('') : '<p class="muted">児童がいません。⚙️設定から追加してください。</p>';
   const m=document.getElementById('att-month');
   if(!m.value) m.value=today.slice(0,7);
+  const jm=document.getElementById('jis-month');
+  if(jm&&!jm.value) jm.value=today.slice(0,7);
   renderAttSummary();
+  renderSheet();
 }
 function renderAttSummary(){
   const ym=document.getElementById('att-month').value || fullDate().slice(0,7);
@@ -860,6 +914,95 @@ function exportAttendCsv(){
   const csv='\uFEFF'+rows.map(r=>r.join(',')).join('\r\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`sodachi_jisseki_${ym}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- 事業所情報 ---------- */
+const OF_IDS=['of-no','of-name','of-city','of-svc'];
+function renderOffice(){
+  const o=db.office||{};
+  const v=[o.no,o.name,o.city,o.svc];
+  OF_IDS.forEach((id,i)=>{ const el=document.getElementById(id); if(el&&v[i]) el.value=v[i]; });
+}
+function saveOffice(){
+  db.office={ no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(),
+              city:document.getElementById('of-city').value.trim(), svc:document.getElementById('of-svc').value };
+  save(); alert('事業所情報を保存しました。');
+}
+
+/* ---------- サービス提供実績記録票 ---------- */
+const WD=['日','月','火','水','木','金','土'];
+function ymDays(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
+function renderSheet(){
+  const cid=document.getElementById('jis-child').value;
+  const c=child(cid);
+  const ym=document.getElementById('jis-month').value||fullDate().slice(0,7);
+  const el=document.getElementById('jis-sheet');
+  if(!c){ el.innerHTML='<p class="muted">児童がいません。</p>'; return; }
+  const o=db.office||{};
+  const [y,mo]=ym.split('-').map(Number);
+  let use=0,pu=0,dr=0,ab=0,rows='';
+  for(let d=1; d<=ymDays(ym); d++){
+    const date=ym+'-'+String(d).padStart(2,'0');
+    const a=attRec(date,cid)||{};
+    const w=new Date(y,mo-1,d).getDay();
+    if(a.status==='present') use++; if(a.pickup) pu++; if(a.dropoff) dr++;
+    if(a.status==='absent') ab++;
+    rows+=`<tr class="${w===0?'sun':w===6?'sat':''}"><td>${d}</td><td>${WD[w]}</td>`+
+      `<td>${a.status==='present'?'提供':a.status==='absent'?'欠席':''}</td>`+
+      `<td>${a.start||''}</td><td>${a.end||''}</td>`+
+      `<td>${a.pickup?'○':''}</td><td>${a.dropoff?'○':''}</td><td></td><td></td></tr>`;
+  }
+  const cert=c.cert||{};
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:15px;margin-bottom:10px">${esc(String(y))}年${mo}月分 サービス提供実績記録票</div>
+    <div class="shead">
+      <div><b>受給者証番号</b>${esc(cert.no||'(未登録)')}</div>
+      <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+      <div><b>支給決定障害児氏名</b>${esc(c.name)}</div>
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>サービス種別</b>${esc(o.svc||'放課後等デイサービス')}</div>
+      <div><b>契約支給量</b>${esc(String(cert.days||'(未登録)'))}${cert.days?'日/月':''}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>日</th><th>曜</th><th>提供状況</th><th>開始</th><th>終了</th><th>送迎(往)</th><th>送迎(復)</th><th>備考</th><th>確認印</th></tr>
+      ${rows}
+    </table></div>
+    <div class="sfoot"><span>算定日数 ${use}日</span><span>送迎加算 往${pu}回 / 復${dr}回</span><span>欠席時対応 ${ab}回</span></div>
+    <p class="muted" style="margin-top:8px">※検証版の試作様式です。正式な様式・記載要領は自治体の指定様式をご確認ください。</p>`;
+  renderBillPreview(ym);
+}
+function renderBillPreview(ym){
+  const el=document.getElementById('bill-preview'); if(!el) return;
+  const o=db.office||{};
+  const lines=seikyuRows(ym);
+  el.innerHTML = lines.length>1
+    ? `<div class="out"><div class="ot"><span>請求データ(プレビュー)</span></div><span>${esc(lines.map(r=>r.join(',')).join('\n'))}</span></div>`
+    : `<p class="muted">${esc(ym)} の実績がまだありません。出欠を記録すると請求データが作成されます。</p>` +
+      (o.no?'':'<p class="muted">⚙️設定の「事業所情報」も登録してください。</p>');
+}
+function seikyuRows(ym){
+  const o=db.office||{};
+  const body=[];
+  db.children.forEach(c=>{
+    const as=db.attend.filter(a=>a.childId===c.id&&a.date.slice(0,7)===ym);
+    const use=as.filter(a=>a.status==='present').length;
+    if(!use) return;
+    const cert=c.cert||{};
+    body.push(['2', String(body.length+1), '1211', o.city||'', o.no||'', ym.replace('-',''),
+               cert.no||'', c.name, o.svc||'放課後等デイサービス', String(use),
+               String(as.filter(a=>a.pickup).length), String(as.filter(a=>a.dropoff).length)]);
+  });
+  if(!body.length) return [];
+  return [['1','121',String(body.length),o.no||'',fullDate().replace(/-/g,'')], ...body, ['3']];
+}
+function exportSeikyuCsv(){
+  const ym=document.getElementById('jis-month').value||document.getElementById('att-month').value||fullDate().slice(0,7);
+  const rows=seikyuRows(ym);
+  if(!rows.length){ alert(ym+' の実績がありません。出欠を記録してからお試しください。'); return; }
+  const csv='\uFEFF'+rows.map(r=>r.join(',')).join('\r\n')+'\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`sodachi_seikyu_${ym}.csv`;
   a.click(); URL.revokeObjectURL(a.href);
 }
 

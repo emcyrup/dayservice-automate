@@ -306,8 +306,11 @@
       <label class="fld">対象月</label>
       <input type="month" id="bill-month" onchange="renderBilling()">
       <div id="bill-summary" style="margin-top:12px"></div>
+      <div id="bill-preview" style="margin-top:12px"></div>
+      <p class="muted" style="margin-top:8px">請求データはコントロール・データ・エンドの3レコード構成で作成します。交換情報識別番号・項目順は正式なインタフェース仕様書に合わせて確定します。</p>
       <div class="row" style="margin-top:12px">
-        <button class="btn sec" onclick="exportBillCsv()">⬇ 実績CSV</button>
+        <button class="btn sec" onclick="exportBillCsv()">⬇ 実績CSV(確認用)</button>
+        <button class="btn sec" onclick="exportSeikyuCsv()">⬇ 請求データ(様式準拠・試作)</button>
         <button class="btn" onclick="alert('(検証版)本番では給付費明細書・請求書を自動作成し、電子請求受付システムへインターネット伝送します。')">📤 国保連へ伝送(本番機能)</button>
       </div>
     </div>
@@ -362,6 +365,14 @@
       </div>
     </div>
     <div class="card">
+      <div class="subttl">事業所情報(請求データに使用)</div>
+      <p class="muted">国保連への請求データ作成に必要な情報です。検証中は仮の番号で構いません。</p>
+      <label class="fld">事業所番号(10桁)</label><input type="text" id="of-no" placeholder="例: 1370100001">
+      <label class="fld">事業所名</label><input type="text" id="of-name" placeholder="例: 訪問介護ステーション かけはし">
+      <label class="fld">保険者番号(6桁)</label><input type="text" id="of-city" placeholder="例: 131059">
+      <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
+    </div>
+    <div class="card">
       <div class="subttl">データ管理</div>
       <div class="row">
         <button class="btn sec" onclick="exportData()">⬇ バックアップ</button>
@@ -404,11 +415,12 @@ const seed = {
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
   reports: [], trips: [],
-  tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false }
+  tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
+  office: { no:'', name:'', city:'' }
 };
 let db = load();
 let shopSel = [];
-function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{no:'',name:'',city:''}; d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function user(id){ return db.users.find(u=>u.id===id); }
 function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -431,7 +443,7 @@ function go(t){
   if(t==='shop') renderShop();
   if(t==='billing') renderBilling();
   if(t==='users') renderUsers();
-  if(t==='setting') renderSetUsers();
+  if(t==='setting'){ renderSetUsers(); renderOffice(); }
 }
 
 function renderHome(){
@@ -611,6 +623,7 @@ function renderBilling(){
   document.getElementById('bill-summary').innerHTML = `<div class="tblwrap"><table class="tbl">
     <tr><th>利用者</th><th class="num">提供回数</th><th class="num">提供時間</th></tr>${rows}</table></div>
     <p class="muted" style="margin-top:8px">本番では、ここから加算・減算を反映した給付費明細書(サービス提供実績記録票)を自動作成します。</p>`;
+  renderBillPreview(ym);
   renderTokutei();
 }
 function exportBillCsv(){
@@ -624,6 +637,45 @@ function exportBillCsv(){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`kakehashi_jisseki_${ym}.csv`;
   a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- 事業所情報 ---------- */
+function renderOffice(){
+  const o=db.office||{};
+  [['of-no',o.no],['of-name',o.name],['of-city',o.city]].forEach(([id,v])=>{ const el=document.getElementById(id); if(el&&v) el.value=v; });
+}
+function saveOffice(){
+  db.office={ no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(), city:document.getElementById('of-city').value.trim() };
+  save(); alert('事業所情報を保存しました。');
+}
+function seikyuRows(ym){
+  const o=db.office||{};
+  const body=[];
+  db.users.forEach(u=>{
+    const rs=db.reports.filter(r=>r.userId===u.id&&r.date.slice(0,7)===ym);
+    if(!rs.length) return;
+    const mins=rs.reduce((a,r)=>a+(r.mins||0),0);
+    body.push(['2', String(body.length+1), '1171', o.city||'', o.no||'', ym.replace('-',''),
+               u.name, String(rs.length), String(mins)]);
+  });
+  if(!body.length) return [];
+  return [['1','117',String(body.length),o.no||'',fullDate().replace(/-/g,'')], ...body, ['3']];
+}
+function exportSeikyuCsv(){
+  const ym=document.getElementById('bill-month').value||fullDate().slice(0,7);
+  const rows=seikyuRows(ym);
+  if(!rows.length){ alert(ym+' の報告記録がありません。📋報告タブで保存してからお試しください。'); return; }
+  const csv='\uFEFF'+rows.map(r=>r.join(',')).join('\r\n')+'\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`kakehashi_seikyu_${ym}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function renderBillPreview(ym){
+  const el=document.getElementById('bill-preview'); if(!el) return;
+  const rows=seikyuRows(ym);
+  el.innerHTML = rows.length
+    ? `<div class="out"><div class="ot"><span>請求データ(プレビュー)</span></div><span>${esc(rows.map(r=>r.join(',')).join('\n'))}</span></div>`
+    : `<p class="muted">${esc(ym)} の報告記録がまだありません。</p>`;
 }
 
 /* ---------- 特定事業所加算チェック ---------- */
