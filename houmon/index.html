@@ -408,37 +408,11 @@
 
   <!-- ============ 利用者一覧 ============ -->
   <section id="v-users" class="view">
-    <h2 class="title">🏡 利用者一覧</h2>
+    <h2 class="title">🏡 利用者</h2>
     <div id="users-list"></div>
-    <button class="btn sec" onclick="go('setting')">＋ 利用者の追加・編集(⚙️設定)</button>
-  </section>
-
-  <!-- ============ 利用者詳細 ============ -->
-  <section id="v-udetail" class="view">
-    <button class="btn mini sec" onclick="go('users')">← 一覧へ戻る</button>
-    <div class="card" style="margin-top:12px">
-      <div style="display:flex;gap:12px;align-items:center">
-        <div class="avatar" id="ud-avatar"></div>
-        <div style="min-width:0"><div style="font-weight:800;font-size:17px" id="ud-name"></div><div class="muted" id="ud-note"></div></div>
-      </div>
-      <div class="grid2" style="margin-top:14px">
-        <button class="btn" onclick="goReportFor(curUser)">📋 この方の報告</button>
-        <button class="btn sec" onclick="goShopFor(curUser)">🛒 買い物リスト</button>
-      </div>
-    </div>
-    <div class="card"><div class="subttl">直近の報告</div><div id="ud-reports"></div></div>
-    <div class="card"><div class="subttl">いつもの品</div><div id="ud-items"></div></div>
-  </section>
-
-  <!-- ============ 設定(検証用) ============ -->
-  <section id="v-setting" class="view">
-    <h2 class="title">⚙️ 設定(検証用)</h2>
-    <div class="banner">🧪 検証中は実名を入力せず、仮名でお試しください。</div>
-    <div class="card">
-      <div class="subttl">利用者の管理</div>
-      <div id="set-user-list"></div>
-      <button class="btn sec" onclick="editUser(null)">+ 利用者を追加</button>
-      <div id="user-form" style="display:none;margin-top:12px">
+    <button class="btn sec" onclick="editUser(null)">＋ 利用者を追加</button>
+    <div class="card" id="user-form" style="display:none">
+      <div class="subttl" id="uf-title">利用者の登録</div>
         <label class="fld">名前(仮名で)</label><input type="text" id="uf-name" placeholder="例: Aさん">
         <label class="fld">メモ(年代・サービス内容など)</label><textarea id="uf-note" placeholder="例: 80代女性・独居。生活援助 週3回。"></textarea>
         <div class="subttl" style="margin-top:14px">介護保険情報(請求に使用)</div>
@@ -465,8 +439,30 @@
           <button class="btn" onclick="saveUser()">保存</button>
           <button class="btn sec" onclick="hideUserForm()">キャンセル</button>
         </div>
+    </div>
+  </section>
+
+  <!-- ============ 利用者詳細 ============ -->
+  <section id="v-udetail" class="view">
+    <button class="btn mini sec" onclick="go('users')">← 一覧へ戻る</button>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="avatar" id="ud-avatar"></div>
+        <div style="min-width:0"><div style="font-weight:800;font-size:17px" id="ud-name"></div><div class="muted" id="ud-note"></div></div>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <button class="btn" onclick="goReportFor(curUser)">📋 この方の報告</button>
+        <button class="btn sec" onclick="goShopFor(curUser)">🛒 買い物リスト</button>
       </div>
     </div>
+    <div class="card"><div class="subttl">直近の報告</div><div id="ud-reports"></div></div>
+    <div class="card"><div class="subttl">いつもの品</div><div id="ud-items"></div></div>
+  </section>
+
+  <!-- ============ 設定(検証用) ============ -->
+  <section id="v-setting" class="view">
+    <h2 class="title">⚙️ 設定(検証用)</h2>
+    <div class="banner">🧪 検証中は実名を入力せず、仮名でお試しください。</div>
     <div class="card">
       <div class="subttl">事業所情報(請求データに使用)</div>
       <p class="muted">国保連への請求データ作成に必要な情報です。検証中は仮の番号で構いません。</p>
@@ -502,7 +498,7 @@
         <button class="btn sec" onclick="document.getElementById('imp-file').click()">⬆ 復元</button>
       </div>
       <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(event)">
-      <button class="btn sec" onclick="removeSamples()" style="margin-top:10px">🧹 サンプル利用者(佐藤さん等)を削除して自分のデータで検証</button>
+      <button class="btn sec" onclick="removeSamples()" style="margin-top:10px">🧹 サンプル利用者(佐藤さん等)を削除</button>
       <button class="btn" style="margin-top:10px;background:var(--danger)" onclick="resetAll()">⚠ 全データを初期化(サンプルに戻す)</button>
     </div>
   </section>
@@ -609,7 +605,7 @@ function go(t){
   if(t==='shop') renderShop();
   if(t==='billing') renderBilling();
   if(t==='users') renderUsers();
-  if(t==='setting'){ renderSetUsers(); renderOffice(); renderMaster(); renderLimits(); }
+  if(t==='setting'){ renderOffice(); renderMaster(); renderLimits(); }
 }
 
 function renderHome(){
@@ -1232,15 +1228,6 @@ function renderShopList(){
 
 /* ---------- 設定(検証用) ---------- */
 let editingUser=null;
-function renderSetUsers(){
-  const l=document.getElementById('set-user-list');
-  l.innerHTML = db.users.length ? db.users.map(u=>`
-    <div class="rec-item"><div class="h"><span style="font-weight:700">${esc(u.name)}</span>
-      <span><button class="btn mini sec" onclick="editUser('${u.id}')">編集</button>
-      <button class="btn mini sec" onclick="delUser('${u.id}')">削除</button></span></div>
-      <div class="muted" style="margin-top:4px">${esc(u.note||'')}</div></div>`).join('')
-    : '<p class="muted">利用者がいません。「+ 利用者を追加」から登録してください。</p>';
-}
 function editUser(id){
   editingUser=id;
   const u = id ? user(id) : {name:'', note:'', hokenNo:'', care:'要介護1', wari:1, tatemono:0};
@@ -1250,7 +1237,10 @@ function editUser(id){
   document.getElementById('uf-care').value=u.care||'要介護1';
   document.getElementById('uf-wari').value=String(u.wari||1);
   document.getElementById('uf-tatemono').value=String(u.tatemono||0);
-  document.getElementById('user-form').style.display='block';
+  const f=document.getElementById('user-form');
+  document.getElementById('uf-title').textContent = id ? esc(u.name)+'さんの情報を編集' : '利用者の登録';
+  f.style.display='block';
+  f.scrollIntoView({behavior:'smooth', block:'start'});
   document.getElementById('uf-name').focus();
 }
 function hideUserForm(){ document.getElementById('user-form').style.display='none'; editingUser=null; }
@@ -1264,14 +1254,14 @@ function saveUser(){
               tatemono:+document.getElementById('uf-tatemono').value||0 };
   if(editingUser){ Object.assign(user(editingUser), {name, kana:name[0], note}, ins); }
   else { db.users.push(Object.assign({id:'u'+Date.now(), name, kana:name[0], note, history:[], suggest:[]}, ins)); }
-  save(); hideUserForm(); renderSetUsers(); fillSelects(); renderHome(); renderShop();
+  save(); hideUserForm(); renderUsers(); fillSelects(); renderHome(); renderShop();
 }
 function delUser(id){
   const u=user(id); if(!u) return;
   if(!confirm(u.name+'と関連する報告履歴を削除します。よろしいですか?')) return;
   db.users=db.users.filter(x=>x.id!==id);
   db.reports=db.reports.filter(r=>r.userId!==id);
-  save(); renderSetUsers(); fillSelects(); renderHome(); renderShop();
+  save(); renderUsers(); fillSelects(); renderHome(); renderShop();
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -1292,7 +1282,7 @@ function removeSamples(){
     db.users=db.users.filter(u=>u.id!==id);
     db.reports=db.reports.filter(r=>r.userId!==id);
   });
-  save(); renderSetUsers(); fillSelects(); renderHome(); renderShop();
+  save(); renderUsers(); fillSelects(); renderHome(); renderShop();
 }
 function resetAll(){
   if(!confirm('すべてのデータを消去して初期状態(サンプル入り)に戻します。よろしいですか?')) return;
@@ -1317,8 +1307,12 @@ function renderUsers(){
     <div class="user-item" onclick="showUser('${u.id}')" style="cursor:pointer">
       <div class="avatar">${esc(u.kana)}</div>
       <div style="flex:1;min-width:0"><div style="font-weight:700">${esc(u.name)}</div><div class="muted">${esc(u.note||'')}</div></div>
+      <span onclick="event.stopPropagation()" style="display:flex;gap:6px">
+        <button class="btn mini sec" onclick="editUser('${u.id}')">編集</button>
+        <button class="btn mini sec" onclick="delUser('${u.id}')">削除</button>
+      </span>
       <div class="muted" style="font-size:18px">›</div>
-    </div>`).join('') : '<p class="muted">利用者がいません。⚙️設定から追加してください。</p>';
+    </div>`).join('') : '<p class="muted">利用者がいません。「＋ 利用者を追加」から登録してください。</p>';
 }
 function showUser(id){
   const u=user(id); if(!u) return;
