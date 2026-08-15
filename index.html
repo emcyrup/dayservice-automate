@@ -475,44 +475,11 @@
 
   <!-- ============ 児童一覧 ============ -->
   <section id="v-children" class="view">
-    <h2 class="title">👦 児童一覧</h2>
+    <h2 class="title">👦 児童</h2>
     <div id="children-list"></div>
-    <button class="btn sec" onclick="go('setting')">＋ 児童の追加・編集(⚙️設定)</button>
-  </section>
-
-  <!-- ============ 児童詳細 ============ -->
-  <section id="v-cdetail" class="view">
-    <button class="btn mini sec" onclick="go('children')">← 一覧へ戻る</button>
-    <div class="card" style="margin-top:12px">
-      <div style="display:flex;gap:12px;align-items:center">
-        <div class="avatar" id="cd-avatar"></div>
-        <div style="min-width:0">
-          <div style="font-weight:800;font-size:17px" id="cd-name"></div>
-          <div class="muted" id="cd-traits"></div>
-        </div>
-      </div>
-      <div class="grid2" style="margin-top:14px">
-        <button class="btn" onclick="goRecordFor(curChild)">💬 この子の記録</button>
-        <button class="btn sec" onclick="goPlanFor(curChild)">📝 支援計画</button>
-      </div>
-    </div>
-    <div class="card">
-      <div class="subttl">🛡 セーフティノート</div>
-      <div id="cd-care"></div>
-      <button class="btn mini sec" style="margin-top:8px" onclick="editChildFromDetail(curChild)">✏️ 情報を編集(設定へ)</button>
-    </div>
-    <div class="card"><div class="subttl">直近の記録</div><div id="cd-records"></div></div>
-  </section>
-
-  <!-- ============ 設定(検証用) ============ -->
-  <section id="v-setting" class="view">
-    <h2 class="title">⚙️ 設定(検証用)</h2>
-    <div class="banner">🧪 検証中は実名を入力せず、イニシャル・仮名でお試しください。</div>
-    <div class="card">
-      <div class="subttl">児童の管理</div>
-      <div id="set-child-list"></div>
-      <button class="btn sec" onclick="editChild(null)">+ 児童を追加</button>
-      <div id="child-form" style="display:none;margin-top:12px">
+    <button class="btn sec" onclick="editChild(null)">＋ 児童を追加</button>
+    <div class="card" id="child-form" style="display:none">
+      <div class="subttl" id="cf-title">児童の登録</div>
         <label class="fld">名前(仮名で)</label><input type="text" id="cf-name" placeholder="例: Aくん">
         <label class="fld">学年</label><input type="text" id="cf-grade" placeholder="例: 小2">
         <label class="fld">特性メモ</label><textarea id="cf-traits" placeholder="好きなこと・苦手なこと・有効な支援など"></textarea>
@@ -538,8 +505,37 @@
           <button class="btn" onclick="saveChild()">保存</button>
           <button class="btn sec" onclick="hideChildForm()">キャンセル</button>
         </div>
+    </div>
+  </section>
+
+  <!-- ============ 児童詳細 ============ -->
+  <section id="v-cdetail" class="view">
+    <button class="btn mini sec" onclick="go('children')">← 一覧へ戻る</button>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="avatar" id="cd-avatar"></div>
+        <div style="min-width:0">
+          <div style="font-weight:800;font-size:17px" id="cd-name"></div>
+          <div class="muted" id="cd-traits"></div>
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        <button class="btn" onclick="goRecordFor(curChild)">💬 この子の記録</button>
+        <button class="btn sec" onclick="goPlanFor(curChild)">📝 支援計画</button>
       </div>
     </div>
+    <div class="card">
+      <div class="subttl">🛡 セーフティノート</div>
+      <div id="cd-care"></div>
+      <button class="btn mini sec" style="margin-top:8px" onclick="editChildFromDetail(curChild)">✏️ 情報を編集</button>
+    </div>
+    <div class="card"><div class="subttl">直近の記録</div><div id="cd-records"></div></div>
+  </section>
+
+  <!-- ============ 設定(検証用) ============ -->
+  <section id="v-setting" class="view">
+    <h2 class="title">⚙️ 設定(検証用)</h2>
+    <div class="banner">🧪 検証中は実名を入力せず、イニシャル・仮名でお試しください。</div>
     <div class="card">
       <div class="subttl">事業所情報(請求データに使用)</div>
       <p class="muted">国保連への請求データ作成に必要な情報です。⚙️検証中は仮の番号で構いません。</p>
@@ -575,7 +571,7 @@
         <button class="btn sec" onclick="document.getElementById('imp-file').click()">⬆ 復元</button>
       </div>
       <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(event)">
-      <button class="btn sec" onclick="removeSamples()" style="margin-top:10px">🧹 サンプル児童(たろう等)を削除して自分のデータで検証</button>
+      <button class="btn sec" onclick="removeSamples()" style="margin-top:10px">🧹 サンプル児童(たろう等)を削除</button>
       <button class="btn" style="margin-top:10px;background:var(--danger)" onclick="resetAll()">⚠ 全データを初期化(サンプルに戻す)</button>
     </div>
   </section>
@@ -687,7 +683,7 @@ function go(t){
   if(t==='bill') renderBill();
   if(t==='share') renderShareChips();
   if(t==='children') renderChildren();
-  if(t==='setting'){ renderSetChildren(); renderOffice(); renderMaster(); }
+  if(t==='setting'){ renderOffice(); renderMaster(); }
 }
 
 /* ---------- ホーム ---------- */
@@ -1538,8 +1534,12 @@ function renderChildren(){
         <div class="muted">${esc(c.traits).slice(0,28)}…</div>
       </div>
       ${c.plan?'<span class="chip g">計画あり</span>':'<span class="chip r">計画未</span>'}
+      <span onclick="event.stopPropagation()" style="display:flex;gap:6px">
+        <button class="btn mini sec" onclick="editChild('${c.id}')">編集</button>
+        <button class="btn mini sec" onclick="delChild('${c.id}')">削除</button>
+      </span>
       <div class="muted" style="font-size:18px">›</div>
-    </div>`).join('') : '<p class="muted">児童がいません。⚙️設定から追加してください。</p>';
+    </div>`).join('') : '<p class="muted">児童がいません。「＋ 児童を追加」から登録してください。</p>';
 }
 function showChild(id){
   const c=child(id); if(!c) return;
@@ -1564,7 +1564,7 @@ function showChild(id){
 }
 function goRecordFor(id){ go('record'); if(id){ document.getElementById('rec-child').value=id; renderStock(); } }
 function goPlanFor(id){ go('plan'); if(id) document.getElementById('plan-child').value=id; }
-function editChildFromDetail(id){ go('setting'); if(id) editChild(id); }
+function editChildFromDetail(id){ go('children'); if(id) editChild(id); }
 
 /* ---------- ページ上部へ ---------- */
 window.addEventListener('scroll', ()=>{ document.getElementById('totop').classList.toggle('on', window.scrollY>300); }, {passive:true});
@@ -1572,21 +1572,16 @@ window.addEventListener('scroll', ()=>{ document.getElementById('totop').classLi
 /* ---------- 設定(検証用) ---------- */
 let editingChild=null;
 const CF_IDS=['cf-name','cf-grade','cf-traits','cf-wish','cf-alert','cf-dislike','cf-calm','cf-panic','cf-bus','cf-certno','cf-days','cf-expiry','cf-limit','cf-kanri','cf-kanrino'];
-function renderSetChildren(){
-  const l=document.getElementById('set-child-list');
-  l.innerHTML = db.children.length ? db.children.map(c=>`
-    <div class="rec-item"><div class="h"><span style="font-weight:700">${esc(c.name)}(${esc(c.grade)})</span>
-      <span><button class="btn mini sec" onclick="editChild('${c.id}')">編集</button>
-      <button class="btn mini sec" onclick="delChild('${c.id}')">削除</button></span></div></div>`).join('')
-    : '<p class="muted">児童がいません。「+ 児童を追加」から登録してください。</p>';
-}
 function editChild(id){
   editingChild=id;
   const c = id ? child(id) : {name:'',grade:'',traits:'',wish:'',care:{alert:'',dislike:'',calm:'',panic:'',bus:''},cert:{no:'',days:'',expiry:''}};
   const ct=c.cert||{};
   const vals=[c.name,c.grade,c.traits,c.wish,c.care.alert,c.care.dislike,c.care.calm,c.care.panic,c.care.bus,ct.no,ct.days,ct.expiry,ct.limit===undefined?4600:ct.limit,ct.kanri||'none',ct.kanriNo];
   CF_IDS.forEach((fid,i)=>document.getElementById(fid).value=vals[i]||'');
-  document.getElementById('child-form').style.display='block';
+  const f=document.getElementById('child-form');
+  document.getElementById('cf-title').textContent = id ? esc(c.name)+'さんの情報を編集' : '児童の登録';
+  f.style.display='block';
+  f.scrollIntoView({behavior:'smooth', block:'start'});
   document.getElementById('cf-name').focus();
 }
 function hideChildForm(){ document.getElementById('child-form').style.display='none'; editingChild=null; }
@@ -1601,7 +1596,7 @@ function saveChild(){
            limit:+v['cf-limit']||0, kanri:v['cf-kanri'], kanriNo:v['cf-kanrino'] } };
   if(editingChild){ Object.assign(child(editingChild), data); }
   else { db.children.push(Object.assign({id:'c'+Date.now(), plan:false, lastMonitoring:null}, data)); }
-  save(); hideChildForm(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
+  save(); hideChildForm(); renderChildren(); fillChildSelects(); renderHome(); renderShareChips();
 }
 function delChild(id){
   const c=child(id); if(!c) return;
@@ -1611,7 +1606,7 @@ function delChild(id){
   db.stock=db.stock.filter(s=>s.childId!==id);
   db.attend=db.attend.filter(a=>a.childId!==id);
   db.kanri=(db.kanri||[]).filter(k=>k.childId!==id);
-  save(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
+  save(); renderChildren(); fillChildSelects(); renderHome(); renderShareChips();
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -1634,7 +1629,7 @@ function removeSamples(){
     db.stock=db.stock.filter(s=>s.childId!==id);
     db.attend=db.attend.filter(a=>a.childId!==id);
   });
-  save(); renderSetChildren(); fillChildSelects(); renderHome(); renderShareChips();
+  save(); renderChildren(); fillChildSelects(); renderHome(); renderShareChips();
 }
 function resetAll(){
   if(!confirm('すべてのデータを消去して初期状態(サンプル入り)に戻します。よろしいですか?')) return;
