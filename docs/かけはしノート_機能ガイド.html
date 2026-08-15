@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>かけはしノート サービスガイド</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --brand:#e06a2b; --brand-d:#b8511d; --brand-l:#fdece1; --brand-ll:#fff7f2;
+    --ink:#20302c; --sub:#5f716c; --line:#dfe8e5; --accent:#2f8f7a;
+  }
+  html{ font-family:"IPAPGothic","IPAGothic",sans-serif; color:var(--ink); line-height:1.75; -webkit-font-smoothing:antialiased; }
+  .page{ width:210mm; height:297mm; padding:18mm 17mm; position:relative; page-break-after:always; overflow:hidden; }
+  .page:last-child{ page-break-after:auto; }
+
+  .cover{ padding:0; background:linear-gradient(155deg,#e8752f 0%,#c25a20 60%,#9c4718 100%); color:#fff; }
+  .cover .inner{ padding:34mm 20mm; height:100%; display:flex; flex-direction:column; }
+  .cover .brand{ font-size:15pt; letter-spacing:.05em; opacity:.9; }
+  .cover .logo{ font-size:40pt; font-weight:800; margin-top:6mm; letter-spacing:.02em; }
+  .cover .lead{ font-size:15pt; margin-top:5mm; line-height:1.7; opacity:.96; font-weight:500; }
+  .cover .sub{ font-size:11pt; opacity:.82; margin-top:auto; }
+  .cover .pill{ display:inline-block; margin-top:8mm; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); padding:3mm 6mm; border-radius:30px; font-size:11pt; }
+  .cover .deco{ position:absolute; right:-40mm; top:-40mm; width:130mm; height:130mm; border-radius:50%; background:rgba(255,255,255,.06); }
+  .cover .deco2{ position:absolute; right:12mm; bottom:20mm; font-size:120pt; opacity:.12; }
+
+  .eyebrow{ color:var(--brand-d); font-weight:800; font-size:10.5pt; letter-spacing:.08em; }
+  h1.sec{ font-size:21pt; font-weight:800; margin:2mm 0 3mm; letter-spacing:.01em; }
+  h1.sec .bar{ display:inline-block; width:7mm; height:3px; background:var(--accent); vertical-align:middle; margin-right:3mm; border-radius:2px; }
+  .intro{ font-size:10.5pt; color:var(--sub); margin-bottom:6mm; max-width:155mm; }
+
+  .value-grid{ display:flex; gap:5mm; margin-bottom:8mm; }
+  .value{ flex:1; background:var(--brand-ll); border:1px solid var(--line); border-radius:5mm; padding:6mm 5mm; }
+  .value .ic{ font-size:24pt; }
+  .value .t{ font-weight:800; font-size:12pt; margin-top:2mm; color:var(--brand-d); }
+  .value .d{ font-size:9.5pt; color:var(--sub); margin-top:1.5mm; }
+
+  .feat{ display:flex; gap:6mm; padding:5.5mm 6mm; border:1px solid var(--line); border-radius:5mm; margin-bottom:4.5mm; background:#fff; }
+  .feat .num{ flex-shrink:0; width:12mm; height:12mm; border-radius:50%; background:var(--brand); color:#fff; font-size:15pt; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .feat .body{ flex:1; }
+  .feat .ttl{ font-size:13.5pt; font-weight:800; }
+  .feat .tag{ display:inline-block; font-size:8.5pt; background:var(--brand-l); color:var(--brand-d); font-weight:700; padding:1mm 3mm; border-radius:20px; margin-left:3mm; vertical-align:middle; }
+  .feat .tag.new{ background:var(--accent); color:#fff; }
+  .feat .desc{ font-size:10pt; color:#3c4a46; margin-top:2mm; }
+  .feat .how{ font-size:9.5pt; color:var(--sub); margin-top:2.5mm; background:var(--brand-ll); border-radius:3mm; padding:3mm 4mm; }
+  .feat .how b{ color:var(--brand-d); }
+
+  .flow{ display:flex; align-items:stretch; gap:0; margin:5mm 0 8mm; }
+  .step{ flex:1; text-align:center; padding:5mm 3mm; background:var(--brand-ll); border:1px solid var(--line); position:relative; }
+  .step:first-child{ border-radius:4mm 0 0 4mm; }
+  .step:last-child{ border-radius:0 4mm 4mm 0; }
+  .step .si{ font-size:22pt; }
+  .step .st{ font-weight:800; font-size:10pt; margin-top:1mm; color:var(--brand-d); }
+  .step .sd{ font-size:8.5pt; color:var(--sub); margin-top:1mm; }
+  .step .arrow{ position:absolute; right:-3mm; top:50%; transform:translateY(-50%); color:var(--accent); font-size:14pt; z-index:2; }
+
+  .panel{ background:var(--brand-ll); border:1px solid var(--line); border-left:4px solid var(--brand); border-radius:4mm; padding:5.5mm 6mm; margin-bottom:4.5mm; }
+  .panel .pt{ font-weight:800; font-size:11.5pt; color:var(--brand-d); margin-bottom:2mm; }
+  .checklist{ list-style:none; }
+  .checklist li{ font-size:10pt; padding:1.4mm 0 1.4mm 8mm; position:relative; }
+  .checklist li:before{ content:"\2713"; position:absolute; left:2mm; color:var(--brand); font-weight:800; }
+
+  table.spec{ width:100%; border-collapse:collapse; font-size:9.5pt; margin:3mm 0 5mm; }
+  table.spec th,table.spec td{ border:1px solid var(--line); padding:2.6mm 3.5mm; text-align:left; vertical-align:top; }
+  table.spec th{ background:var(--brand-ll); color:var(--brand-d); font-weight:800; white-space:nowrap; }
+  table.spec td.c{ text-align:center; white-space:nowrap; }
+
+  .note{ font-size:9pt; color:var(--sub); background:#fff8ec; border:1px solid #f0e0c2; border-radius:3mm; padding:4mm 5mm; }
+  .footer{ position:absolute; bottom:10mm; left:17mm; right:17mm; display:flex; justify-content:space-between; font-size:8.5pt; color:#9aa8a4; border-top:1px solid var(--line); padding-top:3mm; }
+  .cta{ background:var(--brand); color:#fff; border-radius:5mm; padding:8mm; text-align:center; margin-top:4mm; }
+  .cta .ct{ font-size:15pt; font-weight:800; }
+  .cta .cd{ font-size:10pt; opacity:.92; margin-top:2mm; }
+</style>
+</head>
+<body>
+<div class="page cover"><div class="deco"></div><div class="deco2">🧡</div><div class="inner">
+  <div class="brand">訪問介護 業務支援AI</div>
+  <div class="logo">🧡 かけはしノート</div>
+  <div class="lead">一度話せば、3つの報告ができている。<br>実績も請求も、これ1つで。</div>
+  <span class="pill">サービス紹介・機能ガイド　v0.1</span>
+  <div class="sub">ヘルパー・サービス提供責任者のみなさまへ</div>
+</div></div>
+<div class="page "><div class="eyebrow">ABOUT / できること</div>
+<h1 class="sec"><span class="bar"></span>かけはしノートとは</h1>
+<p class="intro">手書きの報告書、記録アプリへの入力、サービス提供責任者への報告——
+同じ内容を3回書いていませんか。かけはしノートは<b>一度の入力から3つの報告を同時に作り</b>、
+そのまま月次の実績・国保連への請求までつなげます。</p>
+<div class="value-grid">
+  <div class="value"><div class="ic">⏱️</div><div class="t">三重入力を1回に</div><div class="d">支援後に一度話すだけ。3つの形式の報告が同時にできあがります。</div></div>
+  <div class="value"><div class="ic">💰</div><div class="t">加算を取りこぼさない</div><div class="d">特定事業所加算の要件を毎月自動チェック。最大＋20％を守ります。</div></div>
+  <div class="value"><div class="ic">🗂️</div><div class="t">月末の転記をゼロに</div><div class="d">報告がそのまま実績になり、請求データまでつながります。</div></div>
+</div>
+<div class="eyebrow">FEATURES / 主な機能</div>
+<h1 class="sec"><span class="bar"></span>5つの機能</h1><div class="feat"><div class="num">1</div><div class="body"><div class="ttl">一度の入力から3つの報告<span class="tag">毎回</span></div><div class="desc">支援の後に一言話すか書くだけで、<b>①正式報告書 ②記録アプリ入力用 ③サ責向け要約</b>を同時に作成します。記憶が新しいうちに残せるので、報告の質も上がります。</div><div class="how"><b>使い方</b>　📋報告タブで利用者・時刻を選ぶ → 🎤で様子を話す → 「3つの報告を生成」→ 確認してコピー・保存。</div></div></div><div class="feat"><div class="num">2</div><div class="body"><div class="ttl">移動記録を数秒で<span class="tag">移動のたび</span></div><div class="desc">開始と終了のメーター値を入れるだけで走行距離を自動計算。「開始12345 終了12352 15分 買い物」のように<b>音声でまとめて</b>入力もできます。</div><div class="how"><b>使い方</b>　🚗移動タブで🎤を押して数字を話す → 自動で欄に反映 → 「記録する」。</div></div></div><div class="footer"><span>🧡 かけはしノート サービスガイド</span><span>2</span></div></div>
+<div class="page "><div class="feat"><div class="num">3</div><div class="body"><div class="ttl">買い物支援の時短<span class="tag">買い物のとき</span></div><div class="desc">過去に頼まれた品をワンタップの候補として表示。購入の周期から「そろそろ牛乳では？」とAIが提案します。品選びの時間を短くします。</div><div class="how"><b>使い方</b>　🛒買い物タブで利用者を選ぶ → 候補をタップ → <b>購入の確定は必ずご本人と確認</b>してください。</div></div></div><div class="feat"><div class="num">4</div><div class="body"><div class="ttl">月次実績と国保連への請求<span class="tag new">月末</span></div><div class="desc">日々の報告から提供回数・提供時間を自動集計。給付費明細書の作成から国保連への伝送まで、このアプリで完結させます。別の請求ソフトへの転記は不要です。</div><div class="how"><b>使い方</b>　🧾実績・請求タブで対象月を選ぶ → 実績を確認 → 請求データを作成。</div></div></div><div class="feat"><div class="num">5</div><div class="body"><div class="ttl">特定事業所加算の要件チェック<span class="tag new">毎月</span></div><div class="desc">2024年度改定の要件（体制・人材・重度者等対応）の充足状況を自動チェックし、<b>算定できる区分を判定</b>します。会議や健康診断の記録もアプリに残るので、実地指導の根拠になります。</div><div class="how"><b>使い方</b>　🧾実績・請求タブの要件チェックで、会議の開催日・健診日などを記録 → 区分の判定が更新されます。</div></div></div><div class="panel">
+  <div class="pt">⭐ 特定事業所加算は、売上に直結します</div>
+  <ul class="checklist">
+    <li>区分Ⅰなら＋20％、Ⅱ・Ⅲで＋10％、Ⅳで＋3％（訪問介護費に対して）</li>
+    <li>要件そのものより「記録が揃っていないこと」で算定をあきらめる事業所が少なくありません</li>
+    <li>会議・研修・健診の記録をアプリに残すだけで、要件の充足状況が可視化されます</li>
+  </ul>
+</div><div class="footer"><span>🧡 かけはしノート サービスガイド</span><span>3</span></div></div>
+<div class="page "><div class="eyebrow">ALL-IN-ONE / 報告から請求まで</div>
+<h1 class="sec"><span class="bar"></span>報告が、そのまま請求になる</h1>
+<p class="intro">支援のたびに残した報告が、月末にはそのまま実績・請求データになります。
+「記録アプリに入れて、請求ソフトにも入れる」という二重入力をなくします。</p><div class="flow"><div class="step"><div class="si">🎤</div><div class="st">支援後に話す</div><div class="sd">一度の入力</div><div class="arrow">▶</div></div><div class="step"><div class="si">📋</div><div class="st">3つの報告</div><div class="sd">同時に生成</div><div class="arrow">▶</div></div><div class="step"><div class="si">🧾</div><div class="st">月次実績</div><div class="sd">回数・時間を集計</div><div class="arrow">▶</div></div><div class="step"><div class="si">📤</div><div class="st">国保連へ請求</div><div class="sd">データを作成・伝送</div></div></div><h1 class="sec" style="font-size:15pt;margin-top:6mm"><span class="bar"></span>特定事業所加算の要件（2024年度改定）</h1>
+<table class="spec">
+  <tr><th>要件</th><th>主な内容</th><th class="c">対象区分</th></tr>
+  <tr><td>① 体制要件</td><td>訪問介護員ごとの<b>個別</b>研修計画／おおむね月1回以上の会議と記録／文書での事前指示と提供後の報告／年1回以上の健康診断（事業主負担）／緊急時対応方針の明示</td><td class="c">全区分</td></tr>
+  <tr><td>② 人材要件</td><td>介護福祉士の割合30％以上 など</td><td class="c">Ⅰ・Ⅱ</td></tr>
+  <tr><td>③ 重度者等対応</td><td>重度要介護者等が20％以上 <b>または</b> 看取り期の対応実績（いずれか選択）</td><td class="c">Ⅰ・Ⅲ</td></tr>
+</table>
+<div class="panel">
+  <div class="pt">🔍 アプリがやること</div>
+  <ul class="checklist">
+    <li>会議の開催日・健康診断日を記録し、期限切れが近づくと警告します</li>
+    <li>「提供後の報告」は日々の報告記録から自動でカウントします</li>
+    <li>3つの要件から、算定できる区分（Ⅰ〜Ⅳ）を毎月判定します</li>
+  </ul>
+</div>
+<p class="note">区分の判定は目安です。実際の届出・算定にあたっては、最新の告示および自治体の手引きをご確認ください。請求データの項目定義は、厚生労働省が公開するインタフェース仕様書の最新版に合わせて確定します。</p><div class="footer"><span>🧡 かけはしノート サービスガイド</span><span>4</span></div></div>
+<div class="page "><div class="eyebrow">GET STARTED / 導入について</div>
+<h1 class="sec"><span class="bar"></span>導入はかんたん</h1>
+<p class="intro">アプリのインストールは不要です。訪問先ではスマホ、事務所ではパソコンのブラウザで開くだけ。
+手袋を外さずに使えるよう、音声入力を中心に設計しています。</p>
+<div class="panel">
+  <div class="pt">📱 用意していただくもの</div>
+  <ul class="checklist">
+    <li>スマートフォン（Chrome / Safari / Edge）</li>
+    <li>事務作業用のパソコン（あればより快適です）</li>
+    <li>特別な機器・サーバの購入は不要です</li>
+  </ul>
+</div>
+<div class="panel">
+  <div class="pt">🔒 個人情報のお取り扱い</div>
+  <ul class="checklist">
+    <li>職員ごとのログイン・役職別の権限・閲覧ログを備えます</li>
+    <li>通信・保存データは暗号化し、国内で管理します</li>
+    <li>お預かりした情報をAIの学習に使うことはありません</li>
+  </ul>
+</div>
+<div class="panel">
+  <div class="pt">⚠️ AIの使い方について</div>
+  <ul class="checklist">
+    <li>報告文は<b>必ず担当者が確認してから</b>提出・入力してください</li>
+    <li>買い物の提案はあくまで候補です。購入の確定はご本人・支援者が行ってください</li>
+  </ul>
+</div>
+<div class="cta"><div class="ct">まずはデモをご覧ください</div>
+<div class="cd">御事業所の報告書式に合わせたご説明・トライアルのご相談を承ります。<br>お気軽にお問い合わせください。</div></div>
+<p class="note" style="margin-top:5mm">本資料はサービス企画段階の紹介資料です。機能・仕様・料金・対応加算の詳細は今後の開発と制度に合わせて変更される場合があります。</p><div class="footer"><span>🧡 かけはしノート サービスガイド</span><span>5</span></div></div>
+</body>
+</html>
