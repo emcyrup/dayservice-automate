@@ -523,8 +523,12 @@
         <label class="ckl"><input type="checkbox" id="of-senmon">専門的支援体制</label>
         <label class="ckl"><input type="checkbox" id="of-fukushi">福祉専門職員配置等</label>
       </div>
-      <label class="fld" style="margin-top:12px">単位数マスタ</label>
-      <div id="master-list"></div>
+      <label class="fld" style="margin-top:12px">単位数マスタ(改定版ごとに管理)</label>
+      <div class="row">
+        <select id="mst-ver" onchange="renderMaster()" style="max-width:230px"></select>
+        <button class="btn mini sec" onclick="addMasterVersion()">＋ 新しい改定版</button>
+      </div>
+      <div id="master-list" style="margin-top:10px"></div>
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
     </div>
     <div class="card">
@@ -586,19 +590,20 @@ const seed = {
              addons:{ kahai:false, senmon:false, fukushi:false } },
   kanri: [],
   master: [
-    { code:'B01', name:'放課後等デイサービス 基本報酬(平日)', unit:604 },
-    { code:'B02', name:'放課後等デイサービス 基本報酬(休日)', unit:721 },
-    { code:'T01', name:'児童指導員等加配加算', unit:187 },
-    { code:'T02', name:'専門的支援体制加算', unit:123 },
-    { code:'T03', name:'福祉専門職員配置等加算', unit:15 },
-    { code:'A01', name:'送迎加算(片道につき)', unit:54 },
-    { code:'A02', name:'欠席時対応加算(月4回まで)', unit:94 }
+    { code:'B01', name:'放課後等デイサービス 基本報酬(平日)', unit:604, from:'2024-04', to:'' },
+    { code:'B02', name:'放課後等デイサービス 基本報酬(休日)', unit:721, from:'2024-04', to:'' },
+    { code:'T01', name:'児童指導員等加配加算', unit:187, from:'2024-04', to:'' },
+    { code:'T02', name:'専門的支援体制加算', unit:123, from:'2024-04', to:'' },
+    { code:'T03', name:'福祉専門職員配置等加算', unit:15, from:'2024-04', to:'' },
+    { code:'A01', name:'送迎加算(片道につき)', unit:54, from:'2024-04', to:'' },
+    { code:'A02', name:'欠席時対応加算(月4回まで)', unit:94, from:'2024-04', to:'' }
   ]
 };
 let db = load();
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.children){ d.attend=d.attend||[]; d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.addons=d.office.addons||{kahai:false,senmon:false,fukushi:false};
         d.kanri=d.kanri||[]; d.master=d.master||structuredClone(seed.master);
+        d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
         d.children.forEach(c=>{ c.cert=c.cert||{}; if(c.cert.limit===undefined) c.cert.limit=4600; c.cert.kanri=c.cert.kanri||'none'; }); d.children.forEach(c=>c.cert=c.cert||{no:'',days:'',expiry:''}); return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function child(id){ return db.children.find(c=>c.id===id); }
@@ -1091,7 +1096,11 @@ function exportSeikyuCsv(){
    - 計算: 単位数 → 総費用額 → 給付費(9割) → 利用者負担(1割)
            → 負担上限月額で調整 → 上限額管理 → 決定利用者負担額 → 請求額
    ============================================================ */
-function mst(code){ return (db.master||[]).find(x=>x.code===code) || {name:code, unit:0}; }
+function mst(code, ym){
+  const c=(db.master||[]).filter(x=>x.code===code && mstVer(x)<=(ym||'9999-99') && (!x.to||(ym||'0000-00')<=x.to));
+  if(c.length) return c.sort((a,b)=>mstVer(a)<mstVer(b)?1:-1)[0];
+  return (db.master||[]).find(x=>x.code===code) || {name:code, unit:0};
+}
 function isHolidayDate(ds){ const d=new Date(ds+'T00:00:00'); return d.getDay()===0||d.getDay()===6; }
 function yen(n){ return (n||0).toLocaleString('ja-JP'); }
 
@@ -1101,7 +1110,7 @@ function calcChild(c, ym){
   const pres=as.filter(a=>a.status==='present');
   const abs=as.filter(a=>a.status==='absent');
   const rows=[];
-  const push=(code,count)=>{ const m=mst(code); const u=+m.unit||0;
+  const push=(code,count)=>{ const m=mst(code, ym); const u=+m.unit||0;
     if(count>0&&u>0) rows.push({code, name:m.name, unit:u, count, sub:u*count}); };
   push('B01', pres.filter(a=>!isHolidayDate(a.date)).length);
   push('B02', pres.filter(a=>isHolidayDate(a.date)).length);
@@ -1139,7 +1148,7 @@ function renderBill(){
       ${list.map(r=>`<tr><td>${esc(r.c.name)}</td><td class="num">${r.days}</td><td class="num">${yen(r.units)}</td><td class="num">${yen(r.total)}</td><td class="num">${yen(r.seikyu)}</td><td class="num">${yen(r.decided)}</td></tr>`).join('')}
       <tr><td><b>合計 ${list.length}件</b></td><td class="num"></td><td class="num"><b>${yen(sum('units'))}</b></td><td class="num"><b>${yen(sum('total'))}</b></td><td class="num"><b>${yen(sum('seikyu'))}</b></td><td class="num"><b>${yen(sum('decided'))}</b></td></tr>
     </table></div>
-    <p class="muted" style="margin-top:8px">単位単価 ${(+(db.office||{}).tanka||10)}円 / 給付率90%。国保連へは「給付費(請求額)」を請求し、「利用者負担」はご家庭に請求します。</p>`
+    <p class="muted" style="margin-top:8px">単位単価 ${(+(db.office||{}).tanka||10)}円 / 給付率90% / 単位数は <b>${esc(verForYm(ym).replace('-','年'))}月〜の改定版</b>で計算。国保連へは「給付費(請求額)」を請求し、「利用者負担」はご家庭に請求します。</p>`
     : `<p class="muted">${esc(ym)} の実績がありません。🗓実績タブで出欠を記録してください。</p>`;
   renderBillCheck(ym, list);
   const opts=db.children.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -1285,16 +1294,55 @@ function saveKanri(){
   alert('管理結果(区分'+j.code+')を確定しました。決定利用者負担額に反映しています。');
 }
 
-/* ---------- 単位数マスタ ---------- */
+/* ---------- 単位数マスタ(改定版) ----------
+   改定は4月施行だが、4月に行うのは3月分の請求。対象月に応じて版を自動で切り替える。 */
+const MST_BASE='2024-04';
+function mstVer(m){ return m.from||MST_BASE; }
+function masterVersions(){ return [...new Set((db.master||[]).map(mstVer))].sort().reverse(); }
+function verForYm(ym){
+  const vs=masterVersions().filter(v=>v<=ym);
+  return vs.length?vs[0]:masterVersions().slice(-1)[0]||MST_BASE;
+}
+function prevMonth(ym){ const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-2,1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function renderMasterVer(){
+  const sel=document.getElementById('mst-ver'); if(!sel) return;
+  const vs=masterVersions(); const keep=sel.value;
+  sel.innerHTML=vs.map(v=>`<option value="${v}">${v.replace('-','年')}月〜 適用</option>`).join('');
+  if(keep&&vs.includes(keep)) sel.value=keep;
+}
 function renderMaster(){
   const el=document.getElementById('master-list'); if(!el) return;
+  renderMasterVer();
+  const sel=document.getElementById('mst-ver');
+  const ver=sel.value||masterVersions()[0]||MST_BASE;
+  const rows=(db.master||[]).map((m,i)=>({m,i})).filter(x=>mstVer(x.m)===ver);
   el.innerHTML=`<div class="tblwrap"><table class="tbl">
     <tr><th>コード</th><th>サービス内容</th><th class="num">単位数</th></tr>
-    ${(db.master||[]).map((m,i)=>`<tr><td>${esc(m.code)}</td><td style="text-align:left">${esc(m.name)}</td>
-      <td class="num"><input type="number" value="${esc(String(m.unit))}" onchange="setMaster(${i}, this.value)" style="max-width:92px;text-align:right"></td></tr>`).join('')}
-  </table></div>`;
+    ${rows.map(x=>`<tr><td>${esc(x.m.code)}</td><td style="text-align:left">${esc(x.m.name)}</td>
+      <td class="num"><input type="number" value="${esc(String(x.m.unit))}" onchange="setMaster(${x.i}, this.value)" style="max-width:92px;text-align:right"></td></tr>`).join('')}
+  </table></div>
+  <p class="muted" style="margin-top:8px">この版は <b>${esc(ver.replace('-','年'))}月サービス提供分</b>から適用されます${(db.master||[]).some(m=>mstVer(m)===ver&&m.to)?`(〜${esc(((db.master||[]).find(m=>mstVer(m)===ver&&m.to)||{}).to.replace('-','年'))}月分)`:''}。報酬改定のときは「＋ 新しい改定版」で新しい版を作り、単位数を更新してください。過去の月は当時の版で計算されます。</p>`;
 }
 function setMaster(i, v){ db.master[i].unit=+v||0; save(); }
+function addMasterVersion(){
+  const v=(prompt('新しい改定版の適用開始年月を入力してください(例: 2027-04)')||'').trim();
+  if(!v) return;
+  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){ alert('YYYY-MM の形式で入力してください(例: 2027-04)。'); return; }
+  if(masterVersions().includes(v)){ alert('その年月の改定版はすでにあります。'); return; }
+  const base=verForYm(v);
+  const src=(db.master||[]).filter(m=>mstVer(m)===base);
+  if(!src.length){ alert('複製元の版が見つかりません。'); return; }
+  src.forEach(m=>db.master.push({code:m.code, name:m.name, unit:m.unit, from:v, to:''}));
+  const end=prevMonth(v);
+  db.master.forEach(m=>{ if(mstVer(m)===base && (!m.to||m.to>end)) m.to=end; });
+  save();
+  const sel=document.getElementById('mst-ver'); renderMasterVer(); if(sel) sel.value=v;
+  renderMaster();
+  alert(v.replace('-','年')+'月〜の改定版を作成しました。単位数を新しい値に更新してください。\n' +
+        end.replace('-','年')+'月分までは、これまでの版で計算されます。');
+}
+
 
 /* ---------- セーフティノート ---------- */
 function renderShareChips(){
