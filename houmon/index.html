@@ -140,6 +140,22 @@
   .tbl th.num,.tbl td.num{text-align:right}
   .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
   .ckl input{accent-color:var(--brand);width:16px;height:16px}
+  .sheet{font-size:12px}
+  .sheet .shead{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:10px}
+  .sheet .shead div{border-bottom:1px solid var(--line);padding:4px 2px}
+  .sheet .shead b{color:var(--sub);font-weight:700;font-size:11px;margin-right:8px}
+  .sheet .tbl td,.sheet .tbl th{padding:5px 6px;text-align:center;white-space:nowrap}
+  .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
+  @media print{
+    .topbar,.foot,.totop,.noprint{display:none!important}
+    body{display:block!important;background:#fff}
+    main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
+    .view{display:none!important}
+    .view.on{display:block!important;animation:none}
+    .card{box-shadow:none;border:1px solid #999;border-radius:0;margin:0;padding:6mm}
+    .sheet .tbl th,.sheet .tbl td{border:1px solid #999;padding:3px 5px;white-space:normal}
+    @page{size:A4 portrait;margin:12mm}
+  }
   .banner{font-size:12.5px;background:#fdf6e5;border:1px solid #f2e2bb;color:#8a6410;padding:10px 14px;border-radius:11px;margin-bottom:14px;line-height:1.6}
   .banner.safe{background:var(--brand-l);border-color:color-mix(in srgb, var(--brand) 20%, var(--line));color:var(--brand-d)}
   .kpi{display:flex;gap:10px;margin-bottom:16px}
@@ -232,8 +248,23 @@
         <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
         <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
       </div>
-      <label class="fld">支援者の体調</label>
-      <select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select>
+      <div class="grid2">
+        <div><label class="fld">サービス区分</label>
+          <select id="visit-kubun">
+            <option value="shintai">身体介護</option>
+            <option value="seikatsu">生活援助</option>
+            <option value="both">身体介護＋生活援助</option>
+            <option value="joukou">通院等乗降介助</option>
+          </select></div>
+        <div><label class="fld">支援者の体調</label>
+          <select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select></div>
+      </div>
+      <label class="fld">うち生活援助の時間(分)　<span class="muted">※「身体介護＋生活援助」のときのみ</span></label>
+      <input type="number" id="visit-smin" placeholder="例: 30">
+      <div class="row" style="margin-top:8px">
+        <label class="ckl"><input type="checkbox" id="visit-futari">2人対応</label>
+        <label class="ckl"><input type="checkbox" id="visit-kinkyu">緊急時訪問</label>
+      </div>
       <label class="fld">支援内容・様子(🎤音声もOK)</label>
       <div style="display:flex;gap:8px;align-items:flex-start">
         <textarea id="visit-text" style="flex:1" placeholder="例)調理と掃除。食欲あり元気そう。買い物で牛乳と食パン購入。"></textarea>
@@ -299,22 +330,39 @@
 
   <!-- ============ 実績・請求 ============ -->
   <section id="v-billing" class="view">
-    <h2 class="title">🧾 実績・請求(国保連)</h2>
-    <div class="banner">🏢 オールインワン方針:記録→月次実績→給付費明細→国保連への伝送(電子請求受付システム)まで、本アプリだけで完結させます。検証版は実績集計とCSV出力まで対応しています。</div>
-    <div class="card">
-      <div class="subttl">月次実績(📋報告タブから自動集計)</div>
-      <label class="fld">対象月</label>
+    <h2 class="title noprint">🧾 実績・請求(国保連)</h2>
+    <div class="banner noprint">🏢 報告記録から<b>加算・減算を反映した単位数</b>を計算し、請求書・明細書まで作ります。単位数と加算減算の設定は⚙️設定で編集できます(<b>初期値は暫定</b>。最新の単位数表で更新してください)。</div>
+    <div class="card noprint">
+      <div class="subttl">対象月</div>
       <input type="month" id="bill-month" onchange="renderBilling()">
+      <button class="btn" style="margin-top:12px" onclick="renderBilling()">🔄 集計する</button>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">📊 請求サマリー(介護給付費請求書 相当)</div>
       <div id="bill-summary" style="margin-top:12px"></div>
-      <div id="bill-preview" style="margin-top:12px"></div>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">🔍 請求前チェック</div>
+      <div id="bill-check"></div>
+    </div>
+    <div class="card">
+      <div class="subttl">📄 介護給付費明細書</div>
+      <label class="fld">利用者</label>
+      <select id="bill-user" onchange="renderMeisai()"></select>
+      <button class="btn sec noprint" style="margin-top:12px" onclick="window.print()">🖨 明細書を印刷</button>
+      <div id="bill-meisai" style="margin-top:12px"></div>
+    </div>
+    <div class="card noprint">
+      <div class="subttl">📤 請求データ</div>
+      <div id="bill-preview" style="margin-top:8px"></div>
       <p class="muted" style="margin-top:8px">請求データはコントロール・データ・エンドの3レコード構成で作成します。交換情報識別番号・項目順は正式なインタフェース仕様書に合わせて確定します。</p>
       <div class="row" style="margin-top:12px">
         <button class="btn sec" onclick="exportBillCsv()">⬇ 実績CSV(確認用)</button>
         <button class="btn sec" onclick="exportSeikyuCsv()">⬇ 請求データ(様式準拠・試作)</button>
-        <button class="btn" onclick="alert('(検証版)本番では給付費明細書・請求書を自動作成し、電子請求受付システムへインターネット伝送します。')">📤 国保連へ伝送(本番機能)</button>
+        <button class="btn" onclick="alert('(検証版)本番では介護給付費明細書・請求書を自動作成し、電子請求受付システムへインターネット伝送します。')">📤 国保連へ伝送(本番機能)</button>
       </div>
     </div>
-    <div class="card">
+    <div class="card noprint">
       <div class="subttl">⭐ 特定事業所加算 要件チェック(2024年度改定対応)</div>
       <p class="muted">日々の報告記録と体制情報から、算定要件の充足状況を自動チェックします。会議・健診の記録もここに残せます。</p>
       <div id="tk-list"></div>
@@ -358,6 +406,26 @@
       <div id="user-form" style="display:none;margin-top:12px">
         <label class="fld">名前(仮名で)</label><input type="text" id="uf-name" placeholder="例: Aさん">
         <label class="fld">メモ(年代・サービス内容など)</label><textarea id="uf-note" placeholder="例: 80代女性・独居。生活援助 週3回。"></textarea>
+        <div class="subttl" style="margin-top:14px">介護保険情報(請求に使用)</div>
+        <div class="grid2">
+          <div><label class="fld">被保険者番号</label><input type="text" id="uf-hokenno" placeholder="例: 0123456789"></div>
+          <div><label class="fld">要介護度</label>
+            <select id="uf-care">
+              <option>要支援1</option><option>要支援2</option><option>要介護1</option><option>要介護2</option>
+              <option>要介護3</option><option>要介護4</option><option>要介護5</option>
+            </select></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld">利用者負担割合</label>
+            <select id="uf-wari"><option value="1">1割</option><option value="2">2割</option><option value="3">3割</option></select></div>
+          <div><label class="fld">同一建物等の区分</label>
+            <select id="uf-tatemono">
+              <option value="0">該当なし</option>
+              <option value="10">同一敷地内建物等(−10％)</option>
+              <option value="15">同一建物50人以上(−15％)</option>
+              <option value="12">同一建物の利用者が90％以上(−12％)</option>
+            </select></div>
+        </div>
         <div class="row" style="margin-top:12px">
           <button class="btn" onclick="saveUser()">保存</button>
           <button class="btn sec" onclick="hideUserForm()">キャンセル</button>
@@ -370,6 +438,37 @@
       <label class="fld">事業所番号(10桁)</label><input type="text" id="of-no" placeholder="例: 1370100001">
       <label class="fld">事業所名</label><input type="text" id="of-name" placeholder="例: 訪問介護ステーション かけはし">
       <label class="fld">保険者番号(6桁)</label><input type="text" id="of-city" placeholder="例: 131059">
+      <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
+    </div>
+    <div class="card">
+      <div class="subttl">報酬・加算・減算の設定</div>
+      <p class="muted">請求の計算に使います。<b>単位数の初期値は暫定です。</b>最新の告示・単位数表に合わせて必ず更新してください。</p>
+      <div class="grid2">
+        <div><label class="fld">単位単価(地域区分・円)</label><input type="number" id="of-tanka" step="0.01" placeholder="10.00"></div>
+        <div><label class="fld">処遇改善加算(％)</label><input type="number" id="of-shogu" step="0.1" placeholder="0"></div>
+      </div>
+      <label class="fld">特定事業所加算(届出区分)</label>
+      <select id="of-tokutei">
+        <option value="0">算定なし</option>
+        <option value="20">区分Ⅰ(＋20％)</option>
+        <option value="10">区分Ⅱ(＋10％)</option>
+        <option value="10.1">区分Ⅲ(＋10％)</option>
+        <option value="3">区分Ⅳ(＋3％)</option>
+      </select>
+      <label class="fld">地域加算</label>
+      <select id="of-chiiki">
+        <option value="0">なし</option>
+        <option value="15">特別地域訪問介護加算(＋15％)</option>
+        <option value="10">小規模事業所加算(＋10％)</option>
+        <option value="5">中山間地域等提供加算(＋5％)</option>
+      </select>
+      <label class="fld">減算(該当する場合はチェック)</label>
+      <div class="row">
+        <label class="ckl"><input type="checkbox" id="of-gyakutai">高齢者虐待防止措置未実施(−1％)</label>
+        <label class="ckl"><input type="checkbox" id="of-bcp">業務継続計画未策定(−1％)</label>
+      </div>
+      <label class="fld" style="margin-top:12px">単位数マスタ</label>
+      <div id="master-list"></div>
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
     </div>
     <div class="card">
@@ -402,25 +501,45 @@ const DB_KEY = 'kakehashi_db_v1';
 const seed = {
   users: [
     { id:'u1', name:'佐藤さん', kana:'佐', note:'80代女性・独居。生活援助(調理・掃除・買い物)週3回。',
+      hokenNo:'0123456789', care:'要介護2', wari:1, tatemono:0,
       history:['牛乳','食パン','卵','ヨーグルト','バナナ','トイレットペーパー'],
       suggest:[ {item:'牛乳', why:'前回購入から4日。いつもの周期です'},
                 {item:'食パン', why:'ほぼ毎回ご依頼があります'},
                 {item:'トイレットペーパー', why:'前回から3週間。そろそろ切れる頃'} ] },
     { id:'u2', name:'鈴木さん', kana:'鈴', note:'70代ご夫婦。身体介護+買い物支援 週2回。',
+      hokenNo:'0123456790', care:'要介護3', wari:1, tatemono:0,
       history:['お茶2L','りんご','味噌','カップ麺','単3電池'],
       suggest:[ {item:'お茶2L', why:'夏場は週2本ペースです'},
                 {item:'りんご', why:'前回「また頼む」とのお話でした'} ] },
     { id:'u3', name:'高橋さん', kana:'高', note:'90代男性・長男と同居。通院同行 月2回+生活援助。',
+      hokenNo:'0123456791', care:'要介護4', wari:2, tatemono:0,
       history:['お粥パック','経口補水液','ティッシュ'],
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
   reports: [], trips: [],
   tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
-  office: { no:'', name:'', city:'' }
+  office: { no:'', name:'', city:'', tanka:10, shogu:0, tokutei:0, chiiki:0, gyakutai:false, bcp:false },
+  master: [
+    { code:'B01', name:'身体介護 20分未満', unit:163 },
+    { code:'B02', name:'身体介護 20分以上30分未満', unit:244 },
+    { code:'B03', name:'身体介護 30分以上1時間未満', unit:387 },
+    { code:'B04', name:'身体介護 1時間以上1時間30分未満', unit:567 },
+    { code:'B05', name:'身体介護 以降30分ごと', unit:82 },
+    { code:'B06', name:'身体に引き続く生活援助(20分ごと・最大3)', unit:65 },
+    { code:'S01', name:'生活援助 20分以上45分未満', unit:179 },
+    { code:'S02', name:'生活援助 45分以上', unit:220 },
+    { code:'J01', name:'通院等乗降介助(1回)', unit:97 },
+    { code:'K01', name:'緊急時訪問介護加算(1回)', unit:100 },
+    { code:'K02', name:'初回加算(月1回)', unit:200 }
+  ]
 };
 let db = load();
 let shopSel = [];
-function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{no:'',name:'',city:''}; d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
+function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
+        d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
+        d.master=d.master||structuredClone(seed.master);
+        d.users.forEach(u=>{ u.care=u.care||'要介護1'; u.wari=u.wari||1; u.tatemono=u.tatemono||0; u.hokenNo=u.hokenNo||''; });
+        d.reports.forEach(r=>{ r.kubun=r.kubun||'shintai'; }); d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function user(id){ return db.users.find(u=>u.id===id); }
 function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -443,7 +562,7 @@ function go(t){
   if(t==='shop') renderShop();
   if(t==='billing') renderBilling();
   if(t==='users') renderUsers();
-  if(t==='setting'){ renderSetUsers(); renderOffice(); }
+  if(t==='setting'){ renderSetUsers(); renderOffice(); renderMaster(); }
 }
 
 function renderHome(){
@@ -575,7 +694,11 @@ function copyText(id){
 function saveReport(uid){
   const summary = document.getElementById('visit-out').dataset.summary || '';
   const start=document.getElementById('visit-start').value, end=document.getElementById('visit-end').value;
-  db.reports.push({id:'p'+Date.now(), userId:uid, summary, date:fullDate(), start, end, mins:calcMins(start,end)});
+  db.reports.push({id:'p'+Date.now(), userId:uid, summary, date:fullDate(), start, end, mins:calcMins(start,end),
+    kubun:document.getElementById('visit-kubun').value,
+    smins:+document.getElementById('visit-smin').value||0,
+    futari:document.getElementById('visit-futari').checked,
+    kinkyu:document.getElementById('visit-kinkyu').checked});
   save(); renderReports(); renderHome();
   alert('報告を履歴に保存しました。');
 }
@@ -611,21 +734,193 @@ function renderTrips(){
 
 /* ---------- 実績・請求 ---------- */
 function calcMins(s,e){ if(!s||!e) return 0; const [sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number); let m=(eh*60+em)-(sh*60+sm); if(m<0) m+=1440; return m; }
+/* ============================================================
+   請求計算(介護保険・訪問介護)
+   加算・減算の適用順(検証版の実装)
+     ① 訪問ごとの基本単位数(区分×所要時間)
+     ② 2人対応(×2) → 時間帯加算(早朝/夜間＋25%、深夜＋50%)
+     ③ 月合計に 同一建物減算(×90/85/88%)
+     ④ 回数・月次の加算(緊急時訪問・初回・口腔連携)を加算
+     ⑤ 特定事業所加算 / 地域加算(率)
+     ⑥ 虐待防止措置未実施・業務継続計画未策定(各−1%)
+     ⑦ 処遇改善加算(率)
+   ※ 正式な算定構造での順序は最新の告示で要確認。
+   ============================================================ */
+const GENDO={'要支援1':5032,'要支援2':10531,'要介護1':16765,'要介護2':19705,
+             '要介護3':27048,'要介護4':30938,'要介護5':36217};
+function mst(code){ return (db.master||[]).find(x=>x.code===code)||{name:code,unit:0}; }
+function mu(code){ return +mst(code).unit||0; }
+function yen(n){ return Math.round(n||0).toLocaleString('ja-JP'); }
+
+/* 訪問1件の基本単位数(区分と所要時間から) */
+function baseUnits(kubun, mins, smins){
+  if(kubun==='joukou') return {unit:mu('J01'), label:mst('J01').name};
+  if(kubun==='seikatsu'){
+    if(mins<20) return {unit:0, label:'生活援助(20分未満・算定外)'};
+    return mins<45 ? {unit:mu('S01'), label:mst('S01').name} : {unit:mu('S02'), label:mst('S02').name};
+  }
+  // 身体介護(both は身体部分＋生活援助加算)
+  const sm = kubun==='both' ? Math.max(0, +smins||0) : 0;
+  const bm = Math.max(0, mins - sm);
+  let u, label;
+  if(bm<20){ u=mu('B01'); label=mst('B01').name; }
+  else if(bm<30){ u=mu('B02'); label=mst('B02').name; }
+  else if(bm<60){ u=mu('B03'); label=mst('B03').name; }
+  else if(bm<90){ u=mu('B04'); label=mst('B04').name; }
+  else { const ex=Math.ceil((bm-90)/30); u=mu('B04')+mu('B05')*ex; label=mst('B04').name+'＋30分毎×'+ex; }
+  if(kubun==='both'&&sm>=20){ const n=Math.min(3, Math.floor(sm/20)); u+=mu('B06')*n; label+='＋生活援助加算×'+n; }
+  return {unit:u, label};
+}
+/* 時間帯加算率(開始時刻) */
+function timeRate(start){
+  const h=+((start||'10:00').split(':')[0]);
+  if(h>=22||h<6) return {rate:1.5, label:'深夜(＋50%)'};
+  if(h>=18||h<8)  return {rate:1.25, label:(h<8?'早朝':'夜間')+'(＋25%)'};
+  return {rate:1, label:''};
+}
+
+function calcUser(u, ym){
+  const o=db.office||{};
+  const rs=db.reports.filter(r=>r.userId===u.id&&r.date.slice(0,7)===ym)
+                     .sort((a,b)=>a.date<b.date?-1:1);
+  const visits=rs.map(r=>{
+    const b=baseUnits(r.kubun||'shintai', r.mins||0, r.smins||0);
+    const t=timeRate(r.start);
+    const futari=r.futari?2:1;
+    const unit=Math.round(b.unit*futari*t.rate);
+    return {date:r.date, label:b.label, base:b.unit, futari, tRate:t.rate, tLabel:t.label, unit, kinkyu:!!r.kinkyu, mins:r.mins||0};
+  });
+  let units=visits.reduce((s,v)=>s+v.unit, 0);
+  const steps=[{t:'訪問分 合計', v:units}];
+  // ③ 同一建物減算
+  const tate=+u.tatemono||0;
+  if(tate&&units){ const before=units; units=Math.round(units*(100-tate)/100);
+    steps.push({t:`同一建物等の減算(−${tate}%)`, v:units-before}); }
+  // ④ 回数・月次加算
+  const kin=visits.filter(v=>v.kinkyu).length;
+  if(kin){ const v=mu('K01')*kin; units+=v; steps.push({t:`緊急時訪問介護加算 ×${kin}回`, v}); }
+  const first=(db.reports.filter(r=>r.userId===u.id).sort((a,b)=>a.date<b.date?-1:1)[0]||{}).date;
+  if(first&&first.slice(0,7)===ym&&rs.length){ const v=mu('K02'); units+=v; steps.push({t:'初回加算', v}); }
+  // ⑤ 特定事業所加算・地域加算
+  const tk=+o.tokutei||0;
+  if(tk&&units){ const v=Math.round(units*Math.floor(tk)/100); units+=v; steps.push({t:`特定事業所加算(＋${Math.floor(tk)}%)`, v}); }
+  const ch=+o.chiiki||0;
+  if(ch&&units){ const v=Math.round(units*ch/100); units+=v; steps.push({t:`地域加算(＋${ch}%)`, v}); }
+  // ⑥ 減算(率)
+  if(o.gyakutai&&units){ const v=-Math.round(units*0.01); units+=v; steps.push({t:'高齢者虐待防止措置未実施減算(−1%)', v}); }
+  if(o.bcp&&units){ const v=-Math.round(units*0.01); units+=v; steps.push({t:'業務継続計画未策定減算(−1%)', v}); }
+  // ⑦ 処遇改善加算
+  const sg=+o.shogu||0;
+  if(sg&&units){ const v=Math.round(units*sg/100); units+=v; steps.push({t:`処遇改善加算(＋${sg}%)`, v}); }
+  // 区分支給限度基準額
+  const gendo=GENDO[u.care||'要介護1']||0;
+  const over=Math.max(0, units-gendo);
+  const covered=units-over;
+  const tanka=+o.tanka||10;
+  const total=Math.floor(units*tanka);            // 総費用額
+  const wari=+u.wari||1;
+  const futanIns=Math.floor(covered*tanka*wari/10); // 保険内の自己負担
+  const futanOver=Math.floor(over*tanka);           // 限度額超過は全額自己負担
+  const futan=futanIns+futanOver;
+  const seikyu=total-futan;                          // 国保連への請求額
+  return {u, visits, steps, units, gendo, over, total, futan, futanIns, futanOver, seikyu, count:rs.length,
+          mins:rs.reduce((a,r)=>a+(r.mins||0),0)};
+}
+function calcAllUsers(ym){ return db.users.map(u=>calcUser(u, ym)).filter(r=>r.count>0); }
+function billYm(){ const el=document.getElementById('bill-month'); if(el&&!el.value) el.value=fullDate().slice(0,7); return el?el.value:fullDate().slice(0,7); }
+
 function renderBilling(){
-  const m=document.getElementById('bill-month');
-  if(!m.value) m.value=fullDate().slice(0,7);
-  const ym=m.value;
-  const rows=db.users.map(u=>{
-    const rs=db.reports.filter(r=>r.userId===u.id&&r.date.slice(0,7)===ym);
-    const mins=rs.reduce((a,r)=>a+(r.mins||0),0);
-    return `<tr><td>${esc(u.name)}</td><td class="num">${rs.length}回</td><td class="num">${Math.floor(mins/60)}時間${mins%60}分</td></tr>`;
-  }).join('');
-  document.getElementById('bill-summary').innerHTML = `<div class="tblwrap"><table class="tbl">
-    <tr><th>利用者</th><th class="num">提供回数</th><th class="num">提供時間</th></tr>${rows}</table></div>
-    <p class="muted" style="margin-top:8px">本番では、ここから加算・減算を反映した給付費明細書(サービス提供実績記録票)を自動作成します。</p>`;
+  const ym=billYm();
+  const list=calcAllUsers(ym);
+  const sum=k=>list.reduce((s,r)=>s+r[k], 0);
+  document.getElementById('bill-summary').innerHTML = list.length ? `
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>利用者</th><th class="num">回数</th><th class="num">時間</th><th class="num">単位数</th><th class="num">総費用額</th><th class="num">請求額</th><th class="num">自己負担</th></tr>
+      ${list.map(r=>`<tr><td>${esc(r.u.name)}</td><td class="num">${r.count}回</td><td class="num">${Math.floor(r.mins/60)}h${r.mins%60}m</td>
+        <td class="num">${yen(r.units)}${r.over?' <span class="chip r">超過</span>':''}</td>
+        <td class="num">${yen(r.total)}</td><td class="num">${yen(r.seikyu)}</td><td class="num">${yen(r.futan)}</td></tr>`).join('')}
+      <tr><td><b>合計 ${list.length}名</b></td><td class="num"></td><td class="num"></td><td class="num"><b>${yen(sum('units'))}</b></td>
+        <td class="num"><b>${yen(sum('total'))}</b></td><td class="num"><b>${yen(sum('seikyu'))}</b></td><td class="num"><b>${yen(sum('futan'))}</b></td></tr>
+    </table></div>
+    <p class="muted" style="margin-top:8px">単位単価 ${(+(db.office||{}).tanka||10)}円。国保連へは「請求額」を、利用者へは「自己負担」を請求します。</p>`
+    : `<p class="muted">${esc(ym)} の報告記録がありません。📋報告タブで保存してください。</p>`;
+  renderBillCheck(ym, list);
+  const opts=db.users.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  const bu=document.getElementById('bill-user'); const keep=bu.value;
+  bu.innerHTML=opts; if(keep) bu.value=keep;
+  renderMeisai();
   renderBillPreview(ym);
   renderTokutei();
 }
+
+function renderBillCheck(ym, list){
+  const rows=[]; const o=db.office||{};
+  if(!o.no||!o.name) rows.push({ic:'⛔', t:'事業所情報が未登録', d:'⚙️設定で事業所番号・事業所名を登録してください。'});
+  if(!(+o.tanka)) rows.push({ic:'⚠️', t:'単位単価が未設定', d:'⚙️設定で地域区分の単位単価を登録してください(未設定時は10円で計算)。'});
+  list.forEach(r=>{
+    if(!r.u.hokenNo) rows.push({ic:'⛔', t:`${r.u.name}: 被保険者番号が未登録`, d:'⚙️設定の利用者情報に登録してください。'});
+    if(r.over) rows.push({ic:'⚠️', t:`${r.u.name}: 区分支給限度基準額の超過`, d:`${yen(r.units)}単位 / 限度 ${yen(r.gendo)}単位。超過 ${yen(r.over)}単位(${yen(r.futanOver)}円)は全額自己負担です。ケアマネへの確認を。`});
+    if(r.visits.some(v=>v.base===0)) rows.push({ic:'⚠️', t:`${r.u.name}: 算定できない訪問あり`, d:'所要時間が短く算定要件を満たさない訪問があります(生活援助20分未満など)。'});
+  });
+  const tk=+o.tokutei||0;
+  const t=db.tokutei||{};
+  if(tk && !(t.kenshu&&t.shiji&&t.kinkyu&&t.kaigiDate&&t.kenshinDate))
+    rows.push({ic:'⚠️', t:'特定事業所加算の体制要件が未充足', d:'算定区分を設定していますが、下の要件チェックに未充足があります。'});
+  if(o.gyakutai) rows.push({ic:'⚠️', t:'高齢者虐待防止措置未実施減算が適用中', d:'措置を実施し、⚙️設定のチェックを外すと減算が解除されます。'});
+  if(o.bcp) rows.push({ic:'⚠️', t:'業務継続計画未策定減算が適用中', d:'BCPを策定し、⚙️設定のチェックを外すと減算が解除されます。'});
+  if(!rows.length) rows.push({ic:'✅', t:'請求前チェックOK', d:'エラー・警告はありません。'});
+  const badge=rows.some(r=>r.ic==='⛔')?'<span class="chip r">要対応</span>':rows.some(r=>r.ic==='⚠️')?'<span class="chip y">確認推奨</span>':'<span class="chip g">良好</span>';
+  document.getElementById('bill-check').innerHTML=`<div style="margin-bottom:6px">${esc(ym)}分 ${badge}</div>`+
+    rows.map(r=>`<div class="check-row"><div class="check-ic">${r.ic}</div><div style="flex:1;min-width:0"><div class="t">${esc(r.t)}</div><div class="d">${esc(r.d)}</div></div></div>`).join('');
+}
+
+function renderMeisai(){
+  const el=document.getElementById('bill-meisai'); if(!el) return;
+  const u=user(document.getElementById('bill-user').value);
+  if(!u){ el.innerHTML='<p class="muted">利用者がいません。</p>'; return; }
+  const ym=billYm(), r=calcUser(u, ym), o=db.office||{};
+  if(!r.count){ el.innerHTML=`<p class="muted">${esc(u.name)}の ${esc(ym)} の報告がありません。</p>`; return; }
+  el.innerHTML=`
+    <div class="sheet">
+      <div style="text-align:center;font-weight:800;font-size:15px;margin-bottom:10px">${esc(ym.replace('-','年'))}月分 介護給付費明細書</div>
+      <div class="shead">
+        <div><b>被保険者番号</b>${esc(u.hokenNo||'(未登録)')}</div>
+        <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+        <div><b>氏名</b>${esc(u.name)}</div>
+        <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+        <div><b>要介護度</b>${esc(u.care||'要介護1')}(限度 ${yen(r.gendo)}単位)</div>
+        <div><b>負担割合</b>${esc(String(u.wari||1))}割</div>
+      </div>
+      <div class="tblwrap"><table class="tbl">
+        <tr><th>日付</th><th>サービス内容</th><th class="num">基本</th><th class="num">人数/時間帯</th><th class="num">単位数</th></tr>
+        ${r.visits.map(v=>`<tr><td>${esc(v.date.slice(5))}</td><td style="text-align:left">${esc(v.label)}${v.kinkyu?' <span class="chip y">緊急</span>':''}</td>
+          <td class="num">${v.base}</td><td class="num">${v.futari>1?'2人':''}${v.tLabel?' '+esc(v.tLabel):''}</td><td class="num">${yen(v.unit)}</td></tr>`).join('')}
+      </table></div>
+      <div class="tblwrap" style="margin-top:10px"><table class="tbl">
+        <tr><th>加算・減算の適用</th><th class="num">単位</th></tr>
+        ${r.steps.map(s=>`<tr><td style="text-align:left">${esc(s.t)}</td><td class="num">${s.v>0&&s.t!=='訪問分 合計'?'+':''}${yen(s.v)}</td></tr>`).join('')}
+        <tr><td style="text-align:left"><b>総単位数</b></td><td class="num"><b>${yen(r.units)}</b></td></tr>
+      </table></div>
+      <div class="tblwrap" style="margin-top:10px"><table class="tbl">
+        <tr><td style="text-align:left">単位単価</td><td class="num">${(+o.tanka||10)}円</td><td style="text-align:left">総費用額</td><td class="num">${yen(r.total)}円</td></tr>
+        <tr><td style="text-align:left">限度額超過</td><td class="num">${r.over?yen(r.over)+'単位':'なし'}</td><td style="text-align:left">保険請求額</td><td class="num"><b>${yen(r.seikyu)}円</b></td></tr>
+        <tr><td style="text-align:left">自己負担(${esc(String(u.wari||1))}割)</td><td class="num">${yen(r.futanIns)}円</td><td style="text-align:left"><b>自己負担 合計</b></td><td class="num"><b>${yen(r.futan)}円</b>${r.futanOver?`<div class="muted">うち超過分 ${yen(r.futanOver)}円</div>`:''}</td></tr>
+      </table></div>
+      <p class="muted" style="margin-top:8px">※検証版の試作様式です。単位数・加算減算の適用順は最新の告示および算定構造でご確認ください。</p>
+    </div>`;
+}
+
+/* ---------- 単位数マスタ ---------- */
+function renderMaster(){
+  const el=document.getElementById('master-list'); if(!el) return;
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th>コード</th><th>サービス内容</th><th class="num">単位数</th></tr>
+    ${(db.master||[]).map((m,i)=>`<tr><td>${esc(m.code)}</td><td style="text-align:left">${esc(m.name)}</td>
+      <td class="num"><input type="number" value="${esc(String(m.unit))}" onchange="setMaster(${i}, this.value)" style="max-width:92px;text-align:right"></td></tr>`).join('')}
+  </table></div>`;
+}
+function setMaster(i, v){ db.master[i].unit=+v||0; save(); }
+
 function exportBillCsv(){
   const ym=document.getElementById('bill-month').value || fullDate().slice(0,7);
   const rows=[['日付','利用者','開始','終了','提供分数','要約']];
@@ -643,21 +938,28 @@ function exportBillCsv(){
 function renderOffice(){
   const o=db.office||{};
   [['of-no',o.no],['of-name',o.name],['of-city',o.city]].forEach(([id,v])=>{ const el=document.getElementById(id); if(el&&v) el.value=v; });
+  document.getElementById('of-tanka').value=o.tanka||10;
+  document.getElementById('of-shogu').value=o.shogu||0;
+  document.getElementById('of-tokutei').value=String(o.tokutei||0);
+  document.getElementById('of-chiiki').value=String(o.chiiki||0);
+  document.getElementById('of-gyakutai').checked=!!o.gyakutai;
+  document.getElementById('of-bcp').checked=!!o.bcp;
 }
 function saveOffice(){
-  db.office={ no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(), city:document.getElementById('of-city').value.trim() };
-  save(); alert('事業所情報を保存しました。');
+  db.office={ no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(),
+    city:document.getElementById('of-city').value.trim(),
+    tanka:+document.getElementById('of-tanka').value||10,
+    shogu:+document.getElementById('of-shogu').value||0,
+    tokutei:+document.getElementById('of-tokutei').value||0,
+    chiiki:+document.getElementById('of-chiiki').value||0,
+    gyakutai:document.getElementById('of-gyakutai').checked,
+    bcp:document.getElementById('of-bcp').checked };
+  save(); alert('設定を保存しました。');
 }
 function seikyuRows(ym){
   const o=db.office||{};
-  const body=[];
-  db.users.forEach(u=>{
-    const rs=db.reports.filter(r=>r.userId===u.id&&r.date.slice(0,7)===ym);
-    if(!rs.length) return;
-    const mins=rs.reduce((a,r)=>a+(r.mins||0),0);
-    body.push(['2', String(body.length+1), '1171', o.city||'', o.no||'', ym.replace('-',''),
-               u.name, String(rs.length), String(mins)]);
-  });
+  const body=calcAllUsers(ym).map((r,i)=>['2', String(i+1), '1171', o.city||'', o.no||'', ym.replace('-',''),
+    r.u.hokenNo||'', r.u.name, r.u.care||'', String(r.count), String(r.units), String(r.total), String(r.futan), String(r.seikyu)]);
   if(!body.length) return [];
   return [['1','117',String(body.length),o.no||'',fullDate().replace(/-/g,'')], ...body, ['3']];
 }
@@ -750,9 +1052,13 @@ function renderSetUsers(){
 }
 function editUser(id){
   editingUser=id;
-  const u = id ? user(id) : {name:'', note:''};
+  const u = id ? user(id) : {name:'', note:'', hokenNo:'', care:'要介護1', wari:1, tatemono:0};
   document.getElementById('uf-name').value=u.name||'';
   document.getElementById('uf-note').value=u.note||'';
+  document.getElementById('uf-hokenno').value=u.hokenNo||'';
+  document.getElementById('uf-care').value=u.care||'要介護1';
+  document.getElementById('uf-wari').value=String(u.wari||1);
+  document.getElementById('uf-tatemono').value=String(u.tatemono||0);
   document.getElementById('user-form').style.display='block';
   document.getElementById('uf-name').focus();
 }
@@ -761,8 +1067,12 @@ function saveUser(){
   const name=document.getElementById('uf-name').value.trim();
   if(!name){ alert('名前を入力してください(仮名で)。'); return; }
   const note=document.getElementById('uf-note').value.trim();
-  if(editingUser){ Object.assign(user(editingUser), {name, kana:name[0], note}); }
-  else { db.users.push({id:'u'+Date.now(), name, kana:name[0], note, history:[], suggest:[]}); }
+  const ins={ hokenNo:document.getElementById('uf-hokenno').value.trim(),
+              care:document.getElementById('uf-care').value,
+              wari:+document.getElementById('uf-wari').value||1,
+              tatemono:+document.getElementById('uf-tatemono').value||0 };
+  if(editingUser){ Object.assign(user(editingUser), {name, kana:name[0], note}, ins); }
+  else { db.users.push(Object.assign({id:'u'+Date.now(), name, kana:name[0], note, history:[], suggest:[]}, ins)); }
   save(); hideUserForm(); renderSetUsers(); fillSelects(); renderHome(); renderShop();
 }
 function delUser(id){
