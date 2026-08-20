@@ -226,6 +226,7 @@
     <button data-t="shop" onclick="go('shop')">🛒 買い物</button>
     <div class="navsec">実績・請求</div>
     <button data-t="billing" onclick="go('billing')">🧾 請求</button>
+    <button data-t="life" onclick="go('life')">🧬 LIFE</button>
     <div class="navsec">管理</div>
     <button data-t="users" onclick="go('users')">🏡 利用者</button>
     <button data-t="setting" onclick="go('setting')">⚙️ 設定</button>
@@ -406,6 +407,96 @@
     </div>
   </section>
 
+  <!-- ============ LIFE(科学的介護) ============ -->
+  <section id="v-life" class="view">
+    <h2 class="title">🧬 LIFE(科学的介護)</h2>
+    <div class="banner">⚠️ <b>訪問介護は現時点でLIFE関連加算の対象外</b>です(科学的介護推進体制加算の対象は施設系・通所系・居住系・多機能型)。2027年度改定での訪問系への拡大と、通所・施設を併設する法人での法人一括提出を見込んだ<b>先行実装</b>です。</div>
+    <div class="card">
+      <label class="fld">利用者</label>
+      <select id="life-user" onchange="renderLife()"></select>
+    </div>
+    <div class="subnav">
+      <button data-s="eval" class="on" onclick="lifeSec('eval')">📝 評価入力</button>
+      <button data-s="mng" onclick="lifeSec('mng')">📅 提出管理</button>
+      <button data-s="hist" onclick="lifeSec('hist')">📈 経過</button>
+      <button data-s="csv" onclick="lifeSec('csv')">📤 LIFE提出データ</button>
+    </div>
+
+    <div data-lsec="eval">
+      <div class="card">
+        <div class="subttl">🤖 直近の報告から下書き</div>
+        <p class="muted">日々の報告に出てくる「むせ」「食べこぼし」「転倒」などの記述をAIが拾い、評価の当たりを付けます。<b>判断は必ず担当者が行ってください。</b></p>
+        <button class="btn" id="life-ai" onclick="genLifeDraft()">✨ 報告から下書きを作る</button>
+        <div id="life-draft"></div>
+      </div>
+      <div class="card">
+        <div class="subttl">評価日</div>
+        <input type="date" id="life-date">
+      </div>
+      <div class="card">
+        <div class="subttl">① ADL(Barthel Index) <span class="chip g" id="bi-total">0点</span></div>
+        <div id="bi-form"></div>
+      </div>
+      <div class="card">
+        <div class="subttl">② 栄養</div>
+        <div class="grid2">
+          <div><label class="fld">身長(cm)</label><input type="number" id="life-h" step="0.1" oninput="calcBmi()"></div>
+          <div><label class="fld">体重(kg)</label><input type="number" id="life-w" step="0.1" oninput="calcBmi()"></div>
+        </div>
+        <div style="margin-top:8px">BMI <b id="life-bmi">―</b> <span id="life-bmi-note" class="muted"></span></div>
+      </div>
+      <div class="card">
+        <div class="subttl">③ 口腔</div>
+        <div class="row" id="oral-form"></div>
+      </div>
+      <div class="card">
+        <div class="subttl">④ 認知症の行動・心理症状(DBD13) <span class="chip g" id="dbd-total">0点</span></div>
+        <p class="muted">過去1週間の状況。0=まったくない / 4=常にある。点数が高いほど症状が強い。</p>
+        <div id="dbd-form"></div>
+      </div>
+      <div class="card">
+        <div class="subttl">⑤ 意欲(Vitality Index) <span class="chip g" id="vi-total">0点</span></div>
+        <div id="vi-form"></div>
+      </div>
+      <div class="card">
+        <div class="subttl">⑥ その他</div>
+        <label class="fld">服薬している薬剤数</label><input type="number" id="life-meds" placeholder="例: 5">
+        <label class="fld">特記事項</label><textarea id="life-note" placeholder="評価にあたって気づいた点"></textarea>
+        <button class="btn" style="margin-top:12px" onclick="saveLife()">💾 評価を保存</button>
+      </div>
+    </div>
+
+    <div data-lsec="mng" style="display:none">
+      <div class="card">
+        <div class="subttl">📅 提出状況(LIFEは原則3か月に1回の提出)</div>
+        <div id="life-mng"></div>
+      </div>
+    </div>
+
+    <div data-lsec="hist" style="display:none">
+      <div class="card">
+        <div class="subttl">📈 評価の経過</div>
+        <div id="life-hist"></div>
+      </div>
+    </div>
+
+    <div data-lsec="csv" style="display:none">
+      <div class="card">
+        <div class="subttl">📤 LIFE提出データ</div>
+        <p class="muted">LIFEのCSV連携仕様に沿った形で出力します。<b>検証版は項目構成の試作</b>で、正式な様式・項目定義は最新のCSV連携仕様書に合わせて確定します。</p>
+        <div id="life-csv-prev" style="margin-top:10px"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn sec" onclick="exportLifeCsv()">⬇ LIFE提出用CSV</button>
+          <button class="btn" onclick="alert('(検証版)本番ではLIFEへ直接アップロードし、フィードバック票を取り込んでケアの見直しに使えるようにします。')">📤 LIFEへ提出(本番機能)</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="subttl">📥 フィードバックの活用(本番機能)</div>
+        <p class="muted">LIFEから返るフィードバック票(事業所平均との比較・経時変化)を取り込み、ケアの見直しに使えるようにします。加算の要件は「提出」だけでなく「フィードバックの活用」まで含むため、本番では必須の機能です。</p>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ 利用者一覧 ============ -->
   <section id="v-users" class="view">
     <h2 class="title">🏡 利用者</h2>
@@ -536,7 +627,7 @@ const seed = {
       history:['お粥パック','経口補水液','ティッシュ'],
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
-  reports: [], trips: [],
+  reports: [], trips: [], life: [],
   tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
   office: { no:'', name:'', city:'', tanka:10 },
   master: [
@@ -571,7 +662,7 @@ let db = load();
 let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
-        d.limits=d.limits||structuredClone(seed.limits);
+        d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[];
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
         const of=d.office||{};
@@ -604,6 +695,7 @@ function go(t){
   if(t==='trip') renderTrips();
   if(t==='shop') renderShop();
   if(t==='billing') renderBilling();
+  if(t==='life') renderLife();
   if(t==='users') renderUsers();
   if(t==='setting'){ renderOffice(); renderMaster(); renderLimits(); }
 }
@@ -631,6 +723,7 @@ function fillSelects(){
   const opts = db.users.map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
   document.getElementById('visit-user').innerHTML = opts;
   document.getElementById('shop-user').innerHTML = opts;
+  const lu=document.getElementById('life-user'); if(lu){ const k=lu.value; lu.innerHTML=opts; if(k) lu.value=k; }
 }
 
 /* ============================================================
@@ -663,6 +756,25 @@ const demoGenerators = {
     ].join('\n');
     const summary = `${userName}宅で${start}から支援を実施。${t.slice(0,42)}${t.length>42?'…':''} 体調・様子は${good?'良好':'安定'}です。${flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。'}`;
     return { formal, app, summary };
+  },
+  life({name, texts}){
+    const all=texts.join(' ');
+    const hit=(re)=>re.test(all);
+    const oral=[];
+    const lines=[];
+    if(hit(/むせ|咳き?込/)){ oral.push('muse'); lines.push('・「むせ」に関する記述があります → ③口腔の「むせ」を確認してください。'); }
+    if(hit(/こぼ|食べこぼ/)){ oral.push('kobo'); lines.push('・食べこぼしの記述があります → ③口腔の「食べこぼし」を確認してください。'); }
+    if(hit(/義歯|入れ歯/)){ oral.push('gishi'); lines.push('・義歯に関する記述があります → 適合状態の確認を。'); }
+    if(hit(/口が渇|乾燥/)){ oral.push('kansou'); lines.push('・口腔乾燥の記述があります。'); }
+    if(hit(/転倒|ふらつ|つまず/)) lines.push('・転倒・ふらつきの記述があります → ①ADLの「歩行」「移乗」を見直してください。');
+    if(hit(/食欲な|食べられ|残す|体重が?減/)) lines.push('・食事量の低下がうかがえます → ②栄養の体重・BMIを確認し、低栄養リスクを検討してください。');
+    if(hit(/眠れ|不眠|夜中/)) lines.push('・睡眠に関する記述があります → ④DBD13の「夜中に起き出す」を確認してください。');
+    if(hit(/意欲|閉じこも|出たがら/)) lines.push('・意欲の低下がうかがえます → ⑤意欲(Vitality Index)を見直してください。');
+    const text = (lines.length
+      ? `${name}の直近の報告から、次の点が評価に関係しそうです。\n\n`+lines.join('\n')
+      : `${name}の直近の報告からは、評価を変更すべき特記事項は見つかりませんでした。`)
+      + '\n\n※ これはAIによる下書きです。実際の評価は必ず担当者がご本人の状態を確認して判断してください。';
+    return { text, oral };
   }
 };
 
@@ -1209,6 +1321,209 @@ function renderTokutei(){
   document.getElementById('tk-judge').innerHTML=`<div style="font-weight:700;margin-bottom:6px">判定(目安)</div>${judge}`;
 }
 
+/* ============================================================
+   LIFE(科学的介護情報システム)連携
+   ※ 訪問介護は現時点でLIFE関連加算の対象外。2027年度改定での訪問系拡大と
+     通所・施設併設法人での法人一括提出を見込んだ先行実装。
+   ============================================================ */
+const BI_ITEMS=[
+  {k:'eat',   n:'食事',                o:[[10,'自立'],[5,'部分介助'],[0,'全介助']]},
+  {k:'move',  n:'移乗(車椅子↔ベッド)', o:[[15,'自立'],[10,'軽度の介助'],[5,'座位は可能だが多くの介助'],[0,'全介助']]},
+  {k:'groom', n:'整容',                o:[[5,'自立'],[0,'介助']]},
+  {k:'toilet',n:'トイレ動作',          o:[[10,'自立'],[5,'部分介助'],[0,'全介助']]},
+  {k:'bath',  n:'入浴',                o:[[5,'自立'],[0,'介助']]},
+  {k:'walk',  n:'歩行',                o:[[15,'45m以上歩行自立'],[10,'45m以上介助歩行'],[5,'車椅子で45m以上'],[0,'不能']]},
+  {k:'stairs',n:'階段昇降',            o:[[10,'自立'],[5,'介助'],[0,'不能']]},
+  {k:'dress', n:'更衣',                o:[[10,'自立'],[5,'部分介助'],[0,'全介助']]},
+  {k:'bowel', n:'排便コントロール',    o:[[10,'失禁なし'],[5,'ときに失禁'],[0,'失禁あり']]},
+  {k:'blad',  n:'排尿コントロール',    o:[[10,'失禁なし'],[5,'ときに失禁'],[0,'失禁あり']]}
+];
+const DBD13=['同じことを何度も聞く','よく物をなくしたり置き場所を間違える','日常的な物事に関心を示さない','特別な理由なく夜中に起き出す','根拠のない疑いをもつ','昼間、寝てばかりいる','やたらに歩きまわる','同じ動作をいつまでも繰り返す','口汚くののしる','場違い・季節に合わない服装をする','世話をされるのを拒否する','明らかな理由なく感情を害する','引き出しの中身を全部出す'];
+const DBD_OPT=[[0,'まったくない'],[1,'ほとんどない'],[2,'ときどきある'],[3,'よくある'],[4,'常にある']];
+const VI_ITEMS=[
+  {n:'起床',          o:[[2,'いつも定時に起床'],[1,'ときどき起きられない'],[0,'自分から起きない']]},
+  {n:'意思疎通',      o:[[2,'自分から挨拶・話しかける'],[1,'挨拶や呼びかけに反応'],[0,'反応がない']]},
+  {n:'食事',          o:[[2,'自分から進んで食べる'],[1,'促されると食べる'],[0,'食事に関心がない']]},
+  {n:'排泄',          o:[[2,'いつも自分で排尿・排便'],[1,'ときどき失禁'],[0,'全く関心がない']]},
+  {n:'活動・リハビリ',o:[[2,'自ら活動に向かう'],[1,'促されて向かう'],[0,'拒否・無関心']]}
+];
+const ORAL_ITEMS=[{k:'kobo',n:'食べこぼし'},{k:'muse',n:'むせ'},{k:'yogore',n:'歯・義歯の汚れ'},{k:'gishi',n:'義歯が合わない'},{k:'kansou',n:'口腔乾燥'}];
+
+function lifeSec(s){
+  document.querySelectorAll('#v-life [data-lsec]').forEach(el=>{ el.style.display = el.dataset.lsec===s ? '' : 'none'; });
+  document.querySelectorAll('#v-life .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+}
+function lifeSecCur(){ const b=document.querySelector('#v-life .subnav button.on'); return b?b.dataset.s:'eval'; }
+function lifeUser(){ const el=document.getElementById('life-user'); return el?el.value:''; }
+function lifeOf(uid){ return (db.life||[]).filter(x=>x.userId===uid).sort((a,b)=>a.date<b.date?1:-1); }
+function addMonths(ymd, m){ const d=new Date(ymd+'T00:00:00'); d.setMonth(d.getMonth()+m);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+function buildLifeForm(){
+  const sel=(id,items,val)=>`<select id="${id}">${items.map(([v,l])=>`<option value="${v}" ${String(val)===String(v)?'selected':''}>${l}(${v})</option>`).join('')}</select>`;
+  document.getElementById('bi-form').innerHTML = BI_ITEMS.map(it=>
+    `<label class="fld">${esc(it.n)}</label>${sel('bi-'+it.k, it.o, it.o[0][0]).replace('<select','<select onchange="calcBi()"')}`).join('');
+  document.getElementById('oral-form').innerHTML = ORAL_ITEMS.map(it=>
+    `<label class="ckl"><input type="checkbox" id="or-${it.k}">${esc(it.n)}</label>`).join('');
+  document.getElementById('dbd-form').innerHTML = DBD13.map((n,i)=>
+    `<label class="fld">${i+1}. ${esc(n)}</label>${sel('dbd-'+i, DBD_OPT, 0).replace('<select','<select onchange="calcDbd()"')}`).join('');
+  document.getElementById('vi-form').innerHTML = VI_ITEMS.map((it,i)=>
+    `<label class="fld">${esc(it.n)}</label>${sel('vi-'+i, it.o, it.o[0][0]).replace('<select','<select onchange="calcVi()"')}`).join('');
+}
+function calcBi(){ const t=BI_ITEMS.reduce((s,it)=>s+ +document.getElementById('bi-'+it.k).value,0);
+  const el=document.getElementById('bi-total'); el.textContent=t+'点 / 100';
+  el.className='chip '+(t>=85?'g':t>=60?'y':'r'); return t; }
+function calcDbd(){ const t=DBD13.reduce((s,_,i)=>s+ +document.getElementById('dbd-'+i).value,0);
+  const el=document.getElementById('dbd-total'); el.textContent=t+'点 / 52';
+  el.className='chip '+(t<=10?'g':t<=25?'y':'r'); return t; }
+function calcVi(){ const t=VI_ITEMS.reduce((s,_,i)=>s+ +document.getElementById('vi-'+i).value,0);
+  const el=document.getElementById('vi-total'); el.textContent=t+'点 / 10';
+  el.className='chip '+(t>=8?'g':t>=5?'y':'r'); return t; }
+function calcBmi(){
+  const h=+document.getElementById('life-h').value, w=+document.getElementById('life-w').value;
+  const el=document.getElementById('life-bmi'), note=document.getElementById('life-bmi-note');
+  if(!h||!w){ el.textContent='―'; note.textContent=''; return 0; }
+  const b=w/Math.pow(h/100,2);
+  el.textContent=b.toFixed(1);
+  note.textContent = b<18.5 ? '(低体重 ― 低栄養リスクに注意)' : b<25 ? '(標準)' : '(肥満傾向)';
+  note.className = b<18.5 ? 'chip r' : 'muted';
+  return +b.toFixed(1);
+}
+
+function renderLife(){
+  const sel=document.getElementById('life-user');
+  if(!sel.options.length) return;
+  const uid=lifeUser();
+  const d=document.getElementById('life-date');
+  if(!d.value) d.value=fullDate();
+  const last=lifeOf(uid)[0];
+  if(last){  // 直近の評価を初期値に
+    BI_ITEMS.forEach(it=>{ const e=document.getElementById('bi-'+it.k); if(e&&last.bi) e.value=last.bi[it.k]; });
+    ORAL_ITEMS.forEach(it=>{ const e=document.getElementById('or-'+it.k); if(e&&last.oral) e.checked=!!last.oral[it.k]; });
+    DBD13.forEach((_,i)=>{ const e=document.getElementById('dbd-'+i); if(e&&last.dbd) e.value=last.dbd[i]||0; });
+    VI_ITEMS.forEach((_,i)=>{ const e=document.getElementById('vi-'+i); if(e&&last.vi) e.value=last.vi[i]; });
+    document.getElementById('life-h').value=last.h||'';
+    document.getElementById('life-w').value=last.w||'';
+    document.getElementById('life-meds').value=last.meds||'';
+  }
+  calcBi(); calcDbd(); calcVi(); calcBmi();
+  renderLifeMng(); renderLifeHist(); renderLifeCsvPrev();
+  lifeSec(lifeSecCur());
+}
+
+function saveLife(){
+  const uid=lifeUser(); if(!uid){ alert('利用者がいません。'); return; }
+  const rec={ id:'L'+Date.now(), userId:uid, date:document.getElementById('life-date').value||fullDate(),
+    bi:Object.fromEntries(BI_ITEMS.map(it=>[it.k, +document.getElementById('bi-'+it.k).value])),
+    biTotal:calcBi(),
+    h:+document.getElementById('life-h').value||0, w:+document.getElementById('life-w').value||0, bmi:calcBmi(),
+    oral:Object.fromEntries(ORAL_ITEMS.map(it=>[it.k, document.getElementById('or-'+it.k).checked])),
+    dbd:DBD13.map((_,i)=>+document.getElementById('dbd-'+i).value), dbdTotal:calcDbd(),
+    vi:VI_ITEMS.map((_,i)=>+document.getElementById('vi-'+i).value), viTotal:calcVi(),
+    meds:+document.getElementById('life-meds').value||0,
+    note:document.getElementById('life-note').value.trim(), sub:'' };
+  db.life=db.life||[]; db.life.push(rec); save();
+  document.getElementById('life-note').value='';
+  renderLife();
+  alert('評価を保存しました。📅提出管理で提出期限を確認できます。');
+}
+
+function renderLifeMng(){
+  const el=document.getElementById('life-mng'); if(!el) return;
+  const today=fullDate();
+  const rows=db.users.map(u=>{
+    const ls=lifeOf(u.id);
+    const lastEval=ls[0];
+    const lastSub=ls.filter(x=>x.sub).sort((a,b)=>a.sub<b.sub?1:-1)[0];
+    if(!lastEval) return `<tr><td>${esc(u.name)}</td><td class="muted">未評価</td><td class="muted">―</td><td class="muted">―</td>
+      <td><span class="chip y">評価が必要</span></td><td></td></tr>`;
+    const due=lastSub?addMonths(lastSub.sub,3):null;
+    const state = !lastSub ? '<span class="chip y">未提出</span>'
+                : due<today ? '<span class="chip r">期限超過</span>'
+                : addMonths(today,1)>=due ? '<span class="chip y">まもなく期限</span>'
+                : '<span class="chip g">期限内</span>';
+    return `<tr><td>${esc(u.name)}</td><td>${esc(lastEval.date)}</td><td>${lastSub?esc(lastSub.sub):'―'}</td>
+      <td>${due?esc(due):'―'}</td><td>${state}</td>
+      <td>${lastEval.sub?'':`<button class="btn mini sec" onclick="markSubmitted('${lastEval.id}')">提出済にする</button>`}</td></tr>`;
+  }).join('');
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th>利用者</th><th>最終評価日</th><th>最終提出日</th><th>次回期限</th><th>状態</th><th></th></tr>${rows}</table></div>
+    <p class="muted" style="margin-top:8px">LIFEへの提出は原則3か月に1回です。加算の要件は提出だけでなく<b>フィードバックの活用</b>まで含みます。</p>`;
+}
+function markSubmitted(id){
+  const r=(db.life||[]).find(x=>x.id===id); if(!r) return;
+  r.sub=fullDate(); save(); renderLifeMng(); renderLifeCsvPrev();
+}
+
+function renderLifeHist(){
+  const el=document.getElementById('life-hist'); if(!el) return;
+  const ls=lifeOf(lifeUser()).slice(0,8).reverse();
+  if(!ls.length){ el.innerHTML='<p class="muted">まだ評価がありません。📝評価入力から登録してください。</p>'; return; }
+  const arrow=(cur,prev,goodUp)=>{ if(prev===undefined||prev===null||cur===prev) return '';
+    const up=cur>prev; const good=goodUp?up:!up;
+    return `<span style="color:${good?'#0b7a5d':'#b3362b'}">${up?'▲':'▼'}${Math.abs(cur-prev)}</span>`; };
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th>評価日</th><th class="num">ADL(BI)</th><th class="num">BMI</th><th class="num">DBD13</th><th class="num">意欲</th><th>口腔</th></tr>
+    ${ls.map((r,i)=>{ const p=ls[i-1];
+      const oral=ORAL_ITEMS.filter(it=>r.oral&&r.oral[it.k]).map(it=>it.n).join('・')||'―';
+      return `<tr><td>${esc(r.date)}</td>
+        <td class="num">${r.biTotal} ${p?arrow(r.biTotal,p.biTotal,true):''}</td>
+        <td class="num">${r.bmi||'―'}</td>
+        <td class="num">${r.dbdTotal} ${p?arrow(r.dbdTotal,p.dbdTotal,false):''}</td>
+        <td class="num">${r.viTotal} ${p?arrow(r.viTotal,p.viTotal,true):''}</td>
+        <td style="text-align:left">${esc(oral)}</td></tr>`;
+    }).join('')}
+  </table></div>
+  <p class="muted" style="margin-top:8px">ADL・意欲は上がるほど、DBD13は下がるほど良い状態です。LIFEのフィードバックと突き合わせて支援の見直しに使います。</p>`;
+}
+
+function lifeCsvRows(){
+  const o=db.office||{};
+  const head=['事業所番号','被保険者番号','氏名','評価日','ADL合計','食事','移乗','整容','トイレ動作','入浴','歩行','階段昇降','更衣','排便','排尿',
+              '身長','体重','BMI','食べこぼし','むせ','歯や義歯の汚れ','義歯不適合','口腔乾燥','DBD13合計','意欲合計','薬剤数','特記事項'];
+  const body=(db.life||[]).slice().sort((a,b)=>a.date<b.date?-1:1).map(r=>{
+    const u=user(r.userId)||{};
+    return [o.no||'', u.hokenNo||'', u.name||'', r.date, r.biTotal,
+      ...BI_ITEMS.map(it=>r.bi?r.bi[it.k]:''),
+      r.h||'', r.w||'', r.bmi||'',
+      ...ORAL_ITEMS.map(it=>(r.oral&&r.oral[it.k])?'1':'0'),
+      r.dbdTotal, r.viTotal, r.meds||0, '"'+(r.note||'').replace(/"/g,'""')+'"'];
+  });
+  return body.length?[head, ...body]:[];
+}
+function renderLifeCsvPrev(){
+  const el=document.getElementById('life-csv-prev'); if(!el) return;
+  const rows=lifeCsvRows();
+  el.innerHTML = rows.length
+    ? `<div class="out"><div class="ot"><span>提出データ(プレビュー・先頭3件)</span></div><span>${esc(rows.slice(0,4).map(r=>r.join(',')).join('\n'))}</span></div>`
+    : '<p class="muted">まだ評価がありません。</p>';
+}
+function exportLifeCsv(){
+  const rows=lifeCsvRows();
+  if(!rows.length){ alert('評価がありません。📝評価入力から登録してください。'); return; }
+  const csv='﻿'+rows.map(r=>r.join(',')).join('\r\n')+'\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='life_'+fullDate()+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- 報告からのAI下書き ---------- */
+async function genLifeDraft(){
+  const uid=lifeUser(); const u=user(uid);
+  if(!u){ alert('利用者がいません。'); return; }
+  const rs=db.reports.filter(r=>r.userId===uid).slice(-12);
+  await withLoading('life-ai','AIが報告を読んでいます…', async()=>{
+    const out=await callAI('life', {name:u.name, texts:rs.map(r=>r.summary||'')});
+    document.getElementById('life-draft').innerHTML =
+      `<div class="out"><div class="ot"><span>AIの下書き(${rs.length}件の報告より)</span></div><span>${esc(out.text)}</span></div>`;
+    (out.oral||[]).forEach(k=>{ const e=document.getElementById('or-'+k); if(e) e.checked=true; });
+    if(out.oral&&out.oral.length){
+      document.getElementById('life-draft').insertAdjacentHTML('beforeend',
+        '<p class="muted" style="margin-top:8px">③口腔の該当項目にチェックを入れました。内容を確認してから保存してください。</p>');
+    }
+  });
+}
+
 /* ---------- 買い物 ---------- */
 function renderShop(){
   const u = user(document.getElementById('shop-user').value) || db.users[0];
@@ -1363,6 +1678,7 @@ function parseTripSpeech(){
 /* ---------- 起動 ---------- */
 fillSelects();
 initSpeech();
+buildLifeForm();
 renderHome();
 renderShop();
 </script>
