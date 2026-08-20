@@ -153,6 +153,10 @@
   details.acc>summary::before{content:"▸ ";color:var(--sub)}
   details.acc[open]>summary::before{content:"▾ "}
   details.acc>.accbody{padding:0 14px 14px}
+  .scanprev{margin-top:12px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
+  .scanprev img{display:block;width:100%;max-height:420px;object-fit:contain}
+  .scanprev .cap{font-size:12px;color:var(--sub);padding:8px 12px;border-top:1px solid var(--line)}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;color:var(--sub);font-size:13.5px}
   .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
   .ckl input{accent-color:var(--brand);width:16px;height:16px}
   .sheet{font-size:12px}
@@ -222,6 +226,7 @@
     <button data-t="home" class="on" onclick="go('home')">📊 ダッシュボード</button>
     <div class="navsec">日々の支援</div>
     <button data-t="report" onclick="go('report')">📋 報告</button>
+    <button data-t="scan" onclick="go('scan')">📷 スキャン</button>
     <button data-t="trip" onclick="go('trip')">🚗 移動</button>
     <button data-t="shop" onclick="go('shop')">🛒 買い物</button>
     <div class="navsec">実績・請求</div>
@@ -298,6 +303,50 @@
     </div>
     <h2 class="title">🗂 報告の履歴</h2>
     <div id="visit-history"></div>
+  </section>
+
+  <!-- ============ 帳票スキャン ============ -->
+  <section id="v-scan" class="view">
+    <h2 class="title">📷 帳票スキャン</h2>
+    <div class="banner">📸 手書きの帳票を撮るだけで、<b>報告・移動・LIFE</b>に流し込めます。<b>検証版はAIによる実際の読み取りを行いません</b>(本番はClaudeが画像から読み取ります)。読み取り結果は<b>必ず目視で確認</b>してから反映してください。</div>
+    <div class="banner safe">🔒 撮影した画像は<b>端末にも保存しません</b>(読み取り後に破棄)。保存されるのは確認・修正後の項目だけです。</div>
+
+    <div class="card">
+      <div class="subttl">① 帳票の種類</div>
+      <select id="scan-kind" onchange="clearScan()">
+        <option value="visit">訪問記録票(手書きの報告書)</option>
+        <option value="vital">バイタル記録</option>
+        <option value="trip">運転日報・メーター</option>
+        <option value="memo">その他のメモ</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="subttl">② 撮影・選択</div>
+      <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
+      <div class="drop" onclick="document.getElementById('scan-file').click()" style="cursor:pointer">
+        タップして<b>カメラで撮影</b>／画像を選ぶ<br><span class="muted">明るい場所で、帳票が画面いっぱいになるように</span>
+      </div>
+      <div id="scan-prev"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="scan-go" onclick="runOcr()" disabled>🔍 AIで読み取る</button>
+        <button class="btn sec" onclick="clearScan()">クリア</button>
+      </div>
+    </div>
+
+    <div class="card" id="scan-result" style="display:none">
+      <div class="subttl">③ 読み取り結果の確認・修正</div>
+      <div id="scan-note"></div>
+      <div id="scan-fields"></div>
+      <div class="subttl" style="margin-top:16px">④ 反映先</div>
+      <div id="scan-targets"></div>
+      <button class="btn" style="margin-top:12px" onclick="applyScan()">✅ 選んだ帳票に反映する</button>
+    </div>
+
+    <div class="card">
+      <div class="subttl">🗂 読み取りの履歴</div>
+      <div id="scan-hist"></div>
+    </div>
   </section>
 
   <!-- ============ 移動 ============ -->
@@ -627,7 +676,7 @@ const seed = {
       history:['お粥パック','経口補水液','ティッシュ'],
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
-  reports: [], trips: [], life: [],
+  reports: [], trips: [], life: [], scans: [],
   tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
   office: { no:'', name:'', city:'', tanka:10 },
   master: [
@@ -662,7 +711,7 @@ let db = load();
 let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
-        d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[];
+        d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[];
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
         const of=d.office||{};
@@ -696,6 +745,7 @@ function go(t){
   if(t==='shop') renderShop();
   if(t==='billing') renderBilling();
   if(t==='life') renderLife();
+  if(t==='scan') renderScan();
   if(t==='users') renderUsers();
   if(t==='setting'){ renderOffice(); renderMaster(); renderLimits(); }
 }
@@ -756,6 +806,20 @@ const demoGenerators = {
     ].join('\n');
     const summary = `${userName}宅で${start}から支援を実施。${t.slice(0,42)}${t.length>42?'…':''} 体調・様子は${good?'良好':'安定'}です。${flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。'}`;
     return { formal, app, summary };
+  },
+  ocr({kind, users}){
+    const nm = (users&&users[0]) || 'Aさん';
+    const today = fullDate();
+    const note='📸 <b>検証版のため、実際の写真は読み取っていません。</b>下のサンプルを実際の読み取り結果に見立てて、確認・修正して反映する流れをお試しください。本番ではClaudeが画像から実際に読み取ります。';
+    const F={
+      visit:{ user:nm, date:today, start:'10:00', end:'11:00', kubun:'seikatsu',
+        text:'調理と居室の掃除を実施。食欲あり、朝食は全量摂取された。表情は穏やかで変わりなし。ゴミ出しも代行。' },
+      vital:{ user:nm, date:today, temp:'36.4', bpH:'132', bpL:'78', pulse:'72', spo2:'97', weight:'48.5',
+        text:'変わりなし。水分摂取をこまめに促した。' },
+      trip:{ date:today, mStart:'12345', mEnd:'12352', min:'15', why:'買い物支援' },
+      memo:{ user:nm, date:today, text:'ご家族より、来週の通院に同行してほしいとの依頼あり。サービス提供責任者へ申し送り。' }
+    };
+    return { note, fields: F[kind]||F.memo };
   },
   life({name, texts}){
     const all=texts.join(' ');
@@ -866,6 +930,172 @@ function renderReports(){
       <div class="body">${esc(r.summary)}</div>
     </div>`).join('');
 }
+
+/* ============================================================
+   帳票スキャン(手書き帳票の写真 → 読み取り → 他帳票へ反映)
+   本番: callAI('ocr', {kind, image}) をサーバ経由の Claude 呼び出しに差し替える。
+        画像(dataURL)をvisionに渡し、帳票種別ごとのJSONで受け取る。
+   検証版: 画像は読み取らずサンプルを返す(その旨を画面に明示)。
+   画像は端末に保存しない ― 保存するのは確認・修正後の項目のみ。
+   ============================================================ */
+let scanImage=null, scanFields=null;
+
+const SCAN_DEFS={
+  visit:{ name:'訪問記録票',
+    fields:[{k:'user',n:'利用者名',t:'text'},{k:'date',n:'日付',t:'date'},
+            {k:'start',n:'開始',t:'time'},{k:'end',n:'終了',t:'time'},
+            {k:'kubun',n:'サービス区分',t:'select',o:[['shintai','身体介護'],['seikatsu','生活援助'],['both','身体介護＋生活援助'],['joukou','通院等乗降介助']]},
+            {k:'text',n:'支援内容・様子',t:'area'}],
+    targets:[['report','📋 報告の入力欄に反映(そのまま3形態を生成できます)']] },
+  vital:{ name:'バイタル記録',
+    fields:[{k:'user',n:'利用者名',t:'text'},{k:'date',n:'日付',t:'date'},
+            {k:'temp',n:'体温(℃)',t:'number'},{k:'bpH',n:'血圧(上)',t:'number'},{k:'bpL',n:'血圧(下)',t:'number'},
+            {k:'pulse',n:'脈拍',t:'number'},{k:'spo2',n:'SpO2(%)',t:'number'},{k:'weight',n:'体重(kg)',t:'number'},
+            {k:'text',n:'メモ',t:'area'}],
+    targets:[['life','🧬 LIFEの評価に反映(体重→BMI)'],['report','📋 報告の入力欄に追記']] },
+  trip:{ name:'運転日報',
+    fields:[{k:'date',n:'日付',t:'date'},{k:'mStart',n:'開始メーター(km)',t:'number'},
+            {k:'mEnd',n:'終了メーター(km)',t:'number'},{k:'min',n:'所要時間(分)',t:'number'},
+            {k:'why',n:'目的',t:'select',o:[['訪問','訪問'],['買い物支援','買い物支援'],['通院同行','通院同行'],['その他','その他']]}],
+    targets:[['trip','🚗 移動記録に反映']] },
+  memo:{ name:'メモ',
+    fields:[{k:'user',n:'利用者名',t:'text'},{k:'date',n:'日付',t:'date'},{k:'text',n:'本文',t:'area'}],
+    targets:[['report','📋 報告の入力欄に反映']] }
+};
+
+function scanKind(){ return document.getElementById('scan-kind').value; }
+
+function resizeImage(file, max){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const sc=Math.min(1, max/Math.max(img.width,img.height));
+        const c=document.createElement('canvas');
+        c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        res({data:c.toDataURL('image/jpeg',0.7), w:c.width, h:c.height});
+      };
+      img.onerror=()=>rej(new Error('画像を読み込めませんでした'));
+      img.src=r.result;
+    };
+    r.onerror=()=>rej(new Error('ファイルを読み込めませんでした'));
+    r.readAsDataURL(file);
+  });
+}
+async function onScanFile(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  try{
+    const im=await resizeImage(f, 1280);
+    scanImage=im.data;
+    document.getElementById('scan-prev').innerHTML=
+      `<div class="scanprev"><img src="${im.data}" alt="撮影した帳票"><div class="cap">${im.w}×${im.h}px に縮小して読み取ります。この画像は保存されません。</div></div>`;
+    document.getElementById('scan-go').disabled=false;
+  }catch(e){ alert(e.message); }
+}
+function clearScan(){
+  scanImage=null; scanFields=null;
+  const p=document.getElementById('scan-prev'); if(p) p.innerHTML='';
+  const g=document.getElementById('scan-go'); if(g) g.disabled=true;
+  const r=document.getElementById('scan-result'); if(r) r.style.display='none';
+  const f=document.getElementById('scan-file'); if(f) f.value='';
+}
+
+async function runOcr(){
+  if(!scanImage){ alert('先に帳票を撮影または選択してください。'); return; }
+  const kind=scanKind();
+  await withLoading('scan-go','AIが読み取っています…', async()=>{
+    const r=await callAI('ocr', {kind, image:scanImage, users:db.users.map(u=>u.name)});
+    scanFields=r.fields;
+    document.getElementById('scan-note').innerHTML =
+      `<div class="banner">${esc(r.note)}</div>`;
+    renderScanFields();
+    document.getElementById('scan-result').style.display='block';
+    document.getElementById('scan-result').scrollIntoView({behavior:'smooth',block:'start'});
+    scanImage=null;  // 読み取り後は画像を破棄
+    document.getElementById('scan-prev').innerHTML='<p class="muted" style="margin-top:12px">読み取りが終わったため画像は破棄しました。</p>';
+  });
+  // withLoading が finally でボタンを戻すため、その後に無効化する
+  document.getElementById('scan-go').disabled=true;
+  document.getElementById('scan-file').value='';
+}
+function renderScanFields(){
+  const d=SCAN_DEFS[scanKind()];
+  document.getElementById('scan-fields').innerHTML = d.fields.map(f=>{
+    const v=scanFields[f.k]===undefined?'':scanFields[f.k];
+    if(f.t==='area') return `<label class="fld">${esc(f.n)}</label><textarea id="sf-${f.k}">${esc(String(v))}</textarea>`;
+    if(f.t==='select') return `<label class="fld">${esc(f.n)}</label><select id="sf-${f.k}">${f.o.map(([val,lab])=>`<option value="${val}" ${String(v)===val?'selected':''}>${esc(lab)}</option>`).join('')}</select>`;
+    return `<label class="fld">${esc(f.n)}</label><input type="${f.t}" id="sf-${f.k}" value="${esc(String(v))}">`;
+  }).join('');
+  document.getElementById('scan-targets').innerHTML = d.targets.map(([k,lab],i)=>
+    `<label class="ckl" style="display:flex;margin-bottom:8px"><input type="checkbox" id="st-${k}" ${i===0?'checked':''}>${esc(lab)}</label>`).join('');
+}
+function readScanFields(){
+  const d=SCAN_DEFS[scanKind()];
+  return Object.fromEntries(d.fields.map(f=>[f.k, (document.getElementById('sf-'+f.k)||{}).value||'']));
+}
+function findUserByName(nm){
+  if(!nm) return null;
+  return db.users.find(u=>nm.includes(u.name)||u.name.includes(nm)) || null;
+}
+
+function applyScan(){
+  const kind=scanKind(), d=SCAN_DEFS[kind], v=readScanFields();
+  const on=(k)=>{ const e=document.getElementById('st-'+k); return e&&e.checked; };
+  const u=findUserByName(v.user);
+  const done=[];
+  if(on('report')){
+    if(u) document.getElementById('visit-user').value=u.id;
+    if(v.start) document.getElementById('visit-start').value=v.start;
+    if(v.end) document.getElementById('visit-end').value=v.end;
+    if(v.kubun) document.getElementById('visit-kubun').value=v.kubun;
+    let txt=v.text||'';
+    if(kind==='vital'){
+      const b=[]; if(v.temp) b.push('体温'+v.temp+'℃'); if(v.bpH&&v.bpL) b.push('血圧'+v.bpH+'/'+v.bpL);
+      if(v.pulse) b.push('脈拍'+v.pulse); if(v.spo2) b.push('SpO2 '+v.spo2+'%');
+      txt=(b.join('、')+(txt?'。'+txt:'')).trim();
+    }
+    const ta=document.getElementById('visit-text');
+    ta.value = ta.value ? ta.value+'\n'+txt : txt;
+    done.push('📋報告');
+  }
+  if(on('trip')){
+    if(v.mStart) document.getElementById('trip-start').value=v.mStart;
+    if(v.mEnd) document.getElementById('trip-end').value=v.mEnd;
+    if(v.min) document.getElementById('trip-min').value=v.min;
+    if(v.why) document.getElementById('trip-why').value=v.why;
+    done.push('🚗移動');
+  }
+  if(on('life')){
+    if(u){ const ls=document.getElementById('life-user'); if(ls) ls.value=u.id; }
+    if(v.weight){ const w=document.getElementById('life-w'); if(w){ w.value=v.weight; calcBmi(); } }
+    done.push('🧬LIFE');
+  }
+  if(!done.length){ alert('反映先を1つ以上選んでください。'); return; }
+  db.scans=db.scans||[];
+  db.scans.push({id:'S'+Date.now(), date:v.date||fullDate(), kind, name:d.name,
+                 user:(u&&u.name)||v.user||'', fields:v, applied:done});
+  save(); renderScanHist();
+  const first=done[0];
+  alert(done.join('・')+'に反映しました。内容を確認して保存してください。');
+  if(first.includes('報告')) go('report');
+  else if(first.includes('移動')) go('trip');
+  else if(first.includes('LIFE')) go('life');
+}
+
+function renderScanHist(){
+  const el=document.getElementById('scan-hist'); if(!el) return;
+  const ss=(db.scans||[]).slice().reverse();
+  if(!ss.length){ el.innerHTML='<p class="muted">まだ読み取りはありません。</p>'; return; }
+  el.innerHTML = ss.slice(0,10).map(s=>`
+    <div class="rec-item" onclick="this.classList.toggle('open')">
+      <div class="h"><span>${esc(s.date)}・${esc(s.name)}${s.user?'（'+esc(s.user)+'）':''}</span>
+        <span class="chip g">${esc(s.applied.join('・'))}</span></div>
+      <div class="body">${esc(Object.entries(s.fields).filter(([,v])=>v).map(([k,v])=>k+': '+v).join(' / '))}</div>
+    </div>`).join('');
+}
+function renderScan(){ renderScanHist(); }
 
 /* ---------- 移動 ---------- */
 function saveTrip(){
