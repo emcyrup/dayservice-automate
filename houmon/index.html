@@ -259,6 +259,7 @@
         <button class="btn sec" onclick="go('users')">🏡 利用者一覧</button>
       </div>
     </div>
+    <div id="home-pend"></div>
     <div class="card">
       <div class="subttl">今日の動き</div>
       <div id="dash-feed"></div>
@@ -272,13 +273,26 @@
       <p class="muted">支援内容・様子を一度話す/書くだけで、<b>①正式報告書 ②記録アプリ入力用(ケアピア等) ③サ責向け要約</b>を同時に作ります。</p>
       <label class="fld">利用者</label>
       <select id="visit-user" onchange="renderVisitRefs()"></select>
+      <div class="row" style="margin:8px 0 2px">
+        <button class="btn mini sec" onclick="copyLastReport()">⚡ 前回の報告をコピー</button>
+      </div>
       <details class="acc noprint">
         <summary>📚 この方の過去の報告を参照</summary>
         <div class="accbody" id="visit-refs"></div>
       </details>
       <div class="grid2">
-        <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
-        <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
+        <div><label class="fld">開始</label>
+          <div class="row" style="gap:6px;flex-wrap:nowrap;align-items:center">
+            <select data-tsel-h id="visit-start-h" onchange="syncTimeSel('visit-start')" style="min-width:72px"></select><b>:</b>
+            <select data-tsel-m id="visit-start-m" onchange="syncTimeSel('visit-start')" style="min-width:72px"></select>
+          </div>
+          <input type="hidden" id="visit-start" value="10:00"></div>
+        <div><label class="fld">終了</label>
+          <div class="row" style="gap:6px;flex-wrap:nowrap;align-items:center">
+            <select data-tsel-h id="visit-end-h" onchange="syncTimeSel('visit-end')" style="min-width:72px"></select><b>:</b>
+            <select data-tsel-m id="visit-end-m" onchange="syncTimeSel('visit-end')" style="min-width:72px"></select>
+          </div>
+          <input type="hidden" id="visit-end" value="11:00"></div>
       </div>
       <div class="grid2">
         <div><label class="fld">サービス区分</label>
@@ -885,6 +899,9 @@ function renderHome(){
     ...reps.map(r=>({ic:'📋',t:`${user(r.userId)?.name||''} の報告を作成`,s:(r.summary||'').slice(0,36)})),
     ...trips.map(t=>({ic:'🚗',t:`${t.why} ${t.dist}km / ${t.min}分`,s:''}))
   ];
+  const pend=db.reports.filter(r=>r.pend).length;
+  const hp=document.getElementById('home-pend');
+  if(hp) hp.innerHTML = pend ? `<div class="banner noprint">⏳ <b>AI再生成待ちの報告が ${pend} 件</b>あります(電波の悪い場所などで生成に失敗した分)。📋報告の履歴から「🤖 再生成」してください。</div>` : '';
   document.getElementById('dash-feed').innerHTML = feed.length
     ? feed.slice(-6).reverse().map(f=>`<div class="sug-row"><div style="font-size:18px">${f.ic}</div><div style="flex:1;min-width:0"><div class="t">${esc(f.t)}</div>${f.s?`<div class="d">${esc(f.s)}…</div>`:''}</div></div>`).join('')
     : '<p class="muted">まだ今日の記録はありません。「📋 報告を作成」から始めてください。</p>';
@@ -901,7 +918,9 @@ function fillSelects(){
    AI 呼び出しの中枢。プロトはデモ生成。
    本番: fetch('/api/ai', {kind, payload}) → サーバ側で Claude API を呼ぶ。
    ============================================================ */
+let aiFallback=false;
 async function callAI(kind, payload){
+  aiFallback=false;
   const o=db.office||{};
   if(o.aiUrl){
     try{
@@ -916,7 +935,8 @@ async function callAI(kind, payload){
       if(!res.ok || !j.ok) throw new Error(j.error||('HTTP '+res.status));
       return j.data;
     }catch(e){
-      alert('AIサーバに接続できませんでした('+(e.name==='AbortError'?'タイムアウト':e.message)+')。今回はデモ生成で表示します。');
+      aiFallback=true;
+      alert('AIサーバに接続できませんでした('+(e.name==='AbortError'?'タイムアウト':e.message)+')。今回はデモ生成で表示します。保存すると履歴から「🤖再生成」できます。');
     }
   }
   await new Promise(r=>setTimeout(r, 700));
@@ -1083,6 +1103,7 @@ async function genVisit(){
       `<div class="banner" style="margin-top:10px">⚠️ 内容を確認してから提出・入力してください。本番は記録アプリへのAPI/CSV連携も想定しています。</div>
        <button class="btn sec" onclick='saveReport(${JSON.stringify(u.id)})'>💾 履歴に保存</button>`;
     document.getElementById('visit-out').dataset.summary = r.summary;
+    document.getElementById('visit-out').dataset.pend = ((db.office||{}).aiUrl && aiFallback) ? '1' : '';
   });
 }
 function outBlock(title, text){
@@ -1100,16 +1121,21 @@ function saveReport(uid){
     kubun:document.getElementById('visit-kubun').value,
     smins:+document.getElementById('visit-smin').value||0,
     futari:document.getElementById('visit-futari').checked,
-    kinkyu:document.getElementById('visit-kinkyu').checked});
+    kinkyu:document.getElementById('visit-kinkyu').checked,
+    src:{text:document.getElementById('visit-text').value, cond:document.getElementById('visit-cond').value},
+    pend: document.getElementById('visit-out').dataset.pend==='1'});
   save(); renderReports(); renderVisitRefs(); renderHome();
   alert('報告を履歴に保存しました。');
 }
 function renderReports(){
   const h=document.getElementById('visit-history');
   if(!db.reports.length){ h.innerHTML='<p class="muted">まだ報告はありません。</p>'; return; }
+  const aiOn=!!(db.office&&db.office.aiUrl);
   h.innerHTML = db.reports.slice().reverse().map(r=>`
     <div class="rec-item" onclick="this.classList.toggle('open')">
-      <div class="h"><span>${r.date}・${esc(user(r.userId)?.name||'')}</span><span class="chip g">3形態生成済</span></div>
+      <div class="h"><span>${r.date}・${esc(user(r.userId)?.name||'')}</span>
+        <span>${r.pend?'<span class="chip y">⏳ AI再生成待ち</span>':'<span class="chip g">3形態生成済</span>'}
+        ${r.pend&&aiOn?`<span onclick="event.stopPropagation()"><button class="btn mini sec" onclick="regenReport('${r.id}')">🤖 再生成</button></span>`:''}</span></div>
       <div class="body">${esc(r.summary)}</div>
     </div>`).join('');
 }
@@ -1230,8 +1256,8 @@ function applyScan(){
   const done=[];
   if(on('report')){
     if(u) document.getElementById('visit-user').value=u.id;
-    if(v.start) document.getElementById('visit-start').value=v.start;
-    if(v.end) document.getElementById('visit-end').value=v.end;
+    if(v.start) setTimeSel('visit-start', v.start);
+    if(v.end) setTimeSel('visit-end', v.end);
     if(v.kubun) document.getElementById('visit-kubun').value=v.kubun;
     let txt=v.text||'';
     if(kind==='vital'){
@@ -1280,6 +1306,60 @@ function renderScanHist(){
 }
 function renderScan(){ renderScanHist(); }
 
+/* ---------- 時刻セレクト(24時間固定・端末ロケール非依存) ---------- */
+const pad2=n=>String(n).padStart(2,'0');
+function buildTimeSels(){
+  document.querySelectorAll('select[data-tsel-h]').forEach(el=>{
+    el.innerHTML=Array.from({length:24},(_,h)=>`<option value="${h}">${pad2(h)}</option>`).join('');
+  });
+  document.querySelectorAll('select[data-tsel-m]').forEach(el=>{
+    el.innerHTML=Array.from({length:60},(_,m)=>`<option value="${m}">${pad2(m)}</option>`).join('');
+  });
+  setTimeSel('visit-start','10:00'); setTimeSel('visit-end','11:00');
+}
+function syncTimeSel(id){
+  const h=document.getElementById(id+'-h').value, m=document.getElementById(id+'-m').value;
+  document.getElementById(id).value=pad2(+h)+':'+pad2(+m);
+}
+function setTimeSel(id,val){
+  const hid=document.getElementById(id); if(!hid) return;
+  const mt=/^(\d{1,2}):(\d{2})/.exec(val||'');
+  if(!mt){ return; }
+  hid.value=pad2(+mt[1])+':'+mt[2];
+  const eh=document.getElementById(id+'-h'), em=document.getElementById(id+'-m');
+  if(eh) eh.value=String(+mt[1]);
+  if(em) em.value=String(+mt[2]);
+}
+
+/* ---------- ⚡前回の報告をコピー ---------- */
+function copyLastReport(){
+  const uid=document.getElementById('visit-user').value;
+  const r=db.reports.filter(x=>x.userId===uid).slice(-1)[0];
+  if(!r){ alert('この方の過去の報告がまだありません。'); return; }
+  const base=(r.src&&r.src.text) ? r.src.text
+    : (r.summary||'').replace(/^.*?で\d{1,2}:\d{2}から支援を実施。/,'');
+  document.getElementById('visit-text').value=base;
+  if(r.start) setTimeSel('visit-start', r.start);
+  if(r.end) setTimeSel('visit-end', r.end);
+  if(r.kubun) document.getElementById('visit-kubun').value=r.kubun;
+  if(r.src&&r.src.cond) document.getElementById('visit-cond').value=r.src.cond;
+  document.getElementById('visit-smin').value=r.smins||'';
+  const ta=document.getElementById('visit-text');
+  ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true}));
+}
+
+/* ---------- AI再生成(生成失敗時のフォールバック救済) ---------- */
+async function regenReport(id, btnId){
+  const r=db.reports.find(x=>x.id===id); if(!r) return;
+  const u=user(r.userId);
+  if(!r.src){ alert('この報告には再生成用の元データがありません。'); return; }
+  aiFallback=false;
+  const out=await callAI('visit', {userName:u?u.name:'', text:r.src.text, cond:r.src.cond||'良好', start:r.start, end:r.end});
+  if(aiFallback){ return; } // 失敗(アラート表示済み)。待ちのまま
+  r.summary=out.summary; r.pend=false;
+  save(); renderReports(); renderHome();
+  alert('Claudeで再生成しました。');
+}
 /* ---------- 過去の報告の参照・引用 ---------- */
 function renderVisitRefs(){
   const el=document.getElementById('visit-refs'); if(!el) return;
@@ -1299,8 +1379,8 @@ function quoteVisitRef(id){
   const ta=document.getElementById('visit-text');
   const base=(r.summary||'').replace(/^.*?で\d{1,2}:\d{2}から支援を実施。/,'');
   ta.value = ta.value ? ta.value+'\n'+base : base;
-  if(r.start) document.getElementById('visit-start').value=r.start;
-  if(r.end) document.getElementById('visit-end').value=r.end;
+  if(r.start) setTimeSel('visit-start', r.start);
+  if(r.end) setTimeSel('visit-end', r.end);
   if(r.kubun) document.getElementById('visit-kubun').value=r.kubun;
   ta.focus();
   ta.dispatchEvent(new Event('input',{bubbles:true}));
@@ -2328,6 +2408,7 @@ function parseTripSpeech(){
 
 /* ---------- 起動 ---------- */
 fillSelects();
+buildTimeSels();
 initSpeech();
 buildLifeForm();
 renderHome();
