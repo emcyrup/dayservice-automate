@@ -11,7 +11,7 @@ LIFE（科学的介護情報システム）連携の仕様と前提は **[`docs/
 | プロダクト | 対象 | プロトタイプ | 企画書 | 顧客向けガイド |
 |---|---|---|---|---|
 | 🌱 **そだちノート** | 放課後等デイサービス | [`index.html`](index.html) ／ [公開デモ](https://emcyrup.github.io/dayservice-automate/) | [`docs/企画書_そだちノート(放デイ).md`](docs/企画書_そだちノート(放デイ).md) | [PDF](docs/そだちノート_機能ガイド.pdf) |
-| 🧡 **かけはしノート** | 訪問介護 | [`houmon/index.html`](houmon/index.html) ／ [公開デモ](https://emcyrup.github.io/dayservice-automate/houmon/) | [`docs/企画書_かけはしノート(訪問介護).md`](docs/企画書_かけはしノート(訪問介護).md) | [PDF](docs/かけはしノート_機能ガイド.pdf) |
+| 💙 **CareOne**(旧かけはしノート) | 訪問介護 | [`houmon/index.html`](houmon/index.html) ／ [公開デモ](https://emcyrup.github.io/dayservice-automate/houmon/) | [`docs/企画書_かけはしノート(訪問介護).md`](docs/企画書_かけはしノート(訪問介護).md) | [PDF](docs/かけはしノート_機能ガイド.pdf) |
 
 ## 🌱 そだちノート（放課後デイサービス）
 
@@ -28,7 +28,7 @@ LIFE（科学的介護情報システム）連携の仕様と前提は **[`docs/
 | ✅ 加算 | 計画未作成・モニタリング期限・受給者証期限・支給量超過・加算の取りこぼしを点検 |
 | 👥 共有 | セーフティノート：名前を送ると配慮点（アレルギー・パニック時対応等）が返る |
 
-## 🧡 かけはしノート（訪問介護）
+## 💙 CareOne（訪問介護・旧かけはしノート）
 
 「一度話せば、3つの報告ができている。」
 
@@ -60,7 +60,7 @@ LIFE（科学的介護情報システム）連携の仕様と前提は **[`docs/
 ```bash
 python3 -m http.server 8000
 # → http://localhost:8000/         （そだちノート）
-# → http://localhost:8000/houmon/  （かけはしノート）
+# → http://localhost:8000/houmon/  （CareOne）
 ```
 
 > 🎤 音声入力はブラウザ標準の Web Speech API を使用。**Chrome / Edge / Safari** 推奨。スマホで開くと現場での使用感を確認できます。
@@ -69,7 +69,7 @@ python3 -m http.server 8000
 
 - フレームワークなしの静的Webアプリ（HTML/CSS/JS）。スマホファースト。ライト／ダークテーマ対応。
 - データは `localStorage`（プロト用。本番はDB＋権限管理＋閲覧ログへ）。
-- **AI生成はデモ用の内蔵ジェネレータ**。かけはしノートは **[`server/`](server/) のAIリレーサーバ**を立てて⚙️設定にURLを入力すると、報告・LIFE下書き・帳票OCR・申請下書きが **Claude API による本物の生成**に切り替わる（APIキーはサーバ側のみ・ブラウザに出さない）。
+- **AI生成はデモ用の内蔵ジェネレータ**。CareOneは **[`server/`](server/) のAIリレーサーバ**を立てて⚙️設定にURLを入力すると、報告・LIFE下書き・帳票OCR・申請下書きが **Claude API による本物の生成**に切り替わる（APIキーはサーバ側のみ・ブラウザに出さない）。
 - そだちノートの本番LINE連携は LINE Messaging API を想定。
 
 ## 注意
