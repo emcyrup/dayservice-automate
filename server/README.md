@@ -47,6 +47,8 @@ ANTHROPIC_API_KEY=sk-ant-... npm start   # → http://localhost:8787
 
 ## Cloud Run へのデプロイ(推奨)
 
+> 🖱️ **GUI(ブラウザ)だけで構築する場合は [DEPLOY_GUI.md](DEPLOY_GUI.md) を参照。** GitHubリポジトリを直接つなぐため、構築後は `main` へのマージで自動再デプロイされます。以下はgcloud CLIでの手順です。
+
 [Dockerfile](Dockerfile) 同梱。Cloud Run は HTTPS・自動スケール(ゼロまで)・東京リージョンが揃っており、このサーバに最適です。**キーは Secret Manager に置き、コマンドや設定ファイルには書きません。**
 
 前提: [gcloud CLI](https://cloud.google.com/sdk/docs/install) インストール済み・`gcloud auth login` 済み・課金有効なプロジェクトがあること。
