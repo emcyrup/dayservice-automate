@@ -59,7 +59,7 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
   .muted{color:var(--sub);font-size:13px}
   label.fld{display:block;font-size:12.5px;color:var(--sub);margin:14px 0 6px;font-weight:600;letter-spacing:.03em}
-  select,textarea,input[type=text],input[type=number],input[type=time],input[type=date],input[type=month]{
+  select,textarea,input[type=text],input[type=number],input[type=time],input[type=date],input[type=month],input[type=url],input[type=password]{
     width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;
     font-family:inherit;background:var(--field);color:var(--ink);resize:vertical;
     transition:border-color .15s, box-shadow .15s;
@@ -705,6 +705,17 @@
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
     </div>
     <div class="card">
+      <div class="subttl">🤖 AI接続(Claude API)</div>
+      <p class="muted">AIリレーサーバ(リポジトリの server/ を配備)のURLを設定すると、デモ生成の代わりに<b>Claudeによる本物の文章生成・帳票OCR・申請下書き</b>が動きます。<b>APIキーはサーバ側にのみ置き、この画面にはサーバのURLだけ</b>を入力してください。空欄の間はデモ生成で動作します。</p>
+      <label class="fld">AIサーバURL</label><input type="url" id="of-aiurl" placeholder="例: https://ai.example.com">
+      <label class="fld">アクセストークン(サーバで RELAY_TOKEN を設定した場合のみ)</label><input type="password" id="of-aitoken" placeholder="任意" autocomplete="off">
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="saveOffice()">保存</button>
+        <button class="btn sec" id="ai-test" onclick="testAI()">📶 接続テスト</button>
+      </div>
+      <div id="ai-test-out" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
       <div class="subttl">データ管理</div>
       <div class="row">
         <button class="btn sec" onclick="exportData()">⬇ バックアップ</button>
@@ -726,8 +737,8 @@
 /* ============================================================
    かけはしノート プロトタイプ(訪問介護向け)
    - データは localStorage(プロト用)。本番はDB+権限管理
-   - AI生成はデモ用の内蔵ジェネレータ。本番は callAI() を
-     Claude API(サーバ経由)に差し替えるだけで動くよう分離。
+   - AI生成: ⚙️設定でAIサーバURLを設定すると server/ai-relay.mjs
+     経由でClaude APIを使用。未設定の間はデモ用の内蔵ジェネレータ。
    ============================================================ */
 
 const DB_KEY = 'kakehashi_db_v1';
@@ -886,8 +897,42 @@ function fillSelects(){
    本番: fetch('/api/ai', {kind, payload}) → サーバ側で Claude API を呼ぶ。
    ============================================================ */
 async function callAI(kind, payload){
+  const o=db.office||{};
+  if(o.aiUrl){
+    try{
+      const ctrl=new AbortController(); const tm=setTimeout(()=>ctrl.abort(), 120000);
+      const res=await fetch(o.aiUrl.replace(/\/+$/,'')+'/ai', {
+        method:'POST', signal:ctrl.signal,
+        headers:Object.assign({'Content-Type':'application/json'}, o.aiToken?{'x-relay-token':o.aiToken}:{}),
+        body:JSON.stringify({app:'kakehashi', kind, payload})
+      });
+      clearTimeout(tm);
+      const j=await res.json().catch(()=>({}));
+      if(!res.ok || !j.ok) throw new Error(j.error||('HTTP '+res.status));
+      return j.data;
+    }catch(e){
+      alert('AIサーバに接続できませんでした('+(e.name==='AbortError'?'タイムアウト':e.message)+')。今回はデモ生成で表示します。');
+    }
+  }
   await new Promise(r=>setTimeout(r, 700));
   return demoGenerators[kind](payload);
+}
+async function testAI(){
+  const el=document.getElementById('ai-test-out');
+  const url=document.getElementById('of-aiurl').value.trim();
+  if(!url){ el.innerHTML='<p class="muted">URLを入力してから接続テストしてください。</p>'; return; }
+  await withLoading('ai-test','接続中…', async()=>{
+    try{
+      const token=document.getElementById('of-aitoken').value.trim();
+      const res=await fetch(url.replace(/\/+$/,'')+'/health', {headers: token?{'x-relay-token':token}:{}});
+      const j=await res.json();
+      el.innerHTML = j.ok
+        ? `<div class="banner">✅ 接続できました(モデル: ${esc(j.model||'?')} / 認証: ${j.auth==='token'?'トークンあり':'なし'})。保存すると次の生成からClaudeが使われます。</div>`
+        : `<div class="banner">⚠️ サーバは応答しましたが形式が想定と異なります。</div>`;
+    }catch(e){
+      el.innerHTML=`<div class="banner">❌ 接続できません(${esc(e.message)})。URL・サーバの起動・CORS設定(ALLOWED_ORIGIN)を確認してください。</div>`;
+    }
+  });
 }
 const demoGenerators = {
   visit({userName, text, cond, start, end}){
@@ -1627,14 +1672,15 @@ function exportBillCsv(){
 /* ---------- 事業所情報 ---------- */
 function renderOffice(){
   const o=db.office||{};
-  [['of-no',o.no],['of-name',o.name],['of-city',o.city]].forEach(([id,v])=>{ const el=document.getElementById(id); if(el&&v) el.value=v; });
+  [['of-no',o.no],['of-name',o.name],['of-city',o.city],['of-aiurl',o.aiUrl],['of-aitoken',o.aiToken]].forEach(([id,v])=>{ const el=document.getElementById(id); if(el&&v) el.value=v; });
   document.getElementById('of-tanka').value=o.tanka||10;
 }
 function saveOffice(){
   db.office=Object.assign(db.office||{}, {
     no:document.getElementById('of-no').value.trim(), name:document.getElementById('of-name').value.trim(),
     city:document.getElementById('of-city').value.trim(),
-    tanka:+document.getElementById('of-tanka').value||10 });
+    tanka:+document.getElementById('of-tanka').value||10,
+    aiUrl:document.getElementById('of-aiurl').value.trim(), aiToken:document.getElementById('of-aitoken').value.trim() });
   save(); alert('設定を保存しました。');
 }
 function seikyuRows(ym){
