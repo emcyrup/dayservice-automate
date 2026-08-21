@@ -270,7 +270,11 @@
     <div class="card">
       <p class="muted">支援内容・様子を一度話す/書くだけで、<b>①正式報告書 ②記録アプリ入力用(ケアピア等) ③サ責向け要約</b>を同時に作ります。</p>
       <label class="fld">利用者</label>
-      <select id="visit-user"></select>
+      <select id="visit-user" onchange="renderVisitRefs()"></select>
+      <details class="acc noprint">
+        <summary>📚 この方の過去の報告を参照</summary>
+        <div class="accbody" id="visit-refs"></div>
+      </details>
       <div class="grid2">
         <div><label class="fld">開始</label><input type="time" id="visit-start" value="10:00"></div>
         <div><label class="fld">終了</label><input type="time" id="visit-end" value="11:00"></div>
@@ -478,6 +482,16 @@
         <button class="btn" id="life-ai" onclick="genLifeDraft()">✨ 報告から下書きを作る</button>
         <div id="life-draft"></div>
       </div>
+      <div class="card">
+        <div class="subttl">📚 過去の評価を参照</div>
+        <p class="muted">過去の提出内容を見ながら作成できます。「引用」を押すと、選んだ評価の内容がそのまま下の入力欄に入るので、変わったところだけ直して保存してください。</p>
+        <div class="row">
+          <select id="life-ref" onchange="renderLifeRef()" style="max-width:280px"></select>
+          <button class="btn mini sec" onclick="quoteLifeRef()">⤵ この評価を入力欄へ引用</button>
+        </div>
+        <div id="life-ref-body" style="margin-top:12px"></div>
+      </div>
+      <div class="banner" id="life-src" style="display:none"></div>
       <div class="card">
         <div class="subttl">評価日</div>
         <input type="date" id="life-date">
@@ -740,7 +754,7 @@ function switchView(t, navKey){
 function go(t){
   switchView(t);
   if(t==='home') renderHome();
-  if(t==='report') renderReports();
+  if(t==='report'){ renderReports(); renderVisitRefs(); }
   if(t==='trip') renderTrips();
   if(t==='shop') renderShop();
   if(t==='billing') renderBilling();
@@ -918,7 +932,7 @@ function saveReport(uid){
     smins:+document.getElementById('visit-smin').value||0,
     futari:document.getElementById('visit-futari').checked,
     kinkyu:document.getElementById('visit-kinkyu').checked});
-  save(); renderReports(); renderHome();
+  save(); renderReports(); renderVisitRefs(); renderHome();
   alert('報告を履歴に保存しました。');
 }
 function renderReports(){
@@ -1096,6 +1110,32 @@ function renderScanHist(){
     </div>`).join('');
 }
 function renderScan(){ renderScanHist(); }
+
+/* ---------- 過去の報告の参照・引用 ---------- */
+function renderVisitRefs(){
+  const el=document.getElementById('visit-refs'); if(!el) return;
+  const uid=document.getElementById('visit-user').value;
+  const rs=db.reports.filter(r=>r.userId===uid).slice(-5).reverse();
+  el.innerHTML = rs.length ? rs.map(r=>`
+    <div class="check-row"><div class="check-ic">📄</div>
+      <div style="flex:1;min-width:0">
+        <div class="t">${esc(r.date)} ${esc(r.start||'')}${r.end?'〜'+esc(r.end):''}</div>
+        <div class="d">${esc(r.summary||'')}</div>
+        <div style="margin-top:6px"><button class="btn mini sec" onclick="quoteVisitRef('${r.id}')">⤵ 引用して下書きにする</button></div>
+      </div></div>`).join('')
+    : '<p class="muted">この方の報告はまだありません。</p>';
+}
+function quoteVisitRef(id){
+  const r=db.reports.find(x=>x.id===id); if(!r) return;
+  const ta=document.getElementById('visit-text');
+  const base=(r.summary||'').replace(/^.*?で\d{1,2}:\d{2}から支援を実施。/,'');
+  ta.value = ta.value ? ta.value+'\n'+base : base;
+  if(r.start) document.getElementById('visit-start').value=r.start;
+  if(r.end) document.getElementById('visit-end').value=r.end;
+  if(r.kubun) document.getElementById('visit-kubun').value=r.kubun;
+  ta.focus();
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+}
 
 /* ---------- 移動 ---------- */
 function saveTrip(){
@@ -1627,18 +1667,78 @@ function renderLife(){
   const d=document.getElementById('life-date');
   if(!d.value) d.value=fullDate();
   const last=lifeOf(uid)[0];
-  if(last){  // 直近の評価を初期値に
-    BI_ITEMS.forEach(it=>{ const e=document.getElementById('bi-'+it.k); if(e&&last.bi) e.value=last.bi[it.k]; });
-    ORAL_ITEMS.forEach(it=>{ const e=document.getElementById('or-'+it.k); if(e&&last.oral) e.checked=!!last.oral[it.k]; });
-    DBD13.forEach((_,i)=>{ const e=document.getElementById('dbd-'+i); if(e&&last.dbd) e.value=last.dbd[i]||0; });
-    VI_ITEMS.forEach((_,i)=>{ const e=document.getElementById('vi-'+i); if(e&&last.vi) e.value=last.vi[i]; });
-    document.getElementById('life-h').value=last.h||'';
-    document.getElementById('life-w').value=last.w||'';
-    document.getElementById('life-meds').value=last.meds||'';
+  if(last){
+    fillLifeForm(last);
+    lifeSrcNote(`📚 前回 <b>${esc(last.date)}</b> の評価を初期値にしています。別の回を使う場合は上の「過去の評価を参照」から引用してください。`);
+  } else {
+    calcBi(); calcDbd(); calcVi(); calcBmi();
+    lifeSrcNote('');
   }
-  calcBi(); calcDbd(); calcVi(); calcBmi();
+  renderLifeRefSel();
   renderLifeMng(); renderLifeHist(); renderLifeCsvPrev();
   lifeSec(lifeSecCur());
+}
+
+/* ---------- 過去の評価の参照・引用 ---------- */
+function fillLifeForm(rec){
+  if(!rec) return;
+  BI_ITEMS.forEach(it=>{ const e=document.getElementById('bi-'+it.k); if(e&&rec.bi) e.value=rec.bi[it.k]; });
+  ORAL_ITEMS.forEach(it=>{ const e=document.getElementById('or-'+it.k); if(e) e.checked=!!(rec.oral&&rec.oral[it.k]); });
+  DBD13.forEach((_,i)=>{ const e=document.getElementById('dbd-'+i); if(e) e.value=(rec.dbd&&rec.dbd[i])||0; });
+  VI_ITEMS.forEach((_,i)=>{ const e=document.getElementById('vi-'+i); if(e&&rec.vi) e.value=rec.vi[i]; });
+  document.getElementById('life-h').value=rec.h||'';
+  document.getElementById('life-w').value=rec.w||'';
+  document.getElementById('life-meds').value=rec.meds||'';
+  calcBi(); calcDbd(); calcVi(); calcBmi();
+}
+function lifeSrcNote(html){
+  const el=document.getElementById('life-src'); if(!el) return;
+  if(html){ el.innerHTML=html; el.style.display=''; } else { el.style.display='none'; }
+}
+function renderLifeRefSel(){
+  const sel=document.getElementById('life-ref'); if(!sel) return;
+  const ls=lifeOf(lifeUser());
+  const keep=sel.value;
+  sel.innerHTML = ls.length
+    ? ls.map(r=>`<option value="${r.id}">${r.date} の評価(ADL ${r.biTotal}点${r.sub?'・提出済':''})</option>`).join('')
+    : '<option value="">過去の評価はまだありません</option>';
+  if(keep&&ls.some(r=>r.id===keep)) sel.value=keep;
+  renderLifeRef();
+}
+function lifeRefRec(){ const sel=document.getElementById('life-ref');
+  return (db.life||[]).find(x=>x.id===(sel&&sel.value)); }
+function renderLifeRef(){
+  const el=document.getElementById('life-ref-body'); if(!el) return;
+  const r=lifeRefRec();
+  if(!r){ el.innerHTML='<p class="muted">評価を保存すると、ここから参照・引用できるようになります。</p>'; return; }
+  const biRows=BI_ITEMS.map(it=>{
+    const v=r.bi?r.bi[it.k]:'';
+    const lab=(it.o.find(o=>String(o[0])===String(v))||[])[1]||'';
+    return `<tr><td style="text-align:left">${esc(it.n)}</td><td class="num">${esc(String(v))}</td><td style="text-align:left" class="muted">${esc(lab)}</td></tr>`;
+  }).join('');
+  const oral=ORAL_ITEMS.filter(it=>r.oral&&r.oral[it.k]).map(it=>it.n).join('・')||'該当なし';
+  const dbdHits=DBD13.map((n,i)=>({n,v:(r.dbd&&r.dbd[i])||0})).filter(x=>x.v>0)
+    .map(x=>`${x.n}(${x.v})`).join('、')||'該当なし';
+  el.innerHTML=`
+    <div class="tblwrap"><table class="tbl">
+      <tr><th style="text-align:left">項目</th><th class="num">点</th><th style="text-align:left">内容</th></tr>
+      ${biRows}
+      <tr><td style="text-align:left"><b>ADL合計</b></td><td class="num"><b>${r.biTotal}</b></td><td></td></tr>
+    </table></div>
+    <div class="tblwrap" style="margin-top:8px"><table class="tbl">
+      <tr><td style="text-align:left">身長/体重</td><td class="num">${r.h||'―'}cm / ${r.w||'―'}kg</td><td style="text-align:left">BMI ${r.bmi||'―'}</td></tr>
+      <tr><td style="text-align:left">口腔</td><td colspan="2" style="text-align:left">${esc(oral)}</td></tr>
+      <tr><td style="text-align:left">DBD13(${r.dbdTotal}点)</td><td colspan="2" style="text-align:left">${esc(dbdHits)}</td></tr>
+      <tr><td style="text-align:left">意欲</td><td class="num">${r.viTotal}点</td><td style="text-align:left">薬剤 ${r.meds||0}剤</td></tr>
+      ${r.note?`<tr><td style="text-align:left">特記事項</td><td colspan="2" style="text-align:left">${esc(r.note)}</td></tr>`:''}
+    </table></div>`;
+}
+function quoteLifeRef(){
+  const r=lifeRefRec();
+  if(!r){ alert('引用できる過去の評価がありません。'); return; }
+  fillLifeForm(r);
+  lifeSrcNote(`⤵ <b>${esc(r.date)}の評価を引用しました。</b>変わったところだけ直して保存してください(評価日は今日の日付のままです)。`);
+  document.getElementById('life-date').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function saveLife(){
