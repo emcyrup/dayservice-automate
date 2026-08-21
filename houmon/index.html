@@ -232,6 +232,7 @@
     <div class="navsec">実績・請求</div>
     <button data-t="billing" onclick="go('billing')">🧾 請求</button>
     <button data-t="life" onclick="go('life')">🧬 LIFE</button>
+    <button data-t="shinsei" onclick="go('shinsei')">📑 申請</button>
     <div class="navsec">管理</div>
     <button data-t="users" onclick="go('users')">🏡 利用者</button>
     <button data-t="setting" onclick="go('setting')">⚙️ 設定</button>
@@ -560,6 +561,63 @@
     </div>
   </section>
 
+  <!-- ============ 申請アシスタント ============ -->
+  <section id="v-shinsei" class="view">
+    <h2 class="title noprint">📑 申請アシスタント</h2>
+    <div class="banner noprint">🧠 <b>過去事例や制度情報を「検索して参照しながら」AIが届出書類を下書き</b>します(RAG構成)。専用のAIを新しく学習させるのではなく、📚事例ライブラリに貯めた文例・記載例を都度検索してClaudeに渡す方式のため、<b>事例を追加した瞬間から反映され、制度改定にも事例の入れ替えで追随</b>できます。生成物は必ず確認・修正してから提出してください。</div>
+    <div class="subnav noprint">
+      <button data-s="make" class="on" onclick="shinseiSec('make')">📄 届出書類の作成</button>
+      <button data-s="lib" onclick="shinseiSec('lib')">📚 事例ライブラリ</button>
+    </div>
+
+    <div data-shsec="make">
+      <div class="card noprint">
+        <div class="subttl">① 作成する書類</div>
+        <select id="sh-form">
+          <option value="tokutei">特定事業所加算 届出一式(体制等状況一覧表・届出書・整備状況の説明)</option>
+          <option value="shogu" disabled>処遇改善加算 計画書(順次追加)</option>
+        </select>
+        <p class="muted" style="margin-top:8px">🧾請求タブの「特定事業所加算 要件チェック」に入力した体制情報と、📚事例ライブラリの記載例をもとに下書きを作ります。</p>
+        <button class="btn" id="sh-gen" style="margin-top:12px" onclick="genShinsei()">✨ 事例を参照して下書きを作る</button>
+      </div>
+      <div class="card noprint" id="sh-refs-card" style="display:none">
+        <div class="subttl">② 参照した過去事例</div>
+        <div id="sh-refs"></div>
+      </div>
+      <div class="card" id="sh-out-card" style="display:none">
+        <div class="subttl noprint">③ 下書き(確認・修正して提出)
+          <button class="btn mini sec noprint" style="float:right" onclick="window.print()">🖨 印刷</button></div>
+        <div id="sh-note" class="noprint"></div>
+        <div id="sh-out" class="sheet"></div>
+      </div>
+      <div class="card noprint" id="sh-todo-card" style="display:none">
+        <div class="subttl">④ 添付書類・提出前チェック</div>
+        <div id="sh-todo"></div>
+      </div>
+    </div>
+
+    <div data-shsec="lib" style="display:none">
+      <div class="card">
+        <div class="subttl">🔎 検索のテスト</div>
+        <p class="muted">生成時と同じ類似検索を試せます。キーワードを入れると、関連する事例が近い順に並びます。</p>
+        <input type="text" id="cs-q" placeholder="例: 研修計画" oninput="caseSearchTest()">
+        <div id="cs-result" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <div class="subttl">📚 登録済みの事例・記載例 <span class="chip g" id="cs-count"></span></div>
+        <p class="muted">過去に提出した書類の文例、自治体の手引きの要点、社内の記載ルールなどを貯めておく場所です。<b>ここに貯まるほど下書きの質が上がります。</b>実名・個人情報は入れないでください。</p>
+        <div id="cs-list"></div>
+      </div>
+      <div class="card">
+        <div class="subttl">＋ 事例を追加</div>
+        <label class="fld">タイトル</label><input type="text" id="cs-title" placeholder="例: 特定事業所加算 届出理由書の文例(2025年提出)">
+        <label class="fld">タグ(検索用キーワード・スペース区切り)</label><input type="text" id="cs-tags" placeholder="例: 特定事業所加算 届出 理由書">
+        <label class="fld">本文(文例・記載例)</label><textarea id="cs-text" style="min-height:120px" placeholder="過去に提出した文章や記載例を貼り付けてください(実名・個人情報は除く)"></textarea>
+        <button class="btn" style="margin-top:12px" onclick="addCase()">💾 ライブラリに追加</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ 利用者一覧 ============ -->
   <section id="v-users" class="view">
     <h2 class="title">🏡 利用者</h2>
@@ -691,6 +749,14 @@ const seed = {
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
   reports: [], trips: [], life: [], scans: [],
+  cases: [
+    { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
+      text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
+    { id:'cs2', title:'個別研修計画の記載例', tags:'研修 計画 個別研修計画 特定事業所加算',
+      text:'【研修目標】訪問介護員としての基本姿勢の徹底と、認知症ケア・緊急時対応の実践力向上。【年間計画】4月:接遇・倫理／6月:感染症対策／8月:認知症の理解／10月:緊急時対応(実技)／12月:虐待防止・身体拘束廃止／2月:事例検討。各研修後にレポートを提出し、サービス提供責任者が習熟度を確認する。' },
+    { id:'cs3', title:'緊急時等の対応方針の記載例', tags:'緊急時 対応方針 重要事項説明書',
+      text:'サービス提供中に利用者の容態に急変があった場合は、速やかに主治医、あらかじめ定めた協力医療機関、またはご家族へ連絡するとともに、必要に応じて救急要請を行います。本方針は重要事項説明書に明記し、契約時に利用者およびご家族へ説明のうえ、事業所内にも掲示しています。緊急連絡網は事務所内に掲示し、全職員に周知しています。' }
+  ],
   tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
   office: { no:'', name:'', city:'', tanka:10 },
   master: [
@@ -725,7 +791,7 @@ let db = load();
 let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
-        d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[];
+        d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
         const of=d.office||{};
@@ -760,6 +826,7 @@ function go(t){
   if(t==='billing') renderBilling();
   if(t==='life') renderLife();
   if(t==='scan') renderScan();
+  if(t==='shinsei') renderShinsei();
   if(t==='users') renderUsers();
   if(t==='setting'){ renderOffice(); renderMaster(); renderLimits(); }
 }
@@ -834,6 +901,34 @@ const demoGenerators = {
       memo:{ user:nm, date:today, text:'ご家族より、来週の通院に同行してほしいとの依頼あり。サービス提供責任者へ申し送り。' }
     };
     return { note, fields: F[kind]||F.memo };
+  },
+  shinsei({office, items, kubun, tokutei, cases}){
+    const o=office||{};
+    const today=fullDate();
+    const mark=i=>i.ok?'○':'―';
+    const doc1={ title:'介護給付費算定に係る体制等状況一覧表(抜粋・訪問介護)',
+      text:['事業所番号: '+(o.no||'(未登録)'),'事業所名: '+(o.name||'(未登録)'),'サービス種別: 訪問介護','',
+        '特定事業所加算: '+(kubun.kubun!=='―'?('加算'+kubun.kubun+'('+kubun.rate+')'):'(体制要件未充足のため算定不可)'),'',
+        '【体制要件の状況】',
+        ...items.map(i=>'  '+mark(i)+' '+i.n+(i.note?('('+i.note+')'):'')),
+        '  '+(kubun.jinzaiOk?'○':'―')+' 介護福祉士の割合30%以上(現在 '+((tokutei.fukushiPct||0))+'%)',
+        '  '+(tokutei.judo?'○':'―')+' 重度者等対応要件'].join('\n') };
+    const doc2={ title:'特定事業所加算に係る届出書',
+      text:['届出日: '+today,'保険者(提出先): '+(o.city?('保険者番号 '+o.city):'(未登録)'),'',
+        '事業所番号: '+(o.no||'(未登録)'),'事業所名: '+(o.name||'(未登録)'),'',
+        '下記のとおり、特定事業所加算'+(kubun.kubun!=='―'?('('+kubun.kubun+')'):'')+'の算定に係る体制を整備しましたので届け出ます。','',
+        '算定開始(予定)年月: '+today.slice(0,7).replace('-','年')+'月(翌月1日算定開始の場合は前月15日までの届出が必要です)'].join('\n') };
+    const ref=cases&&cases.length?cases[0]:null;
+    const body=items.map(i=>{
+      if(!i.ok) return '・'+i.n+'については現在整備を進めており、届出までに完了させる。('+(i.note||'未整備')+')';
+      return null;
+    }).filter(Boolean);
+    const doc3={ title:'体制要件の整備状況について(説明)',
+      text:[(ref?ref.text:'当事業所では、特定事業所加算の体制要件に沿って、研修・会議・事前指示と報告・健康診断・緊急時対応方針の各体制を整備しております。'),
+        '', ...(body.length?['【留意事項(未整備の要件)】',...body]:['すべての体制要件を整備済みです。']),
+        '', (ref?'※ 事例ライブラリ「'+ref.title+'」を土台に作成しました。事業所の実態に合わせて修正してください。':'※ 事例ライブラリに文例を追加すると、実際の提出文に近い下書きになります。')].join('\n') };
+    const note='🧠 <b>検証版のためデモ生成です。</b>本番はここでClaudeが、参照事例と体制データをもとに提出先の様式に合わせた文章を作成します。<b>内容は必ず確認・修正のうえ提出してください。</b>届出様式は自治体ごとに異なります。';
+    return { note, docs:[doc1, doc2, doc3] };
   },
   life({name, texts}){
     const all=texts.join(' ');
@@ -1852,6 +1947,140 @@ async function genLifeDraft(){
         '<p class="muted" style="margin-top:8px">③口腔の該当項目にチェックを入れました。内容を確認してから保存してください。</p>');
     }
   });
+}
+
+/* ============================================================
+   申請アシスタント ― RAG構成(検索拡張生成)のミニ実装
+   専用LMを学習するのではなく、事例ライブラリを類似検索して
+   AI(本番はClaude)のプロンプトに渡す。検証版の検索は文字バイグラムの
+   コサイン類似。本番はサーバ側で埋め込み(ベクトル)検索に置き換える。
+   ============================================================ */
+function bigrams(s){
+  const t=(s||'').replace(/[\s、。・()（）「」]/g,'');
+  const set=new Set();
+  for(let i=0;i<t.length-1;i++) set.add(t.slice(i,2+i));
+  return set;
+}
+function simScore(a,b){
+  const A=bigrams(a), B=bigrams(b);
+  if(!A.size||!B.size) return 0;
+  let n=0; A.forEach(g=>{ if(B.has(g)) n++; });
+  return n/Math.sqrt(A.size*B.size);
+}
+function searchCases(q, k){
+  return (db.cases||[])
+    .map(c=>({c, score:simScore(q, c.title+' '+(c.tags||'')+' '+c.text)}))
+    .sort((a,b)=>b.score-a.score)
+    .slice(0, k||3)
+    .filter(x=>x.score>0.02);
+}
+
+function shinseiSec(s){
+  document.querySelectorAll('#v-shinsei [data-shsec]').forEach(el=>{ el.style.display = el.dataset.shsec===s ? '' : 'none'; });
+  document.querySelectorAll('#v-shinsei .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+}
+function renderShinsei(){ renderCaseLib(); caseSearchTest(); }
+
+/* ---------- 届出書類の作成 ---------- */
+function tokuteiItems(){
+  const t=db.tokutei||{};
+  const ym=fullDate().slice(0,7);
+  const monthReports=db.reports.filter(r=>r.date.slice(0,7)===ym).length;
+  return [
+    {n:'訪問介護員ごとの個別研修計画の作成・実施', ok:!!t.kenshu, ref:'個別研修計画'},
+    {n:'定期的な会議の開催(おおむね月1回以上)と記録の保存', ok:daysSince(t.kaigiDate)<=35, note:t.kaigiDate?('最終開催 '+t.kaigiDate):'開催記録なし', ref:'会議'},
+    {n:'文書等による事前指示とサービス提供後の報告', ok:!!t.shiji&&monthReports>0, note:'今月の報告 '+monthReports+'件', ref:'事前指示 報告'},
+    {n:'年1回以上の健康診断の実施(事業主負担)', ok:daysSince(t.kenshinDate)<=365, note:t.kenshinDate?('最終実施 '+t.kenshinDate):'実施記録なし', ref:'健康診断'},
+    {n:'緊急時等の対応方針の利用者への明示', ok:!!t.kinkyu, ref:'緊急時 対応方針'}
+  ];
+}
+function tokuteiKubunNow(){
+  const t=db.tokutei||{};
+  const items=tokuteiItems();
+  const taiseiOk=items.every(i=>i.ok);
+  const jinzaiOk=(+t.fukushiPct||0)>=30;
+  if(!taiseiOk) return {kubun:'―', rate:'', taiseiOk, jinzaiOk};
+  if(jinzaiOk&&t.judo) return {kubun:'Ⅰ', rate:'+20%', taiseiOk, jinzaiOk};
+  if(jinzaiOk) return {kubun:'Ⅱ', rate:'+10%', taiseiOk, jinzaiOk};
+  if(t.judo) return {kubun:'Ⅲ', rate:'+10%', taiseiOk, jinzaiOk};
+  return {kubun:'Ⅳ', rate:'+3%', taiseiOk, jinzaiOk};
+}
+async function genShinsei(){
+  const o=db.office||{};
+  const items=tokuteiItems();
+  const kb=tokuteiKubunNow();
+  // 検索クエリ: 様式名 + 各要件のキーワード(未整備のものを優先)
+  const q='特定事業所加算 届出 '+items.map(i=>i.ref).join(' ');
+  const hits=searchCases(q, 3);
+  document.getElementById('sh-refs-card').style.display='';
+  document.getElementById('sh-refs').innerHTML = hits.length ? hits.map(h=>`
+    <div class="check-row"><div class="check-ic">📎</div>
+      <div style="flex:1;min-width:0">
+        <div class="t">${esc(h.c.title)} <span class="chip g">類似度 ${(h.score*100).toFixed(0)}%</span></div>
+        <div class="d">${esc(h.c.text.slice(0,80))}…</div>
+      </div></div>`).join('')
+    : '<p class="muted">関連する事例が見つかりませんでした。📚事例ライブラリに記載例を追加すると下書きの質が上がります。</p>';
+  await withLoading('sh-gen','事例を参照して作成中…', async()=>{
+    const r=await callAI('shinsei', {office:o, items, kubun:kb, tokutei:db.tokutei||{}, cases:hits.map(h=>h.c)});
+    document.getElementById('sh-note').innerHTML=`<div class="banner">${r.note}</div>`;
+    document.getElementById('sh-out').innerHTML = r.docs.map(d=>`
+      <div style="margin-bottom:22px">
+        <div style="text-align:center;font-weight:800;font-size:15px;margin-bottom:10px">${esc(d.title)}</div>
+        <div class="tblwrap"><table class="tbl"><tr><td style="text-align:left;white-space:pre-wrap">${esc(d.text)}</td></tr></table></div>
+      </div>`).join('');
+    document.getElementById('sh-out-card').style.display='';
+    const missing=items.filter(i=>!i.ok);
+    document.getElementById('sh-todo').innerHTML =
+      (missing.length ? missing.map(i=>`<div class="check-row"><div class="check-ic">⚠️</div>
+        <div style="flex:1;min-width:0"><div class="t">${esc(i.n)}が未整備です</div>
+        <div class="d">${esc(i.note||'')} ― 届出前に🧾請求タブの要件チェックで整備・記録してください。</div></div></div>`).join('') : '') +
+      `<div class="check-row"><div class="check-ic">📄</div><div style="flex:1;min-width:0"><div class="t">添付書類の目安</div>
+        <div class="d">個別研修計画(直近のもの)／会議の議事録(直近3か月分)／健康診断の実施記録／重要事項説明書(緊急時対応方針の記載ページ)。必要書類は自治体により異なるため、提出先の手引きをご確認ください。</div></div></div>`;
+    document.getElementById('sh-todo-card').style.display='';
+    document.getElementById('sh-out-card').scrollIntoView({behavior:'smooth', block:'start'});
+  });
+}
+
+/* ---------- 事例ライブラリ ---------- */
+function renderCaseLib(){
+  const el=document.getElementById('cs-list'); if(!el) return;
+  const cs=(db.cases||[]).slice().reverse();
+  document.getElementById('cs-count').textContent=cs.length+'件';
+  el.innerHTML = cs.length ? cs.map(c=>`
+    <div class="rec-item" onclick="this.classList.toggle('open')">
+      <div class="h"><span style="font-weight:700">${esc(c.title)}</span>
+        <span onclick="event.stopPropagation()"><button class="btn mini sec" onclick="delCase('${c.id}')">削除</button></span></div>
+      <div class="muted" style="margin-top:2px">${esc(c.tags||'')}</div>
+      <div class="body">${esc(c.text)}</div>
+    </div>`).join('') : '<p class="muted">まだ事例がありません。</p>';
+}
+function addCase(){
+  const title=document.getElementById('cs-title').value.trim();
+  const text=document.getElementById('cs-text').value.trim();
+  if(!title||!text){ alert('タイトルと本文を入力してください。'); return; }
+  db.cases=db.cases||[];
+  db.cases.push({id:'cs'+Date.now(), title, tags:document.getElementById('cs-tags').value.trim(), text});
+  save();
+  ['cs-title','cs-tags','cs-text'].forEach(id=>document.getElementById(id).value='');
+  renderCaseLib(); caseSearchTest();
+  alert('事例をライブラリに追加しました。次回の下書きから参照されます。');
+}
+function delCase(id){
+  const c=(db.cases||[]).find(x=>x.id===id); if(!c) return;
+  if(!confirm('「'+c.title+'」を削除します。よろしいですか?')) return;
+  db.cases=db.cases.filter(x=>x.id!==id);
+  save(); renderCaseLib(); caseSearchTest();
+}
+function caseSearchTest(){
+  const el=document.getElementById('cs-result'); if(!el) return;
+  const q=document.getElementById('cs-q').value.trim();
+  if(!q){ el.innerHTML='<p class="muted">キーワードを入力すると検索結果が表示されます。</p>'; return; }
+  const hits=searchCases(q, 5);
+  el.innerHTML = hits.length ? hits.map(h=>`
+    <div class="check-row"><div class="check-ic">🔎</div>
+      <div style="flex:1;min-width:0"><div class="t">${esc(h.c.title)} <span class="chip g">${(h.score*100).toFixed(0)}%</span></div>
+      <div class="d">${esc(h.c.text.slice(0,60))}…</div></div></div>`).join('')
+    : '<p class="muted">一致する事例がありません。</p>';
 }
 
 /* ---------- 買い物 ---------- */
