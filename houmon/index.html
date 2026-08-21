@@ -605,14 +605,15 @@
       </div>
       <div class="card">
         <div class="subttl">📚 登録済みの事例・記載例 <span class="chip g" id="cs-count"></span></div>
-        <p class="muted">過去に提出した書類の文例、自治体の手引きの要点、社内の記載ルールなどを貯めておく場所です。<b>ここに貯まるほど下書きの質が上がります。</b>実名・個人情報は入れないでください。</p>
+        <p class="muted">過去に提出した書類の文例、自治体の手引きの要点、社内の記載ルールなどを貯めておく場所です。<b>ここに貯まるほど下書きの質が上がります。</b>実名・個人情報は入れないでください。<span class="chip y">制度情報</span>は厚労省・自治体の報酬改定情報の要約(原典リンクつき)です。検証版は要約の同梱まで・本番は原典の本文を自動取り込みして検索対象にします。</p>
         <div id="cs-list"></div>
       </div>
       <div class="card">
         <div class="subttl">＋ 事例を追加</div>
         <label class="fld">タイトル</label><input type="text" id="cs-title" placeholder="例: 特定事業所加算 届出理由書の文例(2025年提出)">
         <label class="fld">タグ(検索用キーワード・スペース区切り)</label><input type="text" id="cs-tags" placeholder="例: 特定事業所加算 届出 理由書">
-        <label class="fld">本文(文例・記載例)</label><textarea id="cs-text" style="min-height:120px" placeholder="過去に提出した文章や記載例を貼り付けてください(実名・個人情報は除く)"></textarea>
+        <label class="fld">本文(文例・記載例・制度情報の要点)</label><textarea id="cs-text" style="min-height:120px" placeholder="過去に提出した文章や記載例、通知・手引きの要点を貼り付けてください(実名・個人情報は除く)"></textarea>
+        <label class="fld">出典URL(任意)</label><input type="url" id="cs-src" placeholder="例: https://www.mhlw.go.jp/…(通知・手引きのページ)">
         <button class="btn" style="margin-top:12px" onclick="addCase()">💾 ライブラリに追加</button>
       </div>
     </div>
@@ -755,8 +756,30 @@ const seed = {
     { id:'cs2', title:'個別研修計画の記載例', tags:'研修 計画 個別研修計画 特定事業所加算',
       text:'【研修目標】訪問介護員としての基本姿勢の徹底と、認知症ケア・緊急時対応の実践力向上。【年間計画】4月:接遇・倫理／6月:感染症対策／8月:認知症の理解／10月:緊急時対応(実技)／12月:虐待防止・身体拘束廃止／2月:事例検討。各研修後にレポートを提出し、サービス提供責任者が習熟度を確認する。' },
     { id:'cs3', title:'緊急時等の対応方針の記載例', tags:'緊急時 対応方針 重要事項説明書',
-      text:'サービス提供中に利用者の容態に急変があった場合は、速やかに主治医、あらかじめ定めた協力医療機関、またはご家族へ連絡するとともに、必要に応じて救急要請を行います。本方針は重要事項説明書に明記し、契約時に利用者およびご家族へ説明のうえ、事業所内にも掲示しています。緊急連絡網は事務所内に掲示し、全職員に周知しています。' }
+      text:'サービス提供中に利用者の容態に急変があった場合は、速やかに主治医、あらかじめ定めた協力医療機関、またはご家族へ連絡するとともに、必要に応じて救急要請を行います。本方針は重要事項説明書に明記し、契約時に利用者およびご家族へ説明のうえ、事業所内にも掲示しています。緊急連絡網は事務所内に掲示し、全職員に周知しています。' },
+    { id:'sp1', kind:'seido', title:'令和6年度介護報酬改定の概要(WAM NET 特設ページ)', tags:'令和6年度 報酬改定 改定率 訪問介護 基本報酬 処遇改善 特定事業所加算 同一建物',
+      src:'https://www.wam.go.jp/content/wamnet/pcpub/top/r6housyu/01.html',
+      text:'令和6年度介護報酬改定は全体で+1.59%(うち介護職員の処遇改善分+0.98%)。訪問介護は基本報酬が引き下げ(例: 身体介護20分未満163単位・20分以上30分未満244単位・30分以上1時間未満387単位、生活援助20分以上45分未満179単位・45分以上220単位、通院等乗降介助97単位)。処遇改善系3加算は「介護職員等処遇改善加算(Ⅰ〜Ⅳ)」へ一本化。特定事業所加算は重度者等対応要件の見直しと区分再編。同一建物等減算に「正当な理由なく利用が集中している場合(-12%)」が追加。※検証版に同梱した要約です。算定・届出の前に必ず原典で確認してください。' },
+    { id:'sp2', kind:'seido', title:'介護報酬(厚生労働省 総合ページ)', tags:'介護報酬 改定 単位数表 算定基準 解釈通知 リンク集',
+      src:'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/hukushi_kaigo/kaigo_koureisha/housyu/index.html',
+      text:'介護報酬の仕組み(サービスごとの基準単位数×地域区分単価。原則3年ごとに改定)と、各年度改定の告示・単位数表・解釈通知(留意事項通知)・Q&Aへの入口となる厚労省の総合ページ。⚙️設定の単位数マスタを更新するときは、このページから当該年度の「指定居宅サービスに要する費用の額の算定に関する基準」と留意事項通知をたどって確認する。' },
+    { id:'sp3', kind:'seido', title:'介護報酬改定 関連資料(厚生労働省)', tags:'報酬改定 資料 告示 通知 新旧対照',
+      src:'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000044780.html',
+      text:'各年度の介護報酬改定資料(改定の概要・単位数表・関係通知)の掲載ページ。改定前後の新旧対照や算定構造の確認、過去改定の経緯をさかのぼるときの原典として使う。※検証版では自動取得できないため、必要な要点は原典を確認のうえ本文に追記してください。' },
+    { id:'sp4', kind:'seido', title:'令和6年度介護報酬改定について(厚生労働省)', tags:'令和6年度 報酬改定 告示 QA 解釈通知 口腔連携強化加算',
+      src:'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000188411_00073.html',
+      text:'令和6年度改定の主な事項・告示・関係通知・Q&A(Vol.1〜)の掲載ページ。加算の算定要件や届出様式の根拠を確認する原典。訪問介護関係では、処遇改善加算の一本化、特定事業所加算の見直し、同一建物等減算の追加、口腔連携強化加算の新設など。※検証版に同梱した要約です。原典で必ず確認してください。' },
+    { id:'sp5', kind:'seido', title:'令和6年度介護報酬改定(東京都)', tags:'東京都 報酬改定 届出 様式 体制届 加算届 提出期限',
+      src:'https://www.fukushi.metro.tokyo.lg.jp/kourei/hoken/kaigo_lib/reiwa6_hoshukaitei',
+      text:'東京都の報酬改定案内ページ。加算の届出様式(介護給付費算定に係る体制等に関する届出書・体制等状況一覧表)や提出期限・提出方法は保険者・都道府県ごとに異なるため、都内の事業所はここから最新様式を取得する。加算の届出は原則、算定開始月の前月15日までに提出(居宅サービスの場合)。' },
+    { id:'sp6', kind:'seido', title:'令和6年度介護報酬改定関連 資料PDF(厚生労働省)', tags:'報酬改定 資料 PDF 厚生労働省',
+      src:'https://www.mhlw.go.jp/content/001347957.pdf',
+      text:'厚労省が公表した改定関連資料のPDF。※検証版では自動取得できないため、内容の要点を確認したらこの事例に追記してください。本番では制度情報パックとしてPDF本文をサーバ側で取り込み、そのまま検索対象にします。' },
+    { id:'sp7', kind:'seido', title:'神戸市 有料老人ホーム設置運営指導指針・要綱(令和6年4月)', tags:'神戸市 有料老人ホーム 指導指針 要綱 同一建物 併設',
+      src:'https://www.city.kobe.lg.jp/documents/12891/20240401yuryo_shishinyoukou.pdf',
+      text:'神戸市の有料老人ホームの設置・運営に関する指導指針・要綱(令和6年4月適用)。住宅型有料老人ホーム等に併設する訪問介護事業所は、同一建物等減算や運営基準・過剰なサービス提供の防止との関係で本指針の確認が必要。※検証版では自動取得できないため、要点を確認のうえ本文に追記してください。' }
   ],
+  seidoPack1: true,
   tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
   office: { no:'', name:'', city:'', tanka:10 },
   master: [
@@ -792,6 +815,7 @@ let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
+        if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
         const of=d.office||{};
@@ -2016,8 +2040,8 @@ async function genShinsei(){
   document.getElementById('sh-refs').innerHTML = hits.length ? hits.map(h=>`
     <div class="check-row"><div class="check-ic">📎</div>
       <div style="flex:1;min-width:0">
-        <div class="t">${esc(h.c.title)} <span class="chip g">類似度 ${(h.score*100).toFixed(0)}%</span></div>
-        <div class="d">${esc(h.c.text.slice(0,80))}…</div>
+        <div class="t">${h.c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${esc(h.c.title)} <span class="chip g">類似度 ${(h.score*100).toFixed(0)}%</span></div>
+        <div class="d">${esc(h.c.text.slice(0,80))}…${h.c.src?` <a href="${esc(h.c.src)}" target="_blank" rel="noopener">🔗原典</a>`:''}</div>
       </div></div>`).join('')
     : '<p class="muted">関連する事例が見つかりませんでした。📚事例ライブラリに記載例を追加すると下書きの質が上がります。</p>';
   await withLoading('sh-gen','事例を参照して作成中…', async()=>{
@@ -2048,10 +2072,10 @@ function renderCaseLib(){
   document.getElementById('cs-count').textContent=cs.length+'件';
   el.innerHTML = cs.length ? cs.map(c=>`
     <div class="rec-item" onclick="this.classList.toggle('open')">
-      <div class="h"><span style="font-weight:700">${esc(c.title)}</span>
+      <div class="h"><span style="font-weight:700">${c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${esc(c.title)}</span>
         <span onclick="event.stopPropagation()"><button class="btn mini sec" onclick="delCase('${c.id}')">削除</button></span></div>
       <div class="muted" style="margin-top:2px">${esc(c.tags||'')}</div>
-      <div class="body">${esc(c.text)}</div>
+      <div class="body">${esc(c.text)}${c.src?`<div style="margin-top:8px"><a href="${esc(c.src)}" target="_blank" rel="noopener">🔗 原典を開く</a></div>`:''}</div>
     </div>`).join('') : '<p class="muted">まだ事例がありません。</p>';
 }
 function addCase(){
@@ -2059,9 +2083,10 @@ function addCase(){
   const text=document.getElementById('cs-text').value.trim();
   if(!title||!text){ alert('タイトルと本文を入力してください。'); return; }
   db.cases=db.cases||[];
-  db.cases.push({id:'cs'+Date.now(), title, tags:document.getElementById('cs-tags').value.trim(), text});
+  const src=document.getElementById('cs-src').value.trim();
+  db.cases.push({id:'cs'+Date.now(), title, tags:document.getElementById('cs-tags').value.trim(), text, src:src||undefined});
   save();
-  ['cs-title','cs-tags','cs-text'].forEach(id=>document.getElementById(id).value='');
+  ['cs-title','cs-tags','cs-text','cs-src'].forEach(id=>document.getElementById(id).value='');
   renderCaseLib(); caseSearchTest();
   alert('事例をライブラリに追加しました。次回の下書きから参照されます。');
 }
@@ -2078,8 +2103,8 @@ function caseSearchTest(){
   const hits=searchCases(q, 5);
   el.innerHTML = hits.length ? hits.map(h=>`
     <div class="check-row"><div class="check-ic">🔎</div>
-      <div style="flex:1;min-width:0"><div class="t">${esc(h.c.title)} <span class="chip g">${(h.score*100).toFixed(0)}%</span></div>
-      <div class="d">${esc(h.c.text.slice(0,60))}…</div></div></div>`).join('')
+      <div style="flex:1;min-width:0"><div class="t">${h.c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${esc(h.c.title)} <span class="chip g">${(h.score*100).toFixed(0)}%</span></div>
+      <div class="d">${esc(h.c.text.slice(0,60))}…${h.c.src?` <a href="${esc(h.c.src)}" target="_blank" rel="noopener">🔗原典</a>`:''}</div></div></div>`).join('')
     : '<p class="muted">一致する事例がありません。</p>';
 }
 

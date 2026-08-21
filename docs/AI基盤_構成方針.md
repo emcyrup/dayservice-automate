@@ -52,6 +52,22 @@
 - **検索のテスト**欄で、生成時と同じ類似検索をその場で試せる(検索結果に類似度%を表示)
 - 実名・個人情報は入れない運用を画面に明記
 
+### 3-1b. 📦 制度情報パック(原典リンクつき)
+
+事業所の文例に加えて、**厚労省・WAM NET・自治体の報酬改定情報を「制度情報」として同梱**しました(ライブラリ内で黄色の「制度情報」チップ+「🔗原典を開く」リンクつき)。生成時・検索時に事例と同じ類似検索の対象になります。
+
+| # | 内容 | 原典 |
+|---|---|---|
+| sp1 | 令和6年度介護報酬改定の概要(改定率・訪問介護の基本報酬・処遇改善一本化・特定事業所加算・同一建物減算) | [WAM NET 令和6年度報酬改定特設](https://www.wam.go.jp/content/wamnet/pcpub/top/r6housyu/01.html) |
+| sp2 | 介護報酬の仕組みと単位数表・解釈通知への入口 | [厚生労働省 介護報酬](https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/hukushi_kaigo/kaigo_koureisha/housyu/index.html) |
+| sp3 | 各年度の報酬改定資料(新旧対照・算定構造) | [厚生労働省](https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000044780.html) |
+| sp4 | 令和6年度改定の告示・関係通知・Q&A | [厚生労働省](https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000188411_00073.html) |
+| sp5 | 東京都の届出様式・提出期限 | [東京都](https://www.fukushi.metro.tokyo.lg.jp/kourei/hoken/kaigo_lib/reiwa6_hoshukaitei) |
+| sp6 | 改定関連資料PDF | [厚生労働省 PDF](https://www.mhlw.go.jp/content/001347957.pdf) |
+| sp7 | 神戸市 有料老人ホーム設置運営指導指針・要綱(令和6年4月) | [神戸市 PDF](https://www.city.kobe.lg.jp/documents/12891/20240401yuryo_shishinyoukou.pdf) |
+
+**検証版の制約**: 開発環境から官公庁サイトへのアクセスが遮断されているため、本文は**知識ベースの要約**です(各エントリに「原典で必ず確認」の注記つき)。本番では原典のHTML/PDF本文をサーバ側で取り込み、そのまま検索対象にします(§2の制度情報パック配信)。事例の追加フォームにも**出典URL欄**を設け、以後の登録分も原典リンクを持てます。配布済みユーザーには初回ロード時に一度だけ追加され(`seidoPack1`フラグ)、削除した制度情報が勝手に復活することはありません。
+
 ### 3-2. 📄 届出書類の作成(検索して参照しながら生成)
 
 対象: **特定事業所加算の届出一式**(第一弾)
