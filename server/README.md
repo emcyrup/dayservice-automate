@@ -45,9 +45,57 @@ ANTHROPIC_API_KEY=sk-ant-... npm start   # → http://localhost:8787
 
 出力はフロントのデモ生成と同じデータ形状で、構造化出力(JSON Schema)により形式を保証しています。
 
-## デプロイの目安
+## Cloud Run へのデプロイ(推奨)
 
-Node 20+ が動く環境ならどこでも動きます(Cloud Run / Render / Railway / VPS 等)。チェックリスト:
+[Dockerfile](Dockerfile) 同梱。Cloud Run は HTTPS・自動スケール(ゼロまで)・東京リージョンが揃っており、このサーバに最適です。**キーは Secret Manager に置き、コマンドや設定ファイルには書きません。**
+
+前提: [gcloud CLI](https://cloud.google.com/sdk/docs/install) インストール済み・`gcloud auth login` 済み・課金有効なプロジェクトがあること。
+
+```bash
+# 0) プロジェクトとリージョン(東京)を設定
+gcloud config set project <YOUR_PROJECT_ID>
+gcloud config set run/region asia-northeast1
+
+# 1) 必要なAPIを有効化
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com secretmanager.googleapis.com
+
+# 2) シークレット登録(値は対話入力。シェル履歴に残さない)
+#    APIキーは https://console.anthropic.com で発行したもの
+printf "Anthropic APIキーを入力: " && read -rs KEY && printf '%s' "$KEY" | \
+  gcloud secrets create anthropic-api-key --data-file=- && unset KEY
+#    アプリと共有するアクセストークン(ランダム生成)
+openssl rand -hex 24 | tee /dev/tty | tr -d '\n' | \
+  gcloud secrets create kakehashi-relay-token --data-file=-
+#    ↑ 表示された値をBitwardenに保管し、アプリの⚙️設定にも入力する
+
+# 3) デプロイ(server/ ディレクトリで実行。ソースから自動ビルド)
+cd server
+gcloud run deploy kakehashi-ai-relay \
+  --source . \
+  --allow-unauthenticated \
+  --set-secrets "ANTHROPIC_API_KEY=anthropic-api-key:latest,RELAY_TOKEN=kakehashi-relay-token:latest" \
+  --set-env-vars "ALLOWED_ORIGIN=https://emcyrup.github.io" \
+  --memory 512Mi --cpu 1 --min-instances 0 --max-instances 3 \
+  --timeout 300
+
+# 4) 発行されたURL(https://kakehashi-ai-relay-....run.app)を確認
+curl https://<発行されたURL>/health
+```
+
+最後に、かけはしノートの **⚙️設定 → 🤖 AI接続** に発行されたURLと `kakehashi-relay-token` の値を入力し、📶接続テスト → 保存で完了です。
+
+補足:
+
+- `--allow-unauthenticated` はCloud Run層の認証を外す設定です。実際のアクセス制御は `RELAY_TOKEN`(＋CORS)で行います
+- 初回デプロイ時に「Artifact Registryリポジトリを作成しますか?」と聞かれたら Y
+- 費用: min-instances 0 なので**リクエストがない間は0円**。検証規模ならCloud Run代は無料枠内が目安(AI利用料は別途・docs/接続情報.md参照)
+- 更新時は同じ `gcloud run deploy` を再実行するだけ
+- ログ確認: `gcloud run services logs read kakehashi-ai-relay`
+
+## その他の環境へのデプロイ
+
+Node 20+ が動く環境ならどこでも動きます(Render / Railway / VPS 等)。チェックリスト:
 
 - [ ] `ANTHROPIC_API_KEY` はデプロイ先の環境変数/シークレットに設定(コードや設定ファイルに書かない)
 - [ ] `RELAY_TOKEN` を設定し、アプリの⚙️設定に同じ値を入力
