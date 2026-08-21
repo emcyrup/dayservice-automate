@@ -153,6 +153,9 @@
   details.acc>summary::before{content:"▸ ";color:var(--sub)}
   details.acc[open]>summary::before{content:"▾ "}
   details.acc>.accbody{padding:0 14px 14px}
+  details.acc.solo{background:var(--card);margin:0 0 14px;box-shadow:var(--shadow);border-radius:var(--radius)}
+  details.acc.solo>summary{padding:16px 18px;font-size:14.5px}
+  details.acc.solo>.accbody{padding:2px 18px 18px}
   .scanprev{margin-top:12px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg)}
   .scanprev img{display:block;width:100%;max-height:420px;object-fit:contain}
   .scanprev .cap{font-size:12px;color:var(--sub);padding:8px 12px;border-top:1px solid var(--line)}
@@ -508,34 +511,31 @@
       </div>
       <div class="banner" id="life-src" style="display:none"></div>
       <div class="card">
-        <div class="subttl">評価日</div>
-        <input type="date" id="life-date">
-      </div>
-      <div class="card">
-        <div class="subttl">① ADL(Barthel Index) <span class="chip g" id="bi-total">0点</span></div>
-        <div id="bi-form"></div>
-      </div>
-      <div class="card">
-        <div class="subttl">② 栄養</div>
-        <div class="grid2">
-          <div><label class="fld">身長(cm)</label><input type="number" id="life-h" step="0.1" oninput="calcBmi()"></div>
-          <div><label class="fld">体重(kg)</label><input type="number" id="life-w" step="0.1" oninput="calcBmi()"></div>
+        <div class="row" style="align-items:flex-end">
+          <div style="flex:1;min-width:160px"><div class="subttl" style="margin-bottom:6px">評価日</div><input type="date" id="life-date"></div>
+          <button class="btn mini sec noprint" style="white-space:nowrap" onclick="toggleLifeAcc(true)">▾ すべて開く</button>
+          <button class="btn mini sec noprint" style="white-space:nowrap" onclick="toggleLifeAcc(false)">▸ すべて閉じる</button>
         </div>
-        <div style="margin-top:8px">BMI <b id="life-bmi">―</b> <span id="life-bmi-note" class="muted"></span></div>
+        <p class="muted" style="margin-top:8px">各区分をタップして開閉できます。前回の評価が初期値に入っているので、<b>変わった区分だけ開いて</b>直してください。</p>
       </div>
-      <div class="card">
-        <div class="subttl">③ 口腔</div>
-        <div class="row" id="oral-form"></div>
-      </div>
-      <div class="card">
-        <div class="subttl">④ 認知症の行動・心理症状(DBD13) <span class="chip g" id="dbd-total">0点</span></div>
-        <p class="muted">過去1週間の状況。0=まったくない / 4=常にある。点数が高いほど症状が強い。</p>
-        <div id="dbd-form"></div>
-      </div>
-      <div class="card">
-        <div class="subttl">⑤ 意欲(Vitality Index) <span class="chip g" id="vi-total">0点</span></div>
-        <div id="vi-form"></div>
-      </div>
+      <details class="acc solo lifeacc"><summary>① ADL(Barthel Index) <span class="chip g" id="bi-total">0点</span></summary>
+        <div class="accbody"><div id="bi-form"></div></div></details>
+      <details class="acc solo lifeacc"><summary>② 栄養 <span class="chip g">BMI <b id="life-bmi">―</b></span> <span id="life-bmi-note" class="muted"></span></summary>
+        <div class="accbody">
+          <div class="grid2">
+            <div><label class="fld">身長(cm)</label><input type="number" id="life-h" step="0.1" oninput="calcBmi()"></div>
+            <div><label class="fld">体重(kg)</label><input type="number" id="life-w" step="0.1" oninput="calcBmi()"></div>
+          </div>
+        </div></details>
+      <details class="acc solo lifeacc"><summary>③ 口腔 <span class="chip g" id="oral-cnt">0件</span></summary>
+        <div class="accbody"><div class="row" id="oral-form"></div></div></details>
+      <details class="acc solo lifeacc"><summary>④ 認知症の行動・心理症状(DBD13) <span class="chip g" id="dbd-total">0点</span></summary>
+        <div class="accbody">
+          <p class="muted">過去1週間の状況。0=まったくない / 4=常にある。点数が高いほど症状が強い。</p>
+          <div id="dbd-form"></div>
+        </div></details>
+      <details class="acc solo lifeacc"><summary>⑤ 意欲(Vitality Index) <span class="chip g" id="vi-total">0点</span></summary>
+        <div class="accbody"><div id="vi-form"></div></div></details>
       <div class="card">
         <div class="subttl">⑥ その他</div>
         <label class="fld">服薬している薬剤数</label><input type="number" id="life-meds" placeholder="例: 5">
@@ -695,16 +695,19 @@
   <section id="v-setting" class="view">
     <h2 class="title">⚙️ 設定(検証用)</h2>
     <div class="banner">🧪 検証中は実名を入力せず、仮名でお試しください。</div>
-    <div class="card">
-      <div class="subttl">事業所情報(請求データに使用)</div>
+    <details class="acc solo" open>
+      <summary>🏢 事業所情報(請求データに使用)</summary>
+      <div class="accbody">
       <p class="muted">国保連への請求データ作成に必要な情報です。検証中は仮の番号で構いません。</p>
       <label class="fld">事業所番号(10桁)</label><input type="text" id="of-no" placeholder="例: 1370100001">
       <label class="fld">事業所名</label><input type="text" id="of-name" placeholder="例: 訪問介護ステーション かけはし">
       <label class="fld">保険者番号(6桁)</label><input type="text" id="of-city" placeholder="例: 131059">
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
-    </div>
-    <div class="card">
-      <div class="subttl">報酬・加算・減算の設定</div>
+      </div>
+    </details>
+    <details class="acc solo">
+      <summary>💴 報酬・加算・減算の設定</summary>
+      <div class="accbody">
       <p class="muted">請求の計算に使います。<b>単位数の初期値は暫定です。</b>最新の告示・単位数表に合わせて必ず更新してください。</p>
       <label class="fld">単位単価(地域区分・円)</label>
       <input type="number" id="of-tanka" step="0.01" placeholder="10.00">
@@ -722,9 +725,11 @@
         </div>
       </details>
       <button class="btn" style="margin-top:12px" onclick="saveOffice()">保存</button>
-    </div>
-    <div class="card">
-      <div class="subttl">🤖 AI接続(Claude API)</div>
+      </div>
+    </details>
+    <details class="acc solo">
+      <summary>🤖 AI接続(Claude API)</summary>
+      <div class="accbody">
       <p class="muted">AIリレーサーバ(リポジトリの server/ を配備)のURLを設定すると、デモ生成の代わりに<b>Claudeによる本物の文章生成・帳票OCR・申請下書き</b>が動きます。<b>APIキーはサーバ側にのみ置き、この画面にはサーバのURLだけ</b>を入力してください。空欄の間はデモ生成で動作します。</p>
       <label class="fld">AIサーバURL</label><input type="url" id="of-aiurl" placeholder="例: https://ai.example.com">
       <label class="fld">アクセストークン(サーバで RELAY_TOKEN を設定した場合のみ)</label><input type="password" id="of-aitoken" placeholder="任意" autocomplete="off">
@@ -733,9 +738,11 @@
         <button class="btn sec" id="ai-test" onclick="testAI()">📶 接続テスト</button>
       </div>
       <div id="ai-test-out" style="margin-top:8px"></div>
-    </div>
-    <div class="card">
-      <div class="subttl">データ管理</div>
+      </div>
+    </details>
+    <details class="acc solo">
+      <summary>🗄 データ管理</summary>
+      <div class="accbody">
       <div class="row">
         <button class="btn sec" onclick="exportData()">⬇ バックアップ</button>
         <button class="btn sec" onclick="document.getElementById('imp-file').click()">⬆ 復元</button>
@@ -743,7 +750,8 @@
       <input type="file" id="imp-file" accept=".json,application/json" style="display:none" onchange="importData(event)">
       <button class="btn sec" onclick="removeSamples()" style="margin-top:10px">🧹 サンプル利用者(佐藤さん等)を削除</button>
       <button class="btn" style="margin-top:10px;background:var(--danger)" onclick="resetAll()">⚠ 全データを初期化(サンプルに戻す)</button>
-    </div>
+      </div>
+    </details>
   </section>
 </main>
 
@@ -1127,17 +1135,20 @@ function saveReport(uid){
   save(); renderReports(); renderVisitRefs(); renderHome();
   alert('報告を履歴に保存しました。');
 }
+let visitHistN=5;
 function renderReports(){
   const h=document.getElementById('visit-history');
   if(!db.reports.length){ h.innerHTML='<p class="muted">まだ報告はありません。</p>'; return; }
   const aiOn=!!(db.office&&db.office.aiUrl);
-  h.innerHTML = db.reports.slice().reverse().map(r=>`
+  const all=db.reports.slice().reverse();
+  h.innerHTML = all.slice(0,visitHistN).map(r=>`
     <div class="rec-item" onclick="this.classList.toggle('open')">
       <div class="h"><span>${r.date}・${esc(user(r.userId)?.name||'')}</span>
         <span>${r.pend?'<span class="chip y">⏳ AI再生成待ち</span>':'<span class="chip g">3形態生成済</span>'}
         ${r.pend&&aiOn?`<span onclick="event.stopPropagation()"><button class="btn mini sec" onclick="regenReport('${r.id}')">🤖 再生成</button></span>`:''}</span></div>
       <div class="body">${esc(r.summary)}</div>
-    </div>`).join('');
+    </div>`).join('')
+    + (all.length>visitHistN?`<button class="btn sec" style="width:100%" onclick="visitHistN+=10;renderReports()">▾ さらに表示(残り ${all.length-visitHistN} 件)</button>`:'');
 }
 
 /* ============================================================
@@ -1399,11 +1410,14 @@ function saveTrip(){
   document.getElementById('t-hint').textContent='';
   renderTrips(); renderHome();
 }
+let tripHistN=5;
 function renderTrips(){
   const l=document.getElementById('trip-list');
   if(!db.trips.length){ l.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
-  l.innerHTML = db.trips.slice().reverse().map(t=>`
-    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('');
+  const all=db.trips.slice().reverse();
+  l.innerHTML = all.slice(0,tripHistN).map(t=>`
+    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('')
+    + (all.length>tripHistN?`<button class="btn sec" style="width:100%" onclick="tripHistN+=10;renderTrips()">▾ さらに表示(残り ${all.length-tripHistN} 件)</button>`:'');
 }
 
 /* ---------- 実績・請求 ---------- */
@@ -1884,7 +1898,7 @@ function buildLifeForm(){
   document.getElementById('bi-form').innerHTML = BI_ITEMS.map(it=>
     `<label class="fld">${esc(it.n)}</label>${sel('bi-'+it.k, it.o, it.o[0][0]).replace('<select','<select onchange="calcBi()"')}`).join('');
   document.getElementById('oral-form').innerHTML = ORAL_ITEMS.map(it=>
-    `<label class="ckl"><input type="checkbox" id="or-${it.k}">${esc(it.n)}</label>`).join('');
+    `<label class="ckl"><input type="checkbox" id="or-${it.k}" onchange="updOralCnt()">${esc(it.n)}</label>`).join('');
   document.getElementById('dbd-form').innerHTML = DBD13.map((n,i)=>
     `<label class="fld">${i+1}. ${esc(n)}</label>${sel('dbd-'+i, DBD_OPT, 0).replace('<select','<select onchange="calcDbd()"')}`).join('');
   document.getElementById('vi-form').innerHTML = VI_ITEMS.map((it,i)=>
@@ -1929,6 +1943,11 @@ function renderLife(){
   lifeSec(lifeSecCur());
 }
 
+function toggleLifeAcc(open){ document.querySelectorAll('details.lifeacc').forEach(d=>d.open=open); }
+function updOralCnt(){ const el=document.getElementById('oral-cnt'); if(!el) return;
+  const n=ORAL_ITEMS.filter(it=>{ const e=document.getElementById('or-'+it.k); return e&&e.checked; }).length;
+  el.textContent=n+'件'; }
+
 /* ---------- 過去の評価の参照・引用 ---------- */
 function fillLifeForm(rec){
   if(!rec) return;
@@ -1939,7 +1958,7 @@ function fillLifeForm(rec){
   document.getElementById('life-h').value=rec.h||'';
   document.getElementById('life-w').value=rec.w||'';
   document.getElementById('life-meds').value=rec.meds||'';
-  calcBi(); calcDbd(); calcVi(); calcBmi();
+  calcBi(); calcDbd(); calcVi(); calcBmi(); updOralCnt();
 }
 function lifeSrcNote(html){
   const el=document.getElementById('life-src'); if(!el) return;
