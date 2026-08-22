@@ -34,6 +34,11 @@ const LifeOut = z.object({
   oral: z.array(z.enum(['kobo', 'muse', 'yogore', 'gishi', 'kansou']))
     .describe('報告文から根拠をもって該当と判断した口腔項目のみ'),
 });
+const ShoguOut = z.object({
+  note: z.string().describe('生成物の取り扱い注意(必ず確認・修正のうえ提出、区分ごとの要件数・様式は年度により異なる等)'),
+  docs: z.array(z.object({ title: z.string(), text: z.string() })).length(3)
+    .describe('①介護職員等処遇改善加算 計画書(基本情報) ②職場環境等要件の取組 ③賃金改善の内容と周知方法、の3文書'),
+});
 const ShinseiOut = z.object({
   note: z.string().describe('生成物の取り扱い注意(必ず確認・修正のうえ提出、様式は自治体ごとに異なる等)'),
   docs: z.array(z.object({ title: z.string(), text: z.string() })).length(3)
@@ -80,6 +85,14 @@ function userPrompt(kind, p) {
     ...(p.cases || []).map(c => `【${c.title}】${c.text}`),
     '未整備の要件は「整備を進めており届出までに完了させる」旨を明記してください。',
   ].join('\n');
+  if (kind === 'shogu') return [
+    '介護職員等処遇改善加算の計画書(3文書)を下書きしてください。',
+    `事業所: 番号=${p.office?.no || '(未登録)'} 名称=${p.office?.name || '(未登録)'}`,
+    `算定する区分: ${p.kubun || '(未選択)'} / 対象職員数: ${p.staffCount || 0}名`,
+    '--- 参照する過去事例・制度情報(この文体・構成を土台にする) ---',
+    ...(p.cases || []).map(c => `【${c.title}】${c.text}`),
+    '職場環境等要件は区分ごとに必要数が異なるため、取組の例を区分見出しつきで整理してください。',
+  ].join('\n');
   if (kind === 'ocr') return [
     `添付の手書き帳票(${p.kind})を読み取り、項目に振り分けてください。`,
     `利用者名は次の登録名から最も近いものを選ぶ: ${(p.users || []).join('、') || '(登録なし)'}`,
@@ -93,6 +106,7 @@ function outputFormat(kind, p) {
   if (kind === 'visit') return zodOutputFormat(VisitOut);
   if (kind === 'life') return zodOutputFormat(LifeOut);
   if (kind === 'shinsei') return zodOutputFormat(ShinseiOut);
+  if (kind === 'shogu') return zodOutputFormat(ShoguOut);
   if (kind === 'ocr') {
     const fields = ScanFields[p.kind] || ScanFields.memo;
     return zodOutputFormat(z.object({ note: z.string(), fields }));

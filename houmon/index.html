@@ -443,6 +443,9 @@
         <div><label class="fld">所要時間(分)</label><input type="number" id="trip-min" placeholder="15"></div>
         <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
       </div>
+      <label class="fld">利用者(任意)　<span class="muted">※選ぶと前回の距離・所要時間を呼び出せます</span></label>
+      <select id="trip-user" onchange="renderTripRoute()"></select>
+      <div id="trip-route"></div>
       <button class="btn" onclick="saveTrip()" style="margin-top:12px">💾 記録する(距離を自動計算)</button>
     </div>
     <h2 class="title">🗂 移動の履歴</h2>
@@ -519,6 +522,19 @@
       <select id="bill-user" onchange="renderMeisai()"></select>
       <button class="btn sec noprint" style="margin-top:12px" onclick="window.print()">🖨 明細書を印刷</button>
       <div id="bill-meisai" style="margin-top:12px"></div>
+    </div>
+    <div data-sec="meisai" class="card noprint">
+      <div class="subttl">🖨 サービス提供記録(利用者宅控え)</div>
+      <p class="muted">利用者宅に置く控え(複写式の紙の代替)をA4で印刷できます。対象月の提供実績・確認欄つき。</p>
+      <div class="row">
+        <select id="kiroku-user" style="flex:1;min-width:150px"></select>
+        <button class="btn" onclick="renderKiroku()">📄 表示する</button>
+      </div>
+    </div>
+    <div data-sec="meisai" class="card" id="kiroku-card" style="display:none">
+      <div class="subttl noprint">サービス提供記録
+        <button class="btn mini sec noprint" style="float:right" onclick="window.print()">🖨 印刷</button></div>
+      <div id="kiroku-out" class="sheet"></div>
     </div>
     <div data-sec="diff" class="card noprint">
       <div class="subttl">🔀 改定の新旧差分チェック</div>
@@ -655,11 +671,17 @@
     <div data-shsec="make">
       <div class="card noprint">
         <div class="subttl">① 作成する書類</div>
-        <select id="sh-form">
+        <select id="sh-form" onchange="shFormChanged()">
           <option value="tokutei">特定事業所加算 届出一式(体制等状況一覧表・届出書・整備状況の説明)</option>
-          <option value="shogu" disabled>処遇改善加算 計画書(順次追加)</option>
+          <option value="shogu">介護職員等処遇改善加算 計画書(基本情報・職場環境等要件・賃金改善の内容)</option>
         </select>
-        <p class="muted" style="margin-top:8px">🧾請求タブの「特定事業所加算 要件チェック」に入力した体制情報と、📚事例ライブラリの記載例をもとに下書きを作ります。</p>
+        <div id="sh-shogu" style="display:none;margin-top:10px">
+          <label class="fld">算定する区分</label>
+          <select id="sh-shogu-kubun">
+            <option>加算Ⅰ</option><option>加算Ⅱ</option><option>加算Ⅲ</option><option>加算Ⅳ</option>
+          </select>
+        </div>
+        <p class="muted" style="margin-top:8px" id="sh-hint">🧾請求タブの「特定事業所加算 要件チェック」に入力した体制情報と、📚事例ライブラリの記載例をもとに下書きを作ります。</p>
         <button class="btn" id="sh-gen" style="margin-top:12px" onclick="genShinsei()">✨ 事例を参照して下書きを作る</button>
       </div>
       <div class="card noprint" id="sh-refs-card" style="display:none">
@@ -992,7 +1014,7 @@ function go(t){
   if(t==='home') renderHome();
   if(t==='plan') renderPlan();
   if(t==='report'){ renderReports(); renderVisitRefs(); }
-  if(t==='trip') renderTrips();
+  if(t==='trip'){ renderTrips(); renderTripRoute(); }
   if(t==='shop'){ renderShop(); renderMoney(); }
   if(t==='setting') renderStaff();
   if(t==='billing') renderBilling();
@@ -1054,6 +1076,8 @@ function fillSelects(){
   document.getElementById('shop-user').innerHTML = opts;
   const pu=document.getElementById('pl-user'); if(pu) pu.innerHTML=opts;
   const mu=document.getElementById('money-user'); if(mu) mu.innerHTML=opts;
+  const tu=document.getElementById('trip-user'); if(tu){ const k=tu.value; tu.innerHTML='<option value="">(利用者を選ばない)</option>'+opts; if(k) tu.value=k; }
+  const ku=document.getElementById('kiroku-user'); if(ku){ const k=ku.value; ku.innerHTML=opts; if(k) ku.value=k; }
   const vs=document.getElementById('visit-staff');
   if(vs){ const k=vs.value;
     vs.innerHTML=(db.staff||[]).length
@@ -1145,6 +1169,34 @@ const demoGenerators = {
       memo:{ user:nm, date:today, text:'ご家族より、来週の通院に同行してほしいとの依頼あり。サービス提供責任者へ申し送り。' }
     };
     return { note, fields: F[kind]||F.memo };
+  },
+  shogu({office, kubun, staffCount, cases}){
+    const o=office||{};
+    const today=fullDate();
+    const ref=cases&&cases.length?cases[0]:null;
+    const doc1={ title:'介護職員等処遇改善加算 計画書(基本情報)',
+      text:['事業所番号: '+(o.no||'(未登録)'),'事業所名: '+(o.name||'(未登録)'),'サービス種別: 訪問介護','',
+        '算定する区分: '+(kubun||'(未選択)'),
+        '対象職員数: '+(staffCount||0)+'名(⚙️設定の職員登録より)','',
+        '【賃金改善の実施期間】'+today.slice(0,4)+'年4月 〜 '+(+today.slice(0,4)+1)+'年3月',
+        '【賃金改善の方法】基本給の引上げを中心とし、経験・技能のある介護職員へ重点的に配分します。',
+        '【加算の見込額と賃金改善見込額】加算の算定見込額の全額を賃金改善に充当します。'].join('\n') };
+    const doc2={ title:'職場環境等要件の取組(区分ごとに必要数を選択)',
+      text:['以下の区分から、算定する加算区分に応じた数の取組を実施します。','',
+        '【入職促進に向けた取組】法人理念・人材育成方針の明確化、他産業からの転職者への研修体制',
+        '【資質の向上やキャリアアップに向けた支援】働きながら介護福祉士資格取得を目指す者への支援、外部研修の受講機会確保',
+        '【両立支援・多様な働き方の推進】短時間勤務・時差出勤の導入、有給休暇取得促進',
+        '【腰痛を含む心身の健康管理】介護ロボット・リフト等の導入検討、健康診断の全額事業主負担',
+        '【生産性向上のための業務改善】記録・報告のICT化(本アプリの導入)、業務手順の標準化',
+        '【やりがい・働きがいの醸成】ミーティングでの意見聴取、利用者・家族の声の共有','',
+        '※ 実際に取り組む項目に絞り、証拠書類(研修記録・議事録等)を保管してください。'].join('\n') };
+    const doc3={ title:'賃金改善の内容と周知方法',
+      text:[(ref?ref.text:'加算により得られた収入は、対象職員の基本給および処遇改善手当として配分します。配分にあたっては、経験年数・保有資格・職責を踏まえ、事業所内で定めた基準に基づき決定します。'),
+        '','【職員への周知】就業規則および賃金規程に明記のうえ、全体ミーティングで説明し、書面を事業所内に掲示します。',
+        '【実績報告】年度終了後、所定の期日までに実績報告書を提出します。','',
+        (ref?'※ 事例ライブラリ「'+ref.title+'」を土台に作成しました。事業所の実態に合わせて修正してください。':'※ 事例ライブラリに文例を追加すると、実際の提出文に近い下書きになります。')].join('\n') };
+    const note='🧠 <b>検証版のためデモ生成です。</b>本番はここでClaudeが、参照事例と事業所データをもとに提出先の様式に合わせた文章を作成します。<b>内容は必ず確認・修正のうえ提出してください。</b>加算区分ごとに必要な職場環境等要件の数・様式は年度により異なります。';
+    return { note, docs:[doc1, doc2, doc3] };
   },
   shinsei({office, items, kubun, tokutei, cases}){
     const o=office||{};
@@ -1557,6 +1609,33 @@ function editUserFromDetail(){
   editUser(curUser);
 }
 
+/* ---------- 移動の定型ルート ---------- */
+function lastTripFor(uid){
+  return db.trips.filter(t=>t.userId===uid).slice(-1)[0];
+}
+function renderTripRoute(){
+  const el=document.getElementById('trip-route'); if(!el) return;
+  const uid=document.getElementById('trip-user').value;
+  const t=lastTripFor(uid);
+  el.innerHTML = t
+    ? `<div class="check-row" style="margin-top:10px"><div class="check-ic">🔁</div>
+        <div style="flex:1;min-width:0"><div class="t">前回(${esc(t.date)}): ${esc(t.dist)}km / ${esc(String(t.min))}分</div>
+          <div class="d">${esc(t.why||'')}</div>
+          <div style="margin-top:6px"><button class="btn mini sec" onclick="applyTripRoute()">⤵ 同じ距離・時間で入力</button></div>
+        </div></div>`
+    : (uid ? '<p class="muted" style="margin-top:10px">この方の移動記録はまだありません。1回記録すると次回から呼び出せます。</p>' : '');
+}
+function applyTripRoute(){
+  const uid=document.getElementById('trip-user').value;
+  const t=lastTripFor(uid);
+  if(!t){ alert('前回の記録がありません。'); return; }
+  const s=parseFloat(document.getElementById('trip-start').value);
+  if(isNaN(s)){ alert('先に開始メーターを入力してください。前回の距離を足して終了メーターを計算します。'); return; }
+  document.getElementById('trip-end').value=(s+parseFloat(t.dist)).toFixed(1);
+  if(t.min&&t.min!=='-') document.getElementById('trip-min').value=t.min;
+  if(t.why) document.getElementById('trip-why').value=t.why;
+}
+
 /* ---------- 訪問予定 ---------- */
 const WD_LBL=['日','月','火','水','木','金','土'];
 const KUBUN_LBL={shintai:'身体介護',seikatsu:'生活援助',both:'身体＋生活',joukou:'乗降介助'};
@@ -1711,11 +1790,12 @@ function saveTrip(){
   const m=document.getElementById('trip-min').value;
   const why=document.getElementById('trip-why').value;
   if(isNaN(s)||isNaN(e)||e<s){ alert('メーター値を確認してください(終了≧開始)。'); return; }
-  db.trips.push({date:fullDate(), why, dist:(e-s).toFixed(1), min:m||'-'});
+  db.trips.push({date:fullDate(), why, dist:(e-s).toFixed(1), min:m||'-',
+    userId:document.getElementById('trip-user').value||''});
   save();
   ['trip-start','trip-end','trip-min','trip-speech'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('t-hint').textContent='';
-  renderTrips(); renderHome();
+  renderTrips(); renderTripRoute(); renderHome();
 }
 let tripHistN=5;
 function renderTrips(){
@@ -1723,7 +1803,7 @@ function renderTrips(){
   if(!db.trips.length){ l.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
   const all=db.trips.slice().reverse();
   l.innerHTML = all.slice(0,tripHistN).map(t=>`
-    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('')
+    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}${t.userId&&user(t.userId)?`<span class="muted"> ／ ${esc(user(t.userId).name)}</span>`:''}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('')
     + (all.length>tripHistN?`<button class="btn sec" style="width:100%" onclick="tripHistN+=10;renderTrips()">▾ さらに表示(残り ${all.length-tripHistN} 件)</button>`:'');
 }
 
@@ -2464,7 +2544,15 @@ function shinseiSec(s){
   document.querySelectorAll('#v-shinsei [data-shsec]').forEach(el=>{ el.style.display = el.dataset.shsec===s ? '' : 'none'; });
   document.querySelectorAll('#v-shinsei .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
 }
-function renderShinsei(){ renderCaseLib(); caseSearchTest(); syncCases(); }
+function renderShinsei(){ renderCaseLib(); caseSearchTest(); syncCases(); shFormChanged(); }
+function shFormChanged(){
+  const v=document.getElementById('sh-form').value;
+  document.getElementById('sh-shogu').style.display = v==='shogu' ? '' : 'none';
+  document.getElementById('sh-hint').textContent = v==='shogu'
+    ? '⚙️設定の職員登録と📚事例ライブラリの記載例をもとに、処遇改善加算の計画書を下書きします。'
+    : '🧾請求タブの「特定事業所加算 要件チェック」に入力した体制情報と、📚事例ライブラリの記載例をもとに下書きを作ります。';
+}
+
 /* ---------- 事業所共有の事例同期(AIサーバ経由・Firestore) ---------- */
 let caseSyncState='none'; // none | on | off
 async function casesApi(method, body, id){
@@ -2518,10 +2606,13 @@ function tokuteiKubunNow(){
 }
 async function genShinsei(){
   const o=db.office||{};
+  const form=document.getElementById('sh-form').value;
   const items=tokuteiItems();
   const kb=tokuteiKubunNow();
   // 検索クエリ: 様式名 + 各要件のキーワード(未整備のものを優先)
-  const q='特定事業所加算 届出 '+items.map(i=>i.ref).join(' ');
+  const q = form==='shogu'
+    ? '処遇改善加算 計画書 賃金改善 職場環境等要件 キャリアパス'
+    : '特定事業所加算 届出 '+items.map(i=>i.ref).join(' ');
   const hits=searchCases(q, 3);
   document.getElementById('sh-refs-card').style.display='';
   document.getElementById('sh-refs').innerHTML = hits.length ? hits.map(h=>`
@@ -2532,7 +2623,10 @@ async function genShinsei(){
       </div></div>`).join('')
     : '<p class="muted">関連する事例が見つかりませんでした。📚事例ライブラリに記載例を追加すると下書きの質が上がります。</p>';
   await withLoading('sh-gen','事例を参照して作成中…', async()=>{
-    const r=await callAI('shinsei', {office:o, items, kubun:kb, tokutei:db.tokutei||{}, cases:hits.map(h=>h.c)});
+    const r = form==='shogu'
+      ? await callAI('shogu', {office:o, kubun:document.getElementById('sh-shogu-kubun').value,
+                               staffCount:(db.staff||[]).length, cases:hits.map(h=>h.c)})
+      : await callAI('shinsei', {office:o, items, kubun:kb, tokutei:db.tokutei||{}, cases:hits.map(h=>h.c)});
     document.getElementById('sh-note').innerHTML=`<div class="banner">${r.note}</div>`;
     document.getElementById('sh-out').innerHTML = r.docs.map(d=>`
       <div style="margin-bottom:22px">
@@ -2541,15 +2635,52 @@ async function genShinsei(){
       </div>`).join('');
     document.getElementById('sh-out-card').style.display='';
     const missing=items.filter(i=>!i.ok);
-    document.getElementById('sh-todo').innerHTML =
-      (missing.length ? missing.map(i=>`<div class="check-row"><div class="check-ic">⚠️</div>
+    document.getElementById('sh-todo').innerHTML = form==='shogu'
+      ? ((db.staff||[]).length ? '' : `<div class="check-row"><div class="check-ic">⚠️</div>
+          <div style="flex:1;min-width:0"><div class="t">職員が未登録です</div>
+          <div class="d">⚙️設定→👥職員 で対象職員を登録すると、計画書に人数が反映されます。</div></div></div>`) +
+        `<div class="check-row"><div class="check-ic">📄</div><div style="flex:1;min-width:0"><div class="t">添付書類の目安</div>
+          <div class="d">賃金規程・就業規則(賃金改善の記載ページ)／職員への周知資料／職場環境等要件の取組がわかる記録。年度末には実績報告書の提出が必要です。区分ごとの要件数・様式は提出先の手引きでご確認ください。</div></div></div>`
+      : (missing.length ? missing.map(i=>`<div class="check-row"><div class="check-ic">⚠️</div>
         <div style="flex:1;min-width:0"><div class="t">${esc(i.n)}が未整備です</div>
         <div class="d">${esc(i.note||'')} ― 届出前に🧾請求タブの要件チェックで整備・記録してください。</div></div></div>`).join('') : '') +
-      `<div class="check-row"><div class="check-ic">📄</div><div style="flex:1;min-width:0"><div class="t">添付書類の目安</div>
-        <div class="d">個別研修計画(直近のもの)／会議の議事録(直近3か月分)／健康診断の実施記録／重要事項説明書(緊急時対応方針の記載ページ)。必要書類は自治体により異なるため、提出先の手引きをご確認ください。</div></div></div>`;
+      (form==='shogu' ? '' : `<div class="check-row"><div class="check-ic">📄</div><div style="flex:1;min-width:0"><div class="t">添付書類の目安</div>
+        <div class="d">個別研修計画(直近のもの)／会議の議事録(直近3か月分)／健康診断の実施記録／重要事項説明書(緊急時対応方針の記載ページ)。必要書類は自治体により異なるため、提出先の手引きをご確認ください。</div></div></div>`);
     document.getElementById('sh-todo-card').style.display='';
     document.getElementById('sh-out-card').scrollIntoView({behavior:'smooth', block:'start'});
   });
+}
+
+/* ---------- サービス提供記録(利用者宅控え) ---------- */
+function renderKiroku(){
+  const u=user(document.getElementById('kiroku-user').value);
+  const el=document.getElementById('kiroku-out'); if(!el) return;
+  if(!u){ alert('利用者を選択してください。'); return; }
+  const ym=billYm(), o=db.office||{};
+  const rs=db.reports.filter(r=>r.userId===u.id && r.date.slice(0,7)===ym).sort((a,b)=>a.date<b.date?-1:1);
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:15px;margin-bottom:10px">${esc(ym.replace('-','年'))}月分 サービス提供記録</div>
+    <div class="shead">
+      <div><b>利用者</b>${esc(u.name)} 様</div>
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>要介護度</b>${esc(u.care||'')}</div>
+      <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>日付</th><th>時間</th><th>サービス</th><th style="text-align:left">支援内容</th><th>担当</th><th>確認印</th></tr>
+      ${rs.length ? rs.map(r=>`<tr>
+        <td>${esc(r.date.slice(5))}</td>
+        <td>${esc(r.start||'')}〜${esc(r.end||'')}</td>
+        <td>${esc(KUBUN_LBL[r.kubun]||'')}</td>
+        <td style="text-align:left;white-space:normal">${esc((r.src&&r.src.text)||r.summary||'')}</td>
+        <td>${esc(r.staffName||'')}</td>
+        <td style="width:52px">　</td></tr>`).join('')
+        : '<tr><td colspan="6" style="padding:18px">この月の記録はありません。</td></tr>'}
+    </table></div>
+    <div class="sfoot"><span>提供回数: ${rs.length}回</span><span>合計時間: ${rs.reduce((a,r)=>a+(r.mins||0),0)}分</span></div>
+    <p class="muted" style="margin-top:10px">※ 内容をご確認のうえ、確認印またはサインをお願いいたします。ご不明な点は担当までお知らせください。</p>`;
+  document.getElementById('kiroku-card').style.display='';
+  document.getElementById('kiroku-card').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 /* ---------- 事例ライブラリ ---------- */
