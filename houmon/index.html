@@ -66,6 +66,8 @@
   }
   select:focus,textarea:focus,input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb, var(--brand) 15%, transparent)}
   textarea{min-height:84px}
+  input[type=date],input[type=month]{-webkit-appearance:none;appearance:none;min-height:46px;text-align:left;display:block}
+  input[type=date]::-webkit-date-and-time-value,input[type=month]::-webkit-date-and-time-value{text-align:left;margin:0}
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;
     padding:13px 16px;border:none;border-radius:12px;background:var(--brand);color:#fff;
@@ -78,7 +80,8 @@
   .btn.ghost{background:var(--card);color:var(--brand-d);border:1.5px solid var(--line);box-shadow:none}
   .btn.mini{width:auto;padding:7px 14px;font-size:13px;border-radius:9px;font-weight:600}
   .btn:disabled{opacity:.5;cursor:not-allowed}
-  .row{display:flex;gap:10px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row .btn{width:auto;flex:1 1 auto;white-space:nowrap;min-width:max-content}
   .row>*{flex:1;min-width:0}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .grid2>*{min-width:0}
