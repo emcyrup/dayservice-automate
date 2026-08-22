@@ -25,7 +25,7 @@ const client = new Anthropic(); // ANTHROPIC_API_KEY を環境変数から読む
 
 /* ---------- 出力スキーマ(フロントの demoGenerators と同じ形) ---------- */
 const VisitOut = z.object({
-  formal: z.string().describe('正式な訪問介護報告書。【利用者】【日時】【支援内容】【ご本人の様子】【特記事項】【支援者の体調】の見出しで整形'),
+  formal: z.string().describe('正式な訪問介護報告書。【利用者】【日時】【支援内容】【ご本人の様子】【特記事項】【担当】【支援者の体調】の見出しで整形'),
   app: z.string().describe('記録アプリ転記用の箇条書き(・時間/・支援内容/・様子/・特記/・支援者体調)'),
   summary: z.string().describe('サービス提供責任者向けの2〜3文の要約。気になる点があれば必ず言及する'),
 });
@@ -64,7 +64,7 @@ function userPrompt(kind, p) {
   if (kind === 'visit') return [
     '訪問介護の報告を3形態で作成してください。',
     `利用者: ${p.userName}`, `日時: ${p.date || ''} ${p.start}〜${p.end}`,
-    `ヘルパーのメモ: ${p.text}`, `支援者の体調: ${p.cond}`,
+    `ヘルパーのメモ: ${p.text}`, `担当スタッフ: ${p.staff || '(未入力)'}`, `支援者の体調: ${p.cond}`,
   ].join('\n');
   if (kind === 'life') return [
     `利用者「${p.name}」の直近の訪問報告から、LIFE(科学的介護)評価で確認すべき点を下書きしてください。`,

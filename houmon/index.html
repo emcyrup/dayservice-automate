@@ -359,6 +359,8 @@
         <div><label class="fld">支援者の体調</label>
           <select id="visit-cond"><option>良好</option><option>普通</option><option>不調</option></select></div>
       </div>
+      <label class="fld">担当スタッフ　<span class="muted">※⚙️設定→👥職員で追加できます</span></label>
+      <select id="visit-staff"></select>
       <label class="fld">うち生活援助の時間(分)　<span class="muted">※「身体介護＋生活援助」のときのみ</span></label>
       <input type="number" id="visit-smin" placeholder="例: 30">
       <div class="row" style="margin-top:8px">
@@ -764,6 +766,10 @@
         <button class="btn" onclick="goReportFor(curUser)">📋 この方の報告</button>
         <button class="btn sec" onclick="goShopFor(curUser)">🛒 買い物リスト</button>
       </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn mini sec" onclick="editUserFromDetail()">✏️ 情報を編集</button>
+        <button class="btn mini sec" style="color:var(--danger)" onclick="delUserFromDetail()">🗑 この利用者を削除</button>
+      </div>
     </div>
     <div class="card"><div class="subttl">🏠 訪問時の注意(その家のルール)</div><div id="ud-rules"></div></div>
     <div class="card"><div class="subttl">直近の報告</div><div id="ud-reports"></div></div>
@@ -820,6 +826,24 @@
       </div>
     </details>
     <details class="acc solo">
+      <summary>👥 職員(スタッフ)</summary>
+      <div class="accbody">
+      <p class="muted">📋報告の「担当スタッフ」に表示されます。検証中は仮名(例: 職員A)で登録してください。</p>
+      <div id="staff-list"></div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label class="fld">名前(仮名で)</label><input type="text" id="sf-name" placeholder="例: 職員C"></div>
+        <div><label class="fld">職種</label>
+          <select id="sf-role">
+            <option>訪問介護員</option>
+            <option>サービス提供責任者</option>
+            <option>管理者</option>
+            <option>事務</option>
+          </select></div>
+      </div>
+      <button class="btn" style="margin-top:12px" onclick="addStaff()">＋ 職員を追加</button>
+      </div>
+    </details>
+    <details class="acc solo">
       <summary>🗄 データ管理</summary>
       <div class="accbody">
       <div class="row">
@@ -865,6 +889,10 @@ const seed = {
       hokenNo:'0123456791', care:'要介護4', wari:2, tatemono:0,
       history:['お粥パック','経口補水液','ティッシュ'],
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
+  ],
+  staff: [
+    { id:'st1', name:'職員A', role:'サービス提供責任者' },
+    { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
   reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [],
   cases: [
@@ -932,7 +960,7 @@ let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
-        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[];
+        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.staff=d.staff||structuredClone(seed.staff);
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -966,6 +994,7 @@ function go(t){
   if(t==='report'){ renderReports(); renderVisitRefs(); }
   if(t==='trip') renderTrips();
   if(t==='shop'){ renderShop(); renderMoney(); }
+  if(t==='setting') renderStaff();
   if(t==='billing') renderBilling();
   if(t==='life') renderLife();
   if(t==='scan') renderScan();
@@ -1025,6 +1054,12 @@ function fillSelects(){
   document.getElementById('shop-user').innerHTML = opts;
   const pu=document.getElementById('pl-user'); if(pu) pu.innerHTML=opts;
   const mu=document.getElementById('money-user'); if(mu) mu.innerHTML=opts;
+  const vs=document.getElementById('visit-staff');
+  if(vs){ const k=vs.value;
+    vs.innerHTML=(db.staff||[]).length
+      ? db.staff.map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
+      : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
+    if(k&&staff(k)) vs.value=k; }
   const lu=document.getElementById('life-user'); if(lu){ const k=lu.value; lu.innerHTML=opts; if(k) lu.value=k; }
 }
 
@@ -1074,7 +1109,7 @@ async function testAI(){
   });
 }
 const demoGenerators = {
-  visit({userName, text, cond, start, end}){
+  visit({userName, text, cond, start, end, staff}){
     const t = text.trim() || '生活援助を実施。';
     const good = /(元気|食欲|笑|安定|良好)/.test(t);
     const flag = /(転倒|発熱|痛|むくみ|残薬|受診|変化|食欲な)/.test(t);
@@ -1084,6 +1119,7 @@ const demoGenerators = {
       `【支援内容】${t}`,
       `【ご本人の様子】${good?'体調は安定しており、食欲・表情ともに良好でした。':'表情・体調に大きな変化は見られませんでした。'}`,
       `【特記事項】${flag?'気になる点があるため、上記の内容の確認・共有をお願いします。':'特になし。'}`,
+      `【担当】${staff||'(未入力)'}`,
       `【支援者の体調】${cond}`
     ].join('\n');
     const app = [
@@ -1201,12 +1237,14 @@ async function withLoading(btnId, label, fn){
 async function genVisit(){
   const u = user(document.getElementById('visit-user').value);
   if(!u){ alert('利用者がいません。⚙️設定から利用者を追加してください。'); return; }
+  const st=staff(document.getElementById('visit-staff').value);
   const payload = {
     userName: u.name,
     text: document.getElementById('visit-text').value,
     cond: document.getElementById('visit-cond').value,
     start: document.getElementById('visit-start').value,
-    end: document.getElementById('visit-end').value
+    end: document.getElementById('visit-end').value,
+    staff: st ? st.name : ''
   };
   await withLoading('visit-gen','AIが3つの報告を作成中…', async()=>{
     const r = await callAI('visit', payload);
@@ -1237,6 +1275,8 @@ function saveReport(uid){
     futari:document.getElementById('visit-futari').checked,
     kinkyu:document.getElementById('visit-kinkyu').checked,
     src:{text:document.getElementById('visit-text').value, cond:document.getElementById('visit-cond').value},
+    staffId:document.getElementById('visit-staff').value||'',
+    staffName:(staff(document.getElementById('visit-staff').value)||{}).name||'',
     pend: document.getElementById('visit-out').dataset.pend==='1'});
   save(); renderReports(); renderVisitRefs(); renderHome();
   alert('報告を履歴に保存しました。');
@@ -1249,7 +1289,7 @@ function renderReports(){
   const all=db.reports.slice().reverse();
   h.innerHTML = all.slice(0,visitHistN).map(r=>`
     <div class="rec-item" onclick="this.classList.toggle('open')">
-      <div class="h"><span>${r.date}・${esc(user(r.userId)?.name||'')}</span>
+      <div class="h"><span>${r.date}・${esc(user(r.userId)?.name||'')}${r.staffName?`<span class="muted"> ／ 担当 ${esc(r.staffName)}</span>`:''}</span>
         <span>${r.pend?'<span class="chip y">⏳ AI再生成待ち</span>':'<span class="chip g">3形態生成済</span>'}
         ${r.pend&&aiOn?`<span onclick="event.stopPropagation()"><button class="btn mini sec" onclick="regenReport('${r.id}')">🤖 再生成</button></span>`:''}</span></div>
       <div class="body">${esc(r.summary)}</div>
@@ -1464,6 +1504,7 @@ function copyLastReport(){
   if(r.kubun) document.getElementById('visit-kubun').value=r.kubun;
   if(r.src&&r.src.cond) document.getElementById('visit-cond').value=r.src.cond;
   document.getElementById('visit-smin').value=r.smins||'';
+  if(r.staffId&&staff(r.staffId)) document.getElementById('visit-staff').value=r.staffId;
   const ta=document.getElementById('visit-text');
   ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true}));
 }
@@ -1480,6 +1521,42 @@ async function regenReport(id, btnId){
   save(); renderReports(); renderHome();
   alert('Claudeで再生成しました。');
 }
+/* ---------- 職員(スタッフ) ---------- */
+function staff(id){ return (db.staff||[]).find(s=>s.id===id); }
+function renderStaff(){
+  const el=document.getElementById('staff-list'); if(!el) return;
+  el.innerHTML = (db.staff||[]).length ? db.staff.map(s=>`
+    <div class="check-row"><div class="check-ic">👤</div>
+      <div style="flex:1;min-width:0"><div class="t">${esc(s.name)}</div><div class="d">${esc(s.role||'')}</div></div>
+      <button class="btn mini sec" onclick="delStaff('${s.id}')">削除</button></div>`).join('')
+    : '<p class="muted">まだ職員が登録されていません。</p>';
+}
+function addStaff(){
+  const name=document.getElementById('sf-name').value.trim();
+  if(!name){ alert('名前を入力してください(仮名で)。'); return; }
+  db.staff=db.staff||[];
+  db.staff.push({id:'st'+Date.now(), name, role:document.getElementById('sf-role').value});
+  save();
+  document.getElementById('sf-name').value='';
+  renderStaff(); fillSelects();
+  alert('職員を追加しました。📋報告の「担当スタッフ」から選べます。');
+}
+function delStaff(id){
+  const s=staff(id); if(!s) return;
+  if(!confirm('職員「'+s.name+'」を削除します。過去の報告に記録された担当名はそのまま残ります。よろしいですか?')) return;
+  db.staff=db.staff.filter(x=>x.id!==id);
+  save(); renderStaff(); fillSelects();
+}
+function delUserFromDetail(){
+  const id=curUser;
+  delUser(id);
+  if(!user(id)) go('users');
+}
+function editUserFromDetail(){
+  go('users');
+  editUser(curUser);
+}
+
 /* ---------- 訪問予定 ---------- */
 const WD_LBL=['日','月','火','水','木','金','土'];
 const KUBUN_LBL={shintai:'身体介護',seikatsu:'生活援助',both:'身体＋生活',joukou:'乗降介助'};
@@ -2610,12 +2687,13 @@ function importData(ev){
   r.readAsText(f);
 }
 function removeSamples(){
-  if(!confirm('サンプル利用者(佐藤さん・鈴木さん・高橋さん)と関連データを削除します。よろしいですか?')) return;
+  if(!confirm('サンプル利用者(佐藤さん・鈴木さん・高橋さん)・サンプル職員(職員A・B)と関連データを削除します。よろしいですか?')) return;
   ['u1','u2','u3'].forEach(id=>{
     db.users=db.users.filter(u=>u.id!==id);
     db.reports=db.reports.filter(r=>r.userId!==id);
   });
-  save(); renderUsers(); fillSelects(); renderHome(); renderShop();
+  db.staff=(db.staff||[]).filter(s=>!['st1','st2'].includes(s.id));
+  save(); renderUsers(); renderStaff(); fillSelects(); renderHome(); renderShop();
 }
 function resetAll(){
   if(!confirm('すべてのデータを消去して初期状態(サンプル入り)に戻します。よろしいですか?')) return;
