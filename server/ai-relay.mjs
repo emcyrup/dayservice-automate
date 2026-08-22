@@ -6,6 +6,7 @@
  *
  *   POST /ai      {app, kind, payload} → {ok:true, data}
  *   GET  /health  接続テスト用
+ *   GET/POST/DELETE /cases  事業所共有の事例ライブラリ(Firestore。未設定時は無効と応答)
  *
  * 起動: ANTHROPIC_API_KEY=... node ai-relay.mjs
  * 環境変数は .env.example を参照(キー名のみ。実際の値はシークレットストアで管理)
@@ -125,10 +126,59 @@ async function generate(kind, payload) {
   return response.parsed_output;
 }
 
+/* ---------- 事業所共有の事例ストア(Firestore・任意) ---------- */
+let fsdb = null, fsTried = false, fsErr = '';
+async function caseStore() {
+  if (fsTried) return fsdb;
+  fsTried = true;
+  try {
+    const { Firestore } = await import('@google-cloud/firestore');
+    const db = new Firestore();
+    await db.collection('cases').limit(1).get(); // 接続確認
+    fsdb = db;
+    console.log('shared case store: Firestore 接続OK');
+  } catch (e) {
+    fsErr = e.message;
+    console.warn('shared case store unavailable:', e.message);
+  }
+  return fsdb;
+}
+const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+function sanitizeCase(c) {
+  const id = str(c.id, 64) || ('cs' + Date.now());
+  if (!/^[\w-]+$/.test(id)) throw Object.assign(new Error('idの形式が不正です'), { status: 400 });
+  const title = str(c.title, 200).trim(), text = str(c.text, 20000).trim();
+  if (!title || !text) throw Object.assign(new Error('タイトルと本文は必須です'), { status: 400 });
+  return { id, title, text, tags: str(c.tags, 500), src: str(c.src, 1000), ts: Date.now() };
+}
+async function handleCases(req, res, url) {
+  const db = await caseStore();
+  if (!db) { send(res, 503, { ok: false, error: '共有ストアが未設定です(FirestoreをGCPプロジェクトで有効化してください)。端末内のライブラリはそのまま使えます。' }); return; }
+  if (req.method === 'GET') {
+    const snap = await db.collection('cases').orderBy('ts').limit(500).get();
+    send(res, 200, { ok: true, data: snap.docs.map(d => d.data()) });
+  } else if (req.method === 'POST') {
+    let raw = '';
+    req.on('data', c => { raw += c; if (raw.length > 256 * 1024) req.destroy(); });
+    req.on('end', async () => {
+      try {
+        const c = sanitizeCase(JSON.parse(raw || '{}'));
+        await db.collection('cases').doc(c.id).set(c);
+        send(res, 200, { ok: true, data: c });
+      } catch (e) { send(res, e.status || 500, { ok: false, error: e.message }); }
+    });
+  } else if (req.method === 'DELETE') {
+    const id = url.searchParams.get('id') || '';
+    if (!/^[\w-]+$/.test(id)) { send(res, 400, { ok: false, error: 'idが不正です' }); return; }
+    await db.collection('cases').doc(id).delete();
+    send(res, 200, { ok: true });
+  } else send(res, 405, { ok: false, error: 'method not allowed' });
+}
+
 /* ---------- HTTP ---------- */
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-relay-token');
 }
 function send(res, status, body) {
@@ -142,7 +192,16 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (req.method === 'GET' && url.pathname === '/health') {
-    send(res, 200, { ok: true, service: 'kakehashi-ai-relay', model: MODEL, auth: RELAY_TOKEN ? 'token' : 'open' });
+    const cs = await caseStore();
+    send(res, 200, { ok: true, service: 'kakehashi-ai-relay', model: MODEL, auth: RELAY_TOKEN ? 'token' : 'open', share: cs ? 'on' : 'off' });
+    return;
+  }
+  if (url.pathname === '/cases') {
+    if (RELAY_TOKEN && req.headers['x-relay-token'] !== RELAY_TOKEN) {
+      send(res, 401, { ok: false, error: 'アクセストークンが一致しません' }); return;
+    }
+    try { await handleCases(req, res, url); }
+    catch (e) { send(res, 500, { ok: false, error: '共有ストアのエラー: ' + e.message }); }
     return;
   }
   if (req.method === 'POST' && url.pathname === '/ai') {

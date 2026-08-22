@@ -163,7 +163,7 @@
   .scanprev img{display:block;width:100%;max-height:420px;object-fit:contain}
   .scanprev .cap{font-size:12px;color:var(--sub);padding:8px 12px;border-top:1px solid var(--line)}
   .drop{border:2px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;color:var(--sub);font-size:13.5px}
-  .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer}
+  .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer;white-space:nowrap;flex:0 0 auto}
   .ckl input{accent-color:var(--brand);width:16px;height:16px}
   .sheet{font-size:12px}
   .sheet .shead{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:10px}
@@ -685,6 +685,7 @@
       </div>
       <div class="card">
         <div class="subttl">📚 登録済みの事例・記載例 <span class="chip g" id="cs-count"></span></div>
+        <p class="muted" id="cs-share">📱 端末内のみ</p>
         <p class="muted">過去に提出した書類の文例、自治体の手引きの要点、社内の記載ルールなどを貯めておく場所です。<b>ここに貯まるほど下書きの質が上がります。</b>実名・個人情報は入れないでください。<span class="chip y">制度情報</span>は厚労省・自治体の報酬改定情報の要約(原典リンクつき)です。検証版は要約の同梱まで・本番は原典の本文を自動取り込みして検索対象にします。</p>
         <div id="cs-list"></div>
       </div>
@@ -865,7 +866,7 @@ const seed = {
       history:['お粥パック','経口補水液','ティッシュ'],
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
-  reports: [], trips: [], life: [], scans: [], plans: [], moneys: [],
+  reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -931,7 +932,7 @@ let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
-        d.plans=d.plans||[]; d.moneys=d.moneys||[];
+        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -2370,8 +2371,12 @@ function simScore(a,b){
   let n=0; A.forEach(g=>{ if(B.has(g)) n++; });
   return n/Math.sqrt(A.size*B.size);
 }
+function allCases(){
+  const localIds=new Set((db.cases||[]).map(c=>c.id));
+  return (db.cases||[]).concat((db.casesShared||[]).filter(c=>!localIds.has(c.id)).map(c=>Object.assign({shared:true}, c)));
+}
 function searchCases(q, k){
-  return (db.cases||[])
+  return allCases()
     .map(c=>({c, score:simScore(q, c.title+' '+(c.tags||'')+' '+c.text)}))
     .sort((a,b)=>b.score-a.score)
     .slice(0, k||3)
@@ -2382,7 +2387,33 @@ function shinseiSec(s){
   document.querySelectorAll('#v-shinsei [data-shsec]').forEach(el=>{ el.style.display = el.dataset.shsec===s ? '' : 'none'; });
   document.querySelectorAll('#v-shinsei .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
 }
-function renderShinsei(){ renderCaseLib(); caseSearchTest(); }
+function renderShinsei(){ renderCaseLib(); caseSearchTest(); syncCases(); }
+/* ---------- 事業所共有の事例同期(AIサーバ経由・Firestore) ---------- */
+let caseSyncState='none'; // none | on | off
+async function casesApi(method, body, id){
+  const o=db.office||{};
+  if(!o.aiUrl) throw new Error('AIサーバ未設定');
+  const res=await fetch(o.aiUrl.replace(/\/+$/,'')+'/cases'+(id?('?id='+encodeURIComponent(id)):''), {
+    method, headers:Object.assign({'Content-Type':'application/json'}, o.aiToken?{'x-relay-token':o.aiToken}:{}),
+    body: body?JSON.stringify(body):undefined });
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok||!j.ok) throw new Error(j.error||('HTTP '+res.status));
+  return j.data;
+}
+async function syncCases(){
+  const o=db.office||{};
+  const st=document.getElementById('cs-share');
+  if(!o.aiUrl){ caseSyncState='none'; if(st) st.innerHTML='📱 端末内のみ(⚙️設定でAIサーバを設定すると事業所で共有できます)'; return; }
+  try{
+    const data=await casesApi('GET');
+    db.casesShared=data; caseSyncState='on'; save();
+    if(st) st.innerHTML='🌐 <b>事業所で共有中</b>(サーバと同期済み・'+data.length+'件)';
+    renderCaseLib(); caseSearchTest();
+  }catch(e){
+    caseSyncState='off';
+    if(st) st.innerHTML='📱 端末内のみ(共有ストア未設定または接続不可: '+esc(e.message)+')';
+  }
+}
 
 /* ---------- 届出書類の作成 ---------- */
 function tokuteiItems(){
@@ -2447,11 +2478,11 @@ async function genShinsei(){
 /* ---------- 事例ライブラリ ---------- */
 function renderCaseLib(){
   const el=document.getElementById('cs-list'); if(!el) return;
-  const cs=(db.cases||[]).slice().reverse();
+  const cs=allCases().slice().reverse();
   document.getElementById('cs-count').textContent=cs.length+'件';
   el.innerHTML = cs.length ? cs.map(c=>`
     <div class="rec-item" onclick="this.classList.toggle('open')">
-      <div class="h"><span style="font-weight:700">${c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${esc(c.title)}</span>
+      <div class="h"><span style="font-weight:700">${c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${c.shared?'<span class="chip g">🌐共有</span> ':''}${esc(c.title)}</span>
         <span onclick="event.stopPropagation()"><button class="btn mini sec" onclick="delCase('${c.id}')">削除</button></span></div>
       <div class="muted" style="margin-top:2px">${esc(c.tags||'')}</div>
       <div class="body">${esc(c.text)}${c.src?`<div style="margin-top:8px"><a href="${esc(c.src)}" target="_blank" rel="noopener">🔗 原典を開く</a></div>`:''}</div>
@@ -2461,19 +2492,38 @@ function addCase(){
   const title=document.getElementById('cs-title').value.trim();
   const text=document.getElementById('cs-text').value.trim();
   if(!title||!text){ alert('タイトルと本文を入力してください。'); return; }
-  db.cases=db.cases||[];
   const src=document.getElementById('cs-src').value.trim();
-  db.cases.push({id:'cs'+Date.now(), title, tags:document.getElementById('cs-tags').value.trim(), text, src:src||undefined});
-  save();
-  ['cs-title','cs-tags','cs-text','cs-src'].forEach(id=>document.getElementById(id).value='');
-  renderCaseLib(); caseSearchTest();
-  alert('事例をライブラリに追加しました。次回の下書きから参照されます。');
+  const c={id:'cs'+Date.now(), title, tags:document.getElementById('cs-tags').value.trim(), text, src:src||undefined};
+  const done=()=>{
+    save();
+    ['cs-title','cs-tags','cs-text','cs-src'].forEach(id=>document.getElementById(id).value='');
+    renderCaseLib(); caseSearchTest();
+  };
+  if((db.office||{}).aiUrl && caseSyncState==='on'){
+    casesApi('POST', c).then(saved=>{
+      db.casesShared.push(saved); done();
+      alert('事例を事業所の共有ライブラリに追加しました。他の端末からも参照されます。');
+    }).catch(e=>{
+      db.cases=db.cases||[]; db.cases.push(c); done();
+      alert('共有ストアに接続できなかったため、この端末にのみ保存しました('+e.message+')。');
+    });
+  }else{
+    db.cases=db.cases||[]; db.cases.push(c); done();
+    alert('事例をライブラリに追加しました。次回の下書きから参照されます。');
+  }
 }
 function delCase(id){
-  const c=(db.cases||[]).find(x=>x.id===id); if(!c) return;
-  if(!confirm('「'+c.title+'」を削除します。よろしいですか?')) return;
-  db.cases=db.cases.filter(x=>x.id!==id);
-  save(); renderCaseLib(); caseSearchTest();
+  const c=allCases().find(x=>x.id===id); if(!c) return;
+  if(!confirm('「'+c.title+'」を'+(c.shared?'共有ライブラリから':'')+'削除します。よろしいですか?')) return;
+  if(c.shared){
+    casesApi('DELETE', null, id).then(()=>{
+      db.casesShared=db.casesShared.filter(x=>x.id!==id);
+      save(); renderCaseLib(); caseSearchTest();
+    }).catch(e=>alert('共有ストアから削除できませんでした('+e.message+')。'));
+  }else{
+    db.cases=db.cases.filter(x=>x.id!==id);
+    save(); renderCaseLib(); caseSearchTest();
+  }
 }
 function caseSearchTest(){
   const el=document.getElementById('cs-result'); if(!el) return;

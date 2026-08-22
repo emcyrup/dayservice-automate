@@ -95,6 +95,20 @@ curl https://<発行されたURL>/health
 - 更新時は同じ `gcloud run deploy` を再実行するだけ
 - ログ確認: `gcloud run services logs read kakehashi-ai-relay`
 
+## 事例ライブラリの事業所共有(Firestore・任意)
+
+📑申請アシスタントの事例ライブラリを**事業所内の全端末で共有**できます。有効化しない場合は従来どおり端末内保存で動作します。
+
+**GUIでの有効化(5分)**:
+
+1. Google Cloud Console の検索バーで **「Firestore」** を開く → **「データベースを作成」**
+2. モード: **ネイティブ モード** / ロケーション: **asia-northeast1(東京)** → 作成
+3. 以上。リレーサーバが起動時に自動検出します(Cloud Runの実行サービスアカウントに既定の権限があれば追加設定不要。権限エラーが出る場合は IAM で実行SAに **Cloud Datastore ユーザー** ロールを付与)
+4. 確認: `https://<サーバURL>/health` の応答が `"share":"on"` になればOK。アプリの📚事例ライブラリに「🌐 事業所で共有中」と表示されます
+
+- 保存されるのは事例(タイトル・タグ・本文・出典URL)のみ。**利用者の個人情報は保存しない運用**を画面に明記済み
+- API: `GET/POST/DELETE /cases`(RELAY_TOKEN 必須)。1件20,000字・最大500件
+
 ## その他の環境へのデプロイ
 
 Node 20+ が動く環境ならどこでも動きます(Render / Railway / VPS 等)。チェックリスト:
