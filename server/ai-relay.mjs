@@ -5,6 +5,7 @@
  * APIキーはこのサーバの環境変数にのみ置き、フロントエンドには一切出さない。
  *
  *   POST /ai      {app, kind, payload} → {ok:true, data}
+ *                 kind: visit / life / shinsei / shogu / ocr / chat
  *   GET  /health  接続テスト用
  *   GET/POST/DELETE /cases  事業所共有の事例ライブラリ(Firestore。未設定時は無効と応答)
  *
@@ -21,7 +22,18 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 const RELAY_TOKEN = process.env.RELAY_TOKEN || '';          // 設定すると x-relay-token 必須
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';   // 本番では Pages のオリジンに絞る
 
-const client = new Anthropic(); // ANTHROPIC_API_KEY を環境変数から読む
+/* APIキーはリクエスト時にだけ読む。未設定のまま起動していても /health で検知できるようにする */
+const hasKey = () => !!(process.env.ANTHROPIC_API_KEY || '').trim();
+let _client = null;
+function getClient() {
+  if (!hasKey()) {
+    throw Object.assign(new Error(
+      'サーバにAPIキー(ANTHROPIC_API_KEY)が設定されていません。Cloud Runの「変数とシークレット」でシークレットを環境変数 ANTHROPIC_API_KEY として参照し、新しいリビジョンをデプロイしてください。'
+    ), { status: 503 });
+  }
+  if (!_client) _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY.trim() });
+  return _client;
+}
 
 /* ---------- 出力スキーマ(フロントの demoGenerators と同じ形) ---------- */
 const VisitOut = z.object({
@@ -44,6 +56,11 @@ const ShinseiOut = z.object({
   docs: z.array(z.object({ title: z.string(), text: z.string() })).length(3)
     .describe('①介護給付費算定に係る体制等状況一覧表(抜粋) ②特定事業所加算に係る届出書 ③体制要件の整備状況の説明、の3文書'),
 });
+const ChatOut = z.object({
+  answer: z.string().describe('相談への回答。「結論 → 根拠 → 次の一手」の順。見出し記号(#)や太字記号は使わず、短い段落と「・」の箇条書きで書く'),
+  sources: z.array(z.string()).describe('回答に使った社内ライブラリの事例・制度情報のタイトル(使っていなければ空配列)'),
+  followups: z.array(z.string()).max(3).describe('続けて聞くとよい質問の候補(最大3件・各30字以内)'),
+});
 // スキャン(OCR)は帳票種別ごとに項目が異なる
 const ScanFields = {
   visit: z.object({ user: z.string(), date: z.string(), start: z.string(), end: z.string(),
@@ -56,6 +73,14 @@ const ScanFields = {
 
 /* ---------- プロンプト ---------- */
 // システムプロンプトは全リクエストで固定し、プロンプトキャッシュを効かせる
+const SYSTEM_BASE = [
+  'あなたは日本の訪問介護事業所を支援するAIです。介護保険制度・訪問介護の実務に精通しています。',
+  '・介護保険制度・訪問介護の実務用語(身体介護/生活援助/サービス提供責任者/特定事業所加算など)を正しく使う',
+  '・事実は入力に書かれた内容のみ。推測で症状や出来事を作らない',
+  '・敬体(です・ます)で、簡潔な文章にする',
+  '・個人情報の追加生成(住所・実名の補完など)は行わない',
+].join('\n');
+
 const SYSTEM = [
   'あなたは日本の訪問介護事業所を支援する記録作成AIです。',
   '・介護保険制度・訪問介護の実務用語(身体介護/生活援助/サービス提供責任者/特定事業所加算など)を正しく使う',
@@ -63,6 +88,28 @@ const SYSTEM = [
   '・敬体(です・ます)で、現場でそのまま使える簡潔な文章にする',
   '・医療判断はせず、気になる兆候は「確認・共有を推奨」の形で書く',
   '・個人情報の追加生成(住所・実名の補完など)は行わない',
+].join('\n');
+
+/* 事例ブロックの整形。採用実績のある文例は「実際に提出が通った文章」として重みづけを伝える */
+const caseLine = (c) => {
+  const tags = [];
+  if (+c.adopted > 0) tags.push(`過去に${c.adopted}回採用された実績文例`);
+  if (c.shared) tags.push('事業所間で共有された事例');
+  if (c.kind === 'seido') tags.push('制度情報の要約');
+  return `【${c.title}${tags.length ? ' ※' + tags.join('・') : ''}】\n${c.text}`;
+};
+function caseBlock(p) {
+  const secs = p.sections || [];
+  if (secs.length) {
+    return secs.map(s => [`### ${s.label} を書くときの参考`, ...(s.cases || []).map(caseLine)].join('\n')).join('\n\n');
+  }
+  return (p.cases || []).map(caseLine).join('\n');
+}
+const ADOPT_RULE = [
+  '--- 参照した事例の使い方 ---',
+  '・「採用された実績文例」は、この事業所が実際に提出して通った文章です。見出しの立て方・記載の粒度・語彙をできるだけ踏襲し、事業所固有の情報だけを差し替えてください。',
+  '・「事業所間で共有された事例」は他事業所の書き方です。良い構成は取り入れつつ、この事業所の実態と異なる記載はそのまま写さないでください。',
+  '・参照事例に無い項目を勝手に足さないでください。事実は入力された体制情報のみを使います。',
 ].join('\n');
 
 function userPrompt(kind, p) {
@@ -82,7 +129,8 @@ function userPrompt(kind, p) {
     `算定区分の判定: ${JSON.stringify(p.kubun)}`,
     '体制要件の状況(ok=整備済):', ...(p.items || []).map(i => `・${i.n}: ${i.ok ? '整備済' : '未整備'}${i.note ? `(${i.note})` : ''}`),
     '--- 参照する過去事例・制度情報(この文体・構成を土台にする) ---',
-    ...(p.cases || []).map(c => `【${c.title}】${c.text}`),
+    caseBlock(p),
+    ADOPT_RULE,
     '未整備の要件は「整備を進めており届出までに完了させる」旨を明記してください。',
   ].join('\n');
   if (kind === 'shogu') return [
@@ -90,8 +138,21 @@ function userPrompt(kind, p) {
     `事業所: 番号=${p.office?.no || '(未登録)'} 名称=${p.office?.name || '(未登録)'}`,
     `算定する区分: ${p.kubun || '(未選択)'} / 対象職員数: ${p.staffCount || 0}名`,
     '--- 参照する過去事例・制度情報(この文体・構成を土台にする) ---',
-    ...(p.cases || []).map(c => `【${c.title}】${c.text}`),
+    caseBlock(p),
+    ADOPT_RULE,
     '職場環境等要件は区分ごとに必要数が異なるため、取組の例を区分見出しつきで整理してください。',
+  ].join('\n');
+  if (kind === 'chat') return [
+    '訪問介護事業所の職員からの相談です。次の情報を踏まえて回答してください。',
+    '--- この事業所の状況(アプリに登録されている内容) ---',
+    p.context || '(情報なし)',
+    '--- 参照できる社内ライブラリ(事例・制度情報) ---',
+    (p.cases || []).length ? (p.cases || []).map(caseLine).join('\n') : '(関連する事例は見つかりませんでした)',
+    '--- 相談内容 ---',
+    p.question || '',
+    '回答は「結論 → 根拠 → 次の一手」の順で、現場の職員が読んで動ける具体さで書いてください。',
+    '制度の細部・様式・提出期限は保険者や自治体で異なります。断定せず、確認すべき原典や窓口を必ず添えてください。',
+    'ライブラリの内容を使った場合は sources にそのタイトルを入れてください。',
   ].join('\n');
   if (kind === 'ocr') return [
     `添付の手書き帳票(${p.kind})を読み取り、項目に振り分けてください。`,
@@ -107,6 +168,7 @@ function outputFormat(kind, p) {
   if (kind === 'life') return zodOutputFormat(LifeOut);
   if (kind === 'shinsei') return zodOutputFormat(ShinseiOut);
   if (kind === 'shogu') return zodOutputFormat(ShoguOut);
+  if (kind === 'chat') return zodOutputFormat(ChatOut);
   if (kind === 'ocr') {
     const fields = ScanFields[p.kind] || ScanFields.memo;
     return zodOutputFormat(z.object({ note: z.string(), fields }));
@@ -115,7 +177,36 @@ function outputFormat(kind, p) {
 }
 
 /* ---------- Claude 呼び出し ---------- */
+const CHAT_SYSTEM = [
+  SYSTEM_BASE,
+  '',
+  'あなたはいま「相談相手」として呼ばれています。相手はサービス提供責任者・管理者・訪問介護員です。',
+  '・加算/減算の算定要件、届出、実績・請求、記録の書き方、LIFE、日々の運用の悩みに答える',
+  '・このアプリ(CareOne)の使い方を聞かれたら、該当タブの名前を挙げて手順を案内する',
+  '  タブ: 📊ダッシュボード(KPI・要対応・その場でメモ/録音)、📅予定、📋報告(3形態同時生成)、📷スキャン(手書き帳票OCR)、🚗移動、🛒買い物(金銭記録)、🧾請求(単位数計算・明細書・請求前チェック・特定事業所加算の要件チェック)、🧬LIFE、📑申請(届出書類の下書き・事例ライブラリ)、🏡利用者、⚙️設定(事業所情報・単位数マスタ・職員・バックアップ)',
+  '・法令・報酬の解釈は保険者/自治体で運用が異なる。断定せず、確認先(保険者・都道府県の手引き・厚労省の通知やQ&A)を必ず添える',
+  '・医療・法律の個別判断は行わず、専門職や関係機関への確認を促す',
+].join('\n');
+
 async function generate(kind, payload) {
+  if (kind === 'chat') {
+    const hist = (payload.history || []).slice(-8)
+      .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: String(m.text || '').slice(0, 4000) }))
+      .filter(m => m.content);
+    while (hist.length && hist[0].role === 'assistant') hist.shift();
+    const res = await getClient().messages.parse({
+      model: MODEL,
+      max_tokens: 4000,
+      system: [{ type: 'text', text: CHAT_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      messages: [...hist, { role: 'user', content: userPrompt('chat', payload) }],
+      output_config: { format: zodOutputFormat(ChatOut) },
+    });
+    if (res.stop_reason === 'refusal') {
+      throw Object.assign(new Error(res.stop_details?.explanation || '安全上の理由で回答できませんでした'), { status: 422 });
+    }
+    if (!res.parsed_output) throw Object.assign(new Error('回答の形式が不正でした。もう一度お試しください'), { status: 502 });
+    return res.parsed_output;
+  }
   const content = [];
   if (kind === 'ocr' && payload.image) {
     // dataURL → base64 ブロック。画像はこの場で使うだけで保存しない
@@ -125,7 +216,7 @@ async function generate(kind, payload) {
   }
   content.push({ type: 'text', text: userPrompt(kind, payload) });
 
-  const response = await client.messages.parse({
+  const response = await getClient().messages.parse({
     model: MODEL,
     max_tokens: 16000,
     system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
@@ -163,7 +254,9 @@ function sanitizeCase(c) {
   if (!/^[\w-]+$/.test(id)) throw Object.assign(new Error('idの形式が不正です'), { status: 400 });
   const title = str(c.title, 200).trim(), text = str(c.text, 20000).trim();
   if (!title || !text) throw Object.assign(new Error('タイトルと本文は必須です'), { status: 400 });
-  return { id, title, text, tags: str(c.tags, 500), src: str(c.src, 1000), ts: Date.now() };
+  const kind = /^[a-z]{1,16}$/.test(c.kind || '') ? c.kind : '';
+  const adopted = Math.max(0, Math.min(999, Math.floor(+c.adopted || 0)));
+  return { id, title, text, tags: str(c.tags, 500), src: str(c.src, 1000), kind, adopted, ts: Date.now() };
 }
 async function handleCases(req, res, url) {
   const db = await caseStore();
@@ -207,7 +300,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/health') {
     const cs = await caseStore();
-    send(res, 200, { ok: true, service: 'kakehashi-ai-relay', model: MODEL, auth: RELAY_TOKEN ? 'token' : 'open', share: cs ? 'on' : 'off' });
+    send(res, 200, { ok: true, service: 'kakehashi-ai-relay', model: MODEL, auth: RELAY_TOKEN ? 'token' : 'open', share: cs ? 'on' : 'off', key: hasKey() });
     return;
   }
   if (url.pathname === '/cases') {
@@ -250,7 +343,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`kakehashi-ai-relay listening on :${PORT} (model=${MODEL}, auth=${RELAY_TOKEN ? 'token' : 'open'})`);
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.warn('warning: ANTHROPIC_API_KEY が未設定です(ant auth のプロファイルがあればそれを使用します)');
+  if (!hasKey()) {
+    console.error('ERROR: ANTHROPIC_API_KEY が未設定です。/health は応答しますが生成は 503 になります。' +
+      ' Cloud Run の「変数とシークレット」でシークレットを環境変数 ANTHROPIC_API_KEY として参照してください。');
   }
 });
