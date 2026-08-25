@@ -5,7 +5,7 @@
  * APIキーはこのサーバの環境変数にのみ置き、フロントエンドには一切出さない。
  *
  *   POST /ai      {app, kind, payload} → {ok:true, data}
- *                 kind: visit / life / shinsei / shogu / ocr / chat
+ *                 kind: visit / life / keikaku / shinsei / shogu / ocr / chat
  *   GET  /health  接続テスト用
  *   GET/POST/DELETE /cases  事業所共有の事例ライブラリ(Firestore。未設定時は無効と応答)
  *
@@ -50,6 +50,18 @@ const ShoguOut = z.object({
   note: z.string().describe('生成物の取り扱い注意(必ず確認・修正のうえ提出、区分ごとの要件数・様式は年度により異なる等)'),
   docs: z.array(z.object({ title: z.string(), text: z.string() })).length(3)
     .describe('①介護職員等処遇改善加算 計画書(基本情報) ②職場環境等要件の取組 ③賃金改善の内容と周知方法、の3文書'),
+});
+const KeikakuOut = z.object({
+  ikou: z.string().describe('利用者・ご家族の意向。報告文から読み取れる希望・訴え・生活歴を根拠に書く。根拠がなければ「聞き取りが必要」と書き、推測で創作しない'),
+  goalLong: z.string().describe('長期目標(6か月〜1年程度)。ケアプランの目標が渡されていれば必ず整合させる'),
+  goalShort: z.string().describe('短期目標(1〜3か月程度)。達成を確認できる具体的な表現にする'),
+  services: z.array(z.object({
+    when: z.string().describe('曜日・時間帯(例: 月・水・金 9:00〜10:00)。訪問予定が渡されていればそれに合わせる'),
+    kubun: z.enum(['shintai', 'seikatsu', 'both', 'joukou']).describe('サービス区分'),
+    content: z.string().describe('具体的な支援内容と手順。直近の報告から「実際に行われている支援」を抽出して書く'),
+  })).describe('サービス内容。渡された訪問予定と報告の実績にもとづく'),
+  ryui: z.string().describe('留意事項。転倒歴・禁忌・アレルギー・その家のルール・緊急連絡など、渡された情報に含まれるもののみ'),
+  note: z.string().describe('この下書きの根拠と、サービス提供責任者が本人・家族に確認すべき点を2〜3文で'),
 });
 const ShinseiOut = z.object({
   note: z.string().describe('生成物の取り扱い注意(必ず確認・修正のうえ提出、様式は自治体ごとに異なる等)'),
@@ -154,6 +166,24 @@ function userPrompt(kind, p) {
     '制度の細部・様式・提出期限は保険者や自治体で異なります。断定せず、確認すべき原典や窓口を必ず添えてください。',
     'ライブラリの内容を使った場合は sources にそのタイトルを入れてください。',
   ].join('\n');
+  if (kind === 'keikaku') return [
+    '訪問介護計画書の下書きを作成してください。サービス提供責任者が確認・修正して、利用者に説明・交付します。',
+    `利用者: ${p.userName}(${p.care || '要介護度未登録'})${p.note ? ` / ${p.note}` : ''}`,
+    p.cm ? `居宅介護支援事業所: ${p.cm}` : '',
+    '--- 居宅サービス計画(ケアプラン)の目標 ---',
+    `長期目標: ${p.cpLong || '(未入力)'}`,
+    `短期目標: ${p.cpShort || '(未入力)'}`,
+    '--- 訪問予定 ---',
+    ...((p.plans || []).length ? (p.plans || []).map(x => `・${x}`) : ['(登録なし)']),
+    '--- 直近の訪問報告(実際に行っている支援) ---',
+    ...((p.reports || []).length ? (p.reports || []).map((t, i) => `${i + 1}. ${t}`) : ['(記録なし)']),
+    '--- 訪問時の注意(その家のルール) ---',
+    ...((p.rules || []).length ? (p.rules || []).map(x => `・${x}`) : ['(登録なし)']),
+    p.prev ? `--- 前回の計画(見直しの土台) ---\n${p.prev}` : '',
+    '・サービス内容は「実際に行われている支援」を報告から抽出して書き、予定にない支援を勝手に足さないでください。',
+    '・目標はケアプランの目標と矛盾しないようにしてください。',
+    '・医療的な判断・診断は行わず、気になる兆候は「確認・共有を推奨」の形で留意事項に書いてください。',
+  ].filter(Boolean).join('\n');
   if (kind === 'ocr') return [
     `添付の手書き帳票(${p.kind})を読み取り、項目に振り分けてください。`,
     `利用者名は次の登録名から最も近いものを選ぶ: ${(p.users || []).join('、') || '(登録なし)'}`,
@@ -169,6 +199,7 @@ function outputFormat(kind, p) {
   if (kind === 'shinsei') return zodOutputFormat(ShinseiOut);
   if (kind === 'shogu') return zodOutputFormat(ShoguOut);
   if (kind === 'chat') return zodOutputFormat(ChatOut);
+  if (kind === 'keikaku') return zodOutputFormat(KeikakuOut);
   if (kind === 'ocr') {
     const fields = ScanFields[p.kind] || ScanFields.memo;
     return zodOutputFormat(z.object({ note: z.string(), fields }));
