@@ -268,6 +268,20 @@
     </div>
     <div id="home-alerts"></div>
     <div class="card">
+      <div class="subttl">✍️ その場でメモ・録音</div>
+      <p class="muted">移動中や訪問直後に思い出したことを、その場で残せます。あとから📋報告の下書きに送れます。</p>
+      <div class="row" style="margin-bottom:8px">
+        <select id="memo-user" style="flex:1;min-width:150px"></select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea id="memo-text" placeholder="例) 冷蔵庫の牛乳が切れていた。次回買い物で確認。" style="flex:1;min-height:70px"></textarea>
+        <button id="memo-mic" class="mic sm" onclick="toggleDict('memo-mic','memo-text','memo-hint')">🎤</button>
+      </div>
+      <div class="muted" id="memo-hint" style="margin:4px 0 0"></div>
+      <button class="btn" style="margin-top:10px" onclick="saveMemo()">💾 メモを保存</button>
+      <div id="memo-list" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
       <div class="subttl">今日の動き</div>
       <div id="dash-feed"></div>
     </div>
@@ -898,12 +912,16 @@ const seed = {
   users: [
     { id:'u1', name:'佐藤さん', kana:'佐', note:'80代女性・独居。生活援助(調理・掃除・買い物)週3回。',
       hokenNo:'0123456789', care:'要介護2', wari:1, tatemono:0,
+      rules:{ key:'キーボックス(玄関右・番号は事務所で確認)', park:'向かいのコインパーキング',
+              pet:'なし', care:'玄関の段差で転倒歴あり。ゆっくり誘導', contact:'長女 → ケアマネの順' },
       history:['牛乳','食パン','卵','ヨーグルト','バナナ','トイレットペーパー'],
       suggest:[ {item:'牛乳', why:'前回購入から4日。いつもの周期です'},
                 {item:'食パン', why:'ほぼ毎回ご依頼があります'},
                 {item:'トイレットペーパー', why:'前回から3週間。そろそろ切れる頃'} ] },
     { id:'u2', name:'鈴木さん', kana:'鈴', note:'70代ご夫婦。身体介護+買い物支援 週2回。',
       hokenNo:'0123456790', care:'要介護3', wari:1, tatemono:0,
+      rules:{ key:'ご家族が在宅。インターホンで呼び出し', park:'敷地内の空きスペース可',
+              pet:'小型犬1匹(人なつこい)', care:'食事はきざみ食。水分にとろみ剤', contact:'ご主人 → 次男' },
       history:['お茶2L','りんご','味噌','カップ麺','単3電池'],
       suggest:[ {item:'お茶2L', why:'夏場は週2本ペースです'},
                 {item:'りんご', why:'前回「また頼む」とのお話でした'} ] },
@@ -916,7 +934,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -982,7 +1000,7 @@ let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
-        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.staff=d.staff||structuredClone(seed.staff);
+        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1039,6 +1057,7 @@ function renderHome(){
     ...reps.map(r=>({ic:'📋',t:`${user(r.userId)?.name||''} の報告を作成`,s:(r.summary||'').slice(0,36)})),
     ...trips.map(t=>({ic:'🚗',t:`${t.why} ${t.dist}km / ${t.min}分`,s:''}))
   ];
+  renderMemos();
   const alerts=[];
   const pend=db.reports.filter(r=>r.pend).length;
   if(pend) alerts.push({ic:'⏳', t:`AI再生成待ちの報告が ${pend} 件`, d:'電波の悪い場所などで生成に失敗した分。履歴から「🤖再生成」できます', go:'report'});
@@ -1056,6 +1075,8 @@ function renderHome(){
       if(miss) alerts.push({ic:'⭐', t:`特定事業所加算の要件が ${miss} 件未整備`, d:'🧾実績・請求タブの要件チェックで確認・記録してください', go:'billing'});
     }
   }catch(e){}
+  const unusedMemos=(db.memos||[]).filter(m=>!m.used).length;
+  if(unusedMemos) alerts.push({ic:'📝', t:`未反映のメモが ${unusedMemos} 件`, d:'✍️その場でメモから「📋報告へ送る」で下書きに使えます', go:'home'});
   const todayPlans=plansFor(today);
   const undone=todayPlans.filter(p=>!planDone(p, today)).length;
   if(undone) alerts.push({ic:'📅', t:`今日の予定 ${todayPlans.length} 件のうち ${undone} 件が未報告`, d:'📅予定タブから「▶ この予定で報告を作る」で入力できます', go:'plan'});
@@ -1078,6 +1099,7 @@ function fillSelects(){
   const mu=document.getElementById('money-user'); if(mu) mu.innerHTML=opts;
   const tu=document.getElementById('trip-user'); if(tu){ const k=tu.value; tu.innerHTML='<option value="">(利用者を選ばない)</option>'+opts; if(k) tu.value=k; }
   const ku=document.getElementById('kiroku-user'); if(ku){ const k=ku.value; ku.innerHTML=opts; if(k) ku.value=k; }
+  const mo=document.getElementById('memo-user'); if(mo){ const k=mo.value; mo.innerHTML='<option value="">(利用者を選ばない)</option>'+opts; if(k) mo.value=k; }
   const vs=document.getElementById('visit-staff');
   if(vs){ const k=vs.value;
     vs.innerHTML=(db.staff||[]).length
@@ -1607,6 +1629,151 @@ function delUserFromDetail(){
 function editUserFromDetail(){
   go('users');
   editUser(curUser);
+}
+
+/* ---------- デモデータ(初回起動時のみ・日付は相対で生成) ----------
+   ⚙️設定の「🧹 サンプルを削除」で利用者ごと消えます。 */
+function seedDemoData(){
+  if(db.demoSeeded) return;
+  db.demoSeeded = true;
+  if(!db.users.some(u=>u.id==='u1')) { save(); return; }  // サンプル利用者が消えていれば何もしない
+  const dayOf = n => { const d=new Date(); d.setDate(d.getDate()-n);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const st1='st1', st2='st2';
+
+  // --- 報告(直近2週間・3名分) ---
+  const R = [
+    [0, 'u1', st2, '09:00','10:00','seikatsu', '調理(昼・夕の作り置き)と居室の掃除を実施。朝食は全量摂取され、食欲は良好でした。表情も穏やかです。', 60],
+    [0, 'u2', st1, '11:00','11:45','shintai', '入浴介助を実施。浴室の移動時に軽いふらつきがあり、手すりを持つよう声かけしました。念のため次回も注意して観察します。', 45],
+    [1, 'u1', st2, '09:00','10:00','seikatsu', '掃除と洗濯を実施。冷蔵庫の牛乳が残り少なくなっていました。次回の買い物で確認します。', 60],
+    [1, 'u3', st1, '14:00','15:00','both', '通院同行の準備と身支度の介助。体温36.4度。長男さまへ通院結果を申し送りしました。', 60],
+    [3, 'u2', st2, '11:00','11:45','shintai', '入浴介助と整容。血圧は132/78で安定。ご本人から「膝が少し痛む」とのお話がありました。', 45],
+    [4, 'u1', st1, '09:00','10:00','seikatsu', '調理と買い物代行。日中は暑く、水分摂取をこまめに促しました。', 60],
+    [6, 'u3', st2, '14:00','15:00','both', '清拭と更衣の介助。食事はきざみ食を全量摂取。むせ込みはありませんでした。', 60],
+    [7, 'u2', st1, '11:00','11:45','shintai', '入浴介助。浴室で足を滑らせかけたため、マットの位置を調整しました。ご家族にも共有済みです。', 45],
+    [8, 'u1', st2, '09:00','10:00','seikatsu', '掃除・ゴミ出し・調理。特に変わりなくお過ごしです。', 60],
+    [10,'u3', st1, '14:00','15:00','both', '身体介護と居室整理。夜間に何度か目が覚めるとのお話がありました。', 60],
+    [11,'u1', st1, '09:00','10:00','seikatsu', '調理と洗濯。ご本人の希望で味噌汁を薄味に調整しました。', 60],
+    [13,'u2', st2, '11:00','11:45','shintai', '入浴介助。義歯の汚れが気になったため、洗浄をお手伝いしました。', 45],
+  ];
+  R.forEach(([ago, uid, sid, start, end, kubun, text, mins], i)=>{
+    const u=db.users.find(x=>x.id===uid); if(!u) return;
+    const s=db.staff.find(x=>x.id===sid);
+    const good=/(良好|安定|穏やか|全量)/.test(text);
+    const flag=/(ふらつ|痛|滑|むせ|目が覚め|確認します)/.test(text);
+    db.reports.push({
+      id:'demo-r'+i, userId:uid, date:dayOf(ago), start, end, mins, kubun,
+      smins:0, futari:false, kinkyu:false,
+      staffId:sid, staffName:s?s.name:'',
+      src:{text, cond:'良好'},
+      summary:`${u.name}宅で${start}から支援を実施。${text.slice(0,42)}${text.length>42?'…':''} 体調・様子は${good?'良好':'安定'}です。${flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。'}`
+    });
+  });
+
+  // --- 移動 ---
+  [[0,'u1','訪問','3.5',12],[0,'u2','訪問','5.2',18],[0,'u2','買い物支援','2.1',9],
+   [1,'u1','訪問','3.5',12],[1,'u3','通院同行','8.4',25],
+   [3,'u2','訪問','5.2',17],[4,'u1','買い物支援','2.4',10],[6,'u3','訪問','8.4',26]
+  ].forEach(([ago,uid,why,dist,min])=>{
+    db.trips.push({date:dayOf(ago), why, dist, min:String(min), userId:uid});
+  });
+
+  // --- 訪問予定(毎週) ---
+  db.plans.push(
+    {id:'demo-p1', userId:'u1', type:'weekly', days:[1,3,5], start:'09:00', end:'10:00', kubun:'seikatsu'},
+    {id:'demo-p2', userId:'u2', type:'weekly', days:[1,4],   start:'11:00', end:'11:45', kubun:'shintai'},
+    {id:'demo-p3', userId:'u3', type:'weekly', days:[2,5],   start:'14:00', end:'15:00', kubun:'both'}
+  );
+
+  // --- 買い物の金銭記録 ---
+  db.moneys.push(
+    {id:'demo-m1', userId:'u1', date:dayOf(4), azukari:3000, used:2380, receipt:true, memo:'〇〇スーパー。釣り銭は財布へ戻しご本人と確認'},
+    {id:'demo-m2', userId:'u2', date:dayOf(0), azukari:2000, used:1650, receipt:true, memo:'ドラッグストアで日用品'},
+    {id:'demo-m3', userId:'u1', date:dayOf(11), azukari:5000, used:4120, receipt:true, memo:'週末分の食材まとめ買い'}
+  );
+
+  // --- クイックメモ ---
+  db.memos.push(
+    {id:'demo-o1', userId:'u1', date:dayOf(0), time:'10:15', text:'冷蔵庫の牛乳が残り1本。次回の買い物で確認する。', used:false},
+    {id:'demo-o2', userId:'u2', date:dayOf(0), time:'12:05', text:'浴室のマットが滑りやすい。ご家族に相談したほうがよさそう。', used:false},
+    {id:'demo-o3', userId:'', date:dayOf(1), time:'17:40', text:'来週の会議で緊急連絡網の見直しを提案する。', used:true}
+  );
+
+  // --- LIFE評価(u2の3か月前・当月) ---
+  const bi = (v)=>({eat:v,move:v>=10?15:10,groom:5,toilet:v,bath:5,walk:v>=10?15:10,stairs:v,dress:v,bowel:v,urine:v});
+  [[92, 8], [1, 10]].forEach(([ago, v], i)=>{
+    const b=bi(v);
+    const biTotal=Object.values(b).reduce((a,x)=>a+x,0);
+    db.life.push({
+      id:'demo-l'+i, userId:'u2', date:dayOf(ago), bi:b, biTotal,
+      h:'152', w:'46.5', bmi:'20.1',
+      oral:{kobo:false, muse:i===1, yogore:false, gishi:i===1, kansou:false},
+      dbd:[1,0,0,1,0,0,0,0,0,0,0,0,0], dbdTotal:2,
+      vi:[2,2,2,2,1], viTotal:9, meds:'5',
+      note:i===0?'前回評価。状態は安定。':'入浴時のふらつきあり。義歯の汚れも見られたため口腔ケアを強化中。',
+      sub:i===0, subDate:i===0?dayOf(90):''
+    });
+  });
+
+  save();
+}
+
+/* ---------- クイックメモ(ダッシュボード) ---------- */
+let memoHistN=5;
+function saveMemo(){
+  const text=document.getElementById('memo-text').value.trim();
+  if(!text){ alert('メモの内容を入力してください(🎤で音声入力もできます)。'); return; }
+  const uid=document.getElementById('memo-user').value||'';
+  db.memos.push({id:'mo'+Date.now(), userId:uid, date:fullDate(),
+    time:new Date().toTimeString().slice(0,5), text, used:false});
+  save();
+  document.getElementById('memo-text').value='';
+  document.getElementById('memo-hint').textContent='';
+  renderMemos(); renderHome();
+}
+function delMemo(id){
+  const m=(db.memos||[]).find(x=>x.id===id); if(!m) return;
+  if(!confirm('このメモを削除します。よろしいですか?')) return;
+  db.memos=db.memos.filter(x=>x.id!==id);
+  save(); renderMemos(); renderHome();
+}
+function memoToReport(id){
+  const m=(db.memos||[]).find(x=>x.id===id); if(!m) return;
+  go('report');
+  if(m.userId && user(m.userId)){
+    document.getElementById('visit-user').value=m.userId;
+    renderVisitRefs();
+  }
+  const ta=document.getElementById('visit-text');
+  ta.value = ta.value ? ta.value+'\n'+m.text : m.text;
+  ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true}));
+  m.used=true; save(); renderMemos();
+}
+function memoToShop(id){
+  const m=(db.memos||[]).find(x=>x.id===id); if(!m) return;
+  if(!m.userId || !user(m.userId)){ alert('利用者が選ばれていないメモです。編集して利用者を選ぶか、📋報告へ送ってください。'); return; }
+  goShopFor(m.userId);
+  document.getElementById('shop-custom').value=m.text.slice(0,40);
+  m.used=true; save(); renderMemos();
+}
+function renderMemos(){
+  const el=document.getElementById('memo-list'); if(!el) return;
+  const all=(db.memos||[]).slice().reverse();
+  el.innerHTML = all.length ? all.slice(0,memoHistN).map(m=>{
+    const u=m.userId?user(m.userId):null;
+    return `<div class="check-row"><div class="check-ic">${m.used?'✅':'📝'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="t">${esc(m.date.slice(5))} ${esc(m.time||'')}${u?` <span class="chip g">${esc(u.name)}</span>`:' <span class="chip y">利用者なし</span>'}${m.used?' <span class="chip g">反映済み</span>':''}</div>
+        <div class="d">${esc(m.text)}</div>
+        <div class="row" style="margin-top:6px">
+          <button class="btn mini sec" onclick="memoToReport('${m.id}')">📋 報告へ送る</button>
+          <button class="btn mini sec" onclick="memoToShop('${m.id}')">🛒 買い物へ</button>
+          <button class="btn mini sec" onclick="delMemo('${m.id}')">削除</button>
+        </div>
+      </div></div>`;
+  }).join('')
+    + (all.length>memoHistN?`<button class="btn sec" style="width:100%" onclick="memoHistN+=10;renderMemos()">▾ さらに表示(残り ${all.length-memoHistN} 件)</button>`:'')
+    : '<p class="muted">まだメモはありません。気づいたことをその場で残しておくと、報告作成が楽になります。</p>';
 }
 
 /* ---------- 移動の定型ルート ---------- */
@@ -2748,10 +2915,13 @@ function caseSearchTest(){
 /* ---------- 買い物 ---------- */
 function renderShop(){
   const u = user(document.getElementById('shop-user').value) || db.users[0];
-  document.getElementById('shop-history').innerHTML =
-    u.history.map(i=>`<span class="chip btnchip" onclick="addShop('${esc(i)}')">${esc(i)}</span>`).join('');
-  document.getElementById('shop-suggest').innerHTML =
-    u.suggest.map(s=>`<div class="sug-row"><div style="font-size:18px">💡</div><div style="flex:1"><div class="t">${esc(s.item)}</div><div class="d">${esc(s.why)}</div></div><button class="btn mini sec" onclick="addShop('${esc(s.item)}')">追加</button></div>`).join('');
+  const noUser = '<p class="muted">利用者が登録されていません。🏡利用者タブから追加してください。</p>';
+  document.getElementById('shop-history').innerHTML = u
+    ? (u.history||[]).map(i=>`<span class="chip btnchip" onclick="addShop('${esc(i)}')">${esc(i)}</span>`).join('') || '<p class="muted">まだ登録がありません。</p>'
+    : noUser;
+  document.getElementById('shop-suggest').innerHTML = u
+    ? (u.suggest||[]).map(s=>`<div class="sug-row"><div style="font-size:18px">💡</div><div style="flex:1"><div class="t">${esc(s.item)}</div><div class="d">${esc(s.why)}</div></div><button class="btn mini sec" onclick="addShop('${esc(s.item)}')">追加</button></div>`).join('') || '<p class="muted">提案はまだありません。</p>'
+    : '';
   renderShopList();
 }
 document.addEventListener('change', e=>{ if(e.target.id==='shop-user'){ shopSel=[]; renderShop(); } });
@@ -2824,6 +2994,11 @@ function removeSamples(){
     db.reports=db.reports.filter(r=>r.userId!==id);
   });
   db.staff=(db.staff||[]).filter(s=>!['st1','st2'].includes(s.id));
+  db.memos=(db.memos||[]).filter(m=>!['u1','u2','u3'].includes(m.userId) && !String(m.id||'').startsWith('demo-'));
+  db.plans=(db.plans||[]).filter(p=>!['u1','u2','u3'].includes(p.userId));
+  db.moneys=(db.moneys||[]).filter(m=>!['u1','u2','u3'].includes(m.userId));
+  db.trips=(db.trips||[]).filter(t=>!['u1','u2','u3'].includes(t.userId));
+  db.life=(db.life||[]).filter(l=>!['u1','u2','u3'].includes(l.userId));
   save(); renderUsers(); renderStaff(); fillSelects(); renderHome(); renderShop();
 }
 function resetAll(){
@@ -2922,6 +3097,7 @@ function parseTripSpeech(){
 }
 
 /* ---------- 起動 ---------- */
+seedDemoData();
 fillSelects();
 buildTimeSels();
 initSpeech();
