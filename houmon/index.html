@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#1f5f99">
 <title>CareOne ─ 訪問介護業務支援(検証版)</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CareOne">
 </head>
 <body>
 <style>
@@ -221,6 +228,12 @@
   .check-row .t,.sug-row .t{font-weight:700;font-size:14px}
   .check-row .d,.sug-row .d{font-size:12.5px;color:var(--sub);line-height:1.55}
   .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.65;padding:8px 0 4px}
+  .netbar{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:9px 14px;font-size:12.5px;font-weight:700;text-align:center;display:none;line-height:1.5}
+  .netbar.on{display:block}
+  .netbar.off{background:#8a6410;color:#fff}
+  .netbar.upd{background:var(--brand);color:#fff;cursor:pointer;border:none;width:100%}
+  body.hasbar .totop{bottom:68px}
+  body.hasbar main{padding-bottom:64px}
   .totop{position:fixed;bottom:24px;right:max(16px,calc(50% - 284px));width:46px;height:46px;border-radius:50%;border:none;background:var(--brand);color:#fff;font-size:19px;font-weight:700;z-index:35;box-shadow:var(--shadow-lg);cursor:pointer;opacity:0;pointer-events:none;transition:.2s}
   .totop.on{opacity:1;pointer-events:auto}
   @media (min-width:760px) and (max-width:1099px){
@@ -1073,6 +1086,16 @@
       </div>
     </details>
     <details class="acc solo">
+      <summary>📱 アプリとして使う(ホーム画面に追加・オフライン)</summary>
+      <div class="accbody">
+        <p class="muted">ホーム画面に追加すると、アドレスバーのないアプリとして開けます。<b>電波の届かない場所でもアプリが起動</b>し、記録の入力・閲覧・印刷ができます(AI生成だけはオンラインが必要です)。</p>
+        <div id="pwa-state"></div>
+        <button class="btn" id="pwa-install" style="margin-top:12px;display:none" onclick="installPwa()">📲 ホーム画面に追加</button>
+        <div class="banner" id="pwa-ios" style="margin-top:12px;display:none">📱 <b>iPhone / iPad</b>: Safari下部の<b>共有ボタン(□に↑)</b> →「<b>ホーム画面に追加</b>」<br>📱 <b>Android</b>: Chromeのメニュー(⋮) →「<b>アプリをインストール</b>」または「ホーム画面に追加」</div>
+        <button class="btn sec" style="margin-top:12px" onclick="checkUpdate()">🔄 更新を確認</button>
+      </div>
+    </details>
+    <details class="acc solo">
       <summary>🗄 データ管理</summary>
       <div class="accbody">
       <div class="row">
@@ -1090,6 +1113,8 @@
 
 <button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="ページ上部へ">↑</button>
 
+<div id="netbar" class="netbar off">📴 オフラインです ― 記録はこの端末に保存されます(AI生成だけはオンラインが必要です)</div>
+<button id="updbar" class="netbar upd" onclick="applyUpdate()">🔄 新しいバージョンがあります ― タップして更新</button>
 <div class="foot">CareOne 検証版 · AI生成物は必ず人が確認してください</div>
 
 <script>
@@ -4002,6 +4027,92 @@ function exportTeikyoCsv(){
   a.click(); URL.revokeObjectURL(a.href);
 }
 
+/* ============================================================
+   PWA ― ホーム画面に追加・オフライン起動
+   訪問先(マンションの廊下・地下・山間部)で圏外になっても
+   アプリが開けるようにする。記録は元から端末内(localStorage)に保存される。
+   ============================================================ */
+let swReg=null, deferredInstall=null, swVersion='';
+function setBar(id, on){
+  const el=document.getElementById(id); if(!el) return;
+  el.classList.toggle('on', !!on);
+  document.body.classList.toggle('hasbar',
+    ['netbar','updbar'].some(x=>{ const e=document.getElementById(x); return e && e.classList.contains('on'); }));
+}
+function renderNet(){ setBar('netbar', !navigator.onLine); renderPwa(); }
+function applyUpdate(){
+  if(swReg && swReg.waiting) swReg.waiting.postMessage('skipWaiting');
+  location.reload();
+}
+function isStandalone(){
+  try{ return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }
+  catch(e){ return false; }
+}
+function renderPwa(){
+  const el=document.getElementById('pwa-state'); if(!el) return;
+  const swOk = ('serviceWorker' in navigator) && !!swReg;
+  const row=(ic,t,d)=>`<div class="check-row"><div class="check-ic">${ic}</div>
+    <div style="flex:1;min-width:0"><div class="t">${t}</div><div class="d">${d}</div></div></div>`;
+  el.innerHTML =
+    row(isStandalone()?'✅':'🌐', isStandalone()?'アプリとして起動中':'ブラウザで表示中',
+        isStandalone()?'ホーム画面のアイコンから開いています。'
+                      :'ホーム画面に追加すると、アドレスバーのないアプリとして開けます。') +
+    row(swOk?'✅':'⚠️', 'オフライン起動 '+(swOk?'有効':'未対応'),
+        swOk ? '電波の届かない場所でもアプリを開けます。'+(swVersion?`(配信バージョン ${esc(swVersion)})`:'')
+             : 'このブラウザ、またはこの開き方(file:// で直接開いた場合など)では有効にできません。') +
+    row(navigator.onLine?'📶':'📴', navigator.onLine?'オンライン':'オフライン',
+        navigator.onLine ? 'AI生成・事例の共有が使えます。'
+                         : '記録の入力・閲覧・印刷はそのまま使えます。AI生成はオンラインに戻ってからになります。');
+  const b=document.getElementById('pwa-install');
+  if(b) b.style.display = deferredInstall ? '' : 'none';
+  const ios=document.getElementById('pwa-ios');
+  if(ios) ios.style.display = (!deferredInstall && !isStandalone()) ? '' : 'none';
+}
+async function installPwa(){
+  if(!deferredInstall){
+    alert('このブラウザではボタンからの追加に対応していません。ブラウザのメニューから「ホーム画面に追加」を選んでください。'); return;
+  }
+  deferredInstall.prompt();
+  try{ await deferredInstall.userChoice; }catch(e){}
+  deferredInstall=null; renderPwa();
+}
+async function checkUpdate(){
+  if(!swReg){ alert('オフライン起動が有効になっていないため、更新の確認はできません。'); return; }
+  try{ await swReg.update(); }catch(e){}
+  alert('更新を確認しました。新しいバージョンがあれば、画面下に案内が出ます。');
+}
+async function initPwa(){
+  window.addEventListener('online', renderNet);
+  window.addEventListener('offline', renderNet);
+  window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredInstall=e; renderPwa(); });
+  window.addEventListener('appinstalled', ()=>{ deferredInstall=null; renderPwa(); });
+  renderNet();
+  if(!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('message', e=>{
+    const d=e.data||{};
+    if(d.type==='app-updated') setBar('updbar', true);
+    if(d.type==='sw-version'){ swVersion=d.version||''; renderPwa(); }
+  });
+  try{
+    swReg = await navigator.serviceWorker.register('../sw.js');
+    swReg.addEventListener('updatefound', ()=>{
+      const nw=swReg.installing; if(!nw) return;
+      nw.addEventListener('statechange', ()=>{
+        if(nw.state==='installed' && navigator.serviceWorker.controller) setBar('updbar', true);
+      });
+    });
+    const ready=await navigator.serviceWorker.ready;
+    const worker=navigator.serviceWorker.controller || (ready && ready.active);
+    if(worker) worker.postMessage('version');
+  }catch(e){ /* 未対応・file:// などでは何もしない(アプリは通常どおり動く) */ }
+  renderPwa();
+}
+/* ホーム画面のショートカットや #report のようなURLから直接タブを開く */
+function openFromHash(){
+  const h=(location.hash||'').replace(/^#/,'');
+  if(h && document.getElementById('v-'+h)) go(h);
+}
+
 /* ---------- サービス提供記録(利用者宅控え) ---------- */
 function renderKiroku(){
   const u=user(document.getElementById('kiroku-user').value);
@@ -4301,6 +4412,8 @@ initSpeech();
 buildLifeForm();
 renderHome();
 renderShop();
+initPwa();
+openFromHash();
 </script>
 </body>
 </html>
