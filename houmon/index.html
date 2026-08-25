@@ -187,6 +187,14 @@
   .kpi .card{flex:1;text-align:center;margin:0;padding:16px 6px}
   .kpi .n{font-size:24px;font-weight:800;color:var(--brand-d);font-variant-numeric:tabular-nums;line-height:1.2}
   .kpi .l{font-size:11px;color:var(--sub);font-weight:600;margin-top:3px}
+  .msg{display:flex;gap:9px;margin-bottom:14px;align-items:flex-start}
+  .msg .av{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--brand-l);color:var(--brand-d)}
+  .msg .bub{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:13.5px;line-height:1.75}
+  .msg .bub .tx{white-space:pre-wrap;word-break:break-word}
+  .msg.me{flex-direction:row-reverse}
+  .msg.me .av{background:var(--brand);color:#fff}
+  .msg.me .bub{background:var(--brand-l);border-color:color-mix(in srgb, var(--brand) 18%, var(--line));color:var(--brand-d)}
+  .msg .src{font-size:11.5px;color:var(--sub);margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);line-height:1.6}
   .check-row,.sug-row{display:flex;gap:11px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
   .check-row:last-child,.sug-row:last-child{border:none}
   .check-ic{font-size:18px;flex-shrink:0;margin-top:1px}
@@ -230,6 +238,7 @@
 </header>
 <nav class="topnav">
     <button data-t="home" class="on" onclick="go('home')">📊 ダッシュボード</button>
+    <button data-t="chat" onclick="go('chat')">💬 AI相談</button>
     <div class="navsec">日々の支援</div>
     <button data-t="plan" onclick="go('plan')">📅 予定</button>
     <button data-t="report" onclick="go('report')">📋 報告</button>
@@ -261,12 +270,13 @@
       <div class="subttl">クイックアクション</div>
       <div class="grid2">
         <button class="btn" onclick="go('report')">📋 報告を作成</button>
+        <button class="btn sec" onclick="go('chat')">💬 AIに相談</button>
         <button class="btn sec" onclick="go('trip')">🚗 移動を記録</button>
         <button class="btn sec" onclick="go('shop')">🛒 買い物リスト</button>
+        <button class="btn sec" onclick="go('plan')">📅 訪問予定</button>
         <button class="btn sec" onclick="go('users')">🏡 利用者一覧</button>
       </div>
     </div>
-    <div id="home-alerts"></div>
     <div class="card">
       <div class="subttl">✍️ その場でメモ・録音</div>
       <p class="muted">移動中や訪問直後に思い出したことを、その場で残せます。あとから📋報告の下書きに送れます。</p>
@@ -281,9 +291,35 @@
       <button class="btn" style="margin-top:10px" onclick="saveMemo()">💾 メモを保存</button>
       <div id="memo-list" style="margin-top:12px"></div>
     </div>
+    <div id="home-alerts"></div>
     <div class="card">
       <div class="subttl">今日の動き</div>
       <div id="dash-feed"></div>
+    </div>
+  </section>
+
+
+  <!-- ============ AI相談 ============ -->
+  <section id="v-chat" class="view">
+    <h2 class="title">💬 AIに相談</h2>
+    <div class="banner">🧠 加算の要件・届出・請求・記録の書き方・アプリの操作などを相談できます。回答は<b>📚事例ライブラリ(制度情報・過去事例)の検索結果</b>と<b>この事業所の登録内容</b>を踏まえて作られます(RAG構成)。制度の細部・様式・提出期限は保険者や自治体で異なります。<b>最終確認は必ず原典・保険者の手引きで</b>行ってください。</div>
+    <div class="card">
+      <div class="subttl">よくある相談</div>
+      <div id="chat-samples"></div>
+    </div>
+    <div class="card">
+      <div class="subttl">相談する</div>
+      <div id="chat-log"></div>
+      <div style="display:flex;gap:8px;align-items:flex-start;margin-top:12px">
+        <textarea id="chat-q" placeholder="例) 特定事業所加算Ⅱを算定したいのですが、あと何が足りませんか?" style="flex:1;min-height:70px"></textarea>
+        <button id="chat-mic" class="mic sm" onclick="toggleDict('chat-mic','chat-q','chat-hint')">🎤</button>
+      </div>
+      <div class="muted" id="chat-hint" style="margin:4px 0 0"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="chat-send" onclick="sendChat()">📨 相談する</button>
+        <button class="btn sec" onclick="clearChat()">🧹 履歴を消す</button>
+      </div>
+      <p class="muted" style="margin-top:10px">※ AIサーバへ送られるのは、相談内容と<b>事業所の集計情報</b>(利用者数・要介護度の分布・今月の実績件数・体制要件の状況・算定中の加算)だけです。被保険者番号などの個人情報は送りません。</p>
     </div>
   </section>
 
@@ -561,6 +597,8 @@
       <div class="subttl">📤 請求データ</div>
       <div id="bill-preview" style="margin-top:8px"></div>
       <p class="muted" style="margin-top:8px">請求データはコントロール・データ・エンドの3レコード構成で作成します。交換情報識別番号・項目順は正式なインタフェース仕様書に合わせて確定します。</p>
+      <div class="subttl" style="margin-top:20px">📋 国保連へ伝送するために必要なもの</div>
+      <div id="bill-need"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn sec" onclick="exportBillCsv()">⬇ 実績CSV(確認用)</button>
         <button class="btn sec" onclick="exportSeikyuCsv()">⬇ 請求データ(様式準拠・試作)</button>
@@ -667,6 +705,10 @@
         </div>
       </div>
       <div class="card">
+        <div class="subttl">📋 LIFEへ提出するために必要なもの</div>
+        <div id="life-need"></div>
+      </div>
+      <div class="card">
         <div class="subttl">📥 フィードバックの活用(本番機能)</div>
         <p class="muted">LIFEから返るフィードバック票(事業所平均との比較・経時変化)を取り込み、ケアの見直しに使えるようにします。加算の要件は「提出」だけでなく「フィードバックの活用」まで含むため、本番では必須の機能です。</p>
       </div>
@@ -676,7 +718,7 @@
   <!-- ============ 申請アシスタント ============ -->
   <section id="v-shinsei" class="view">
     <h2 class="title noprint">📑 申請アシスタント</h2>
-    <div class="banner noprint">🧠 <b>過去事例や制度情報を「検索して参照しながら」AIが届出書類を下書き</b>します(RAG構成)。専用のAIを新しく学習させるのではなく、📚事例ライブラリに貯めた文例・記載例を都度検索してClaudeに渡す方式のため、<b>事例を追加した瞬間から反映され、制度改定にも事例の入れ替えで追随</b>できます。生成物は必ず確認・修正してから提出してください。</div>
+    <div class="banner noprint">🧠 <b>過去事例や制度情報を「検索して参照しながら」AIが届出書類を下書き</b>します(RAG構成)。専用のAIを新しく学習させるのではなく、📚事例ライブラリに貯めた文例・記載例を<b>文書ごとに検索</b>してClaudeに渡す方式のため、<b>事例を追加した瞬間から反映され、制度改定にも事例の入れ替えで追随</b>できます。<br>生成後に「👍 採用」した文章は<b>採用実績つきで貯まり、次回の下書きが優先的にその構成を踏襲</b>します。AIサーバに共有ストアを設定していれば、<b>他の事業所が採用した文例も検索対象</b>になります。生成物は必ず確認・修正してから提出してください。</div>
     <div class="subnav noprint">
       <button data-s="make" class="on" onclick="shinseiSec('make')">📄 届出書類の作成</button>
       <button data-s="lib" onclick="shinseiSec('lib')">📚 事例ライブラリ</button>
@@ -708,8 +750,12 @@
         <div id="sh-note" class="noprint"></div>
         <div id="sh-out" class="sheet"></div>
       </div>
+      <div class="card noprint" id="sh-adopt-card" style="display:none">
+        <div class="subttl">④ 採用して次回に活かす</div>
+        <div id="sh-adopt"></div>
+      </div>
       <div class="card noprint" id="sh-todo-card" style="display:none">
-        <div class="subttl">④ 添付書類・提出前チェック</div>
+        <div class="subttl">⑤ 添付書類・提出前チェック</div>
         <div id="sh-todo"></div>
       </div>
     </div>
@@ -724,7 +770,7 @@
       <div class="card">
         <div class="subttl">📚 登録済みの事例・記載例 <span class="chip g" id="cs-count"></span></div>
         <p class="muted" id="cs-share">📱 端末内のみ</p>
-        <p class="muted">過去に提出した書類の文例、自治体の手引きの要点、社内の記載ルールなどを貯めておく場所です。<b>ここに貯まるほど下書きの質が上がります。</b>実名・個人情報は入れないでください。<span class="chip y">制度情報</span>は厚労省・自治体の報酬改定情報の要約(原典リンクつき)です。検証版は要約の同梱まで・本番は原典の本文を自動取り込みして検索対象にします。</p>
+        <p class="muted">過去に提出した書類の文例、自治体の手引きの要点、社内の記載ルールなどを貯めておく場所です。<b>ここに貯まるほど下書きの質が上がります。</b>📄届出書類の作成で「👍 採用」した文章は<span class="chip g">👍採用 n回</span>つきでここに貯まり、次回の下書きで優先的に参照されます。実名・個人情報は入れないでください。<span class="chip y">制度情報</span>は厚労省・自治体の報酬改定情報の要約(原典リンクつき)です。検証版は要約の同梱まで・本番は原典の本文を自動取り込みして検索対象にします。</p>
         <div id="cs-list"></div>
       </div>
       <div class="card">
@@ -772,6 +818,21 @@
               <option value="12">同一建物の利用者が90％以上(−12％)</option>
             </select></div>
         </div>
+        <div class="grid2">
+          <div><label class="fld">氏名カナ</label><input type="text" id="uf-kananame" placeholder="例: エーサン"></div>
+          <div><label class="fld">性別</label>
+            <select id="uf-sex"><option value="">(未選択)</option><option>女</option><option>男</option></select></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld">生年月日</label><input type="date" id="uf-birth"></div>
+          <div><label class="fld">保険者番号(空欄なら事業所設定を使用)</label><input type="text" id="uf-hokensha" placeholder="例: 131059"></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld">認定有効期間(開始)</label><input type="date" id="uf-nintei-from"></div>
+          <div><label class="fld">認定有効期間(終了)</label><input type="date" id="uf-nintei-to"></div>
+        </div>
+        <label class="fld">居宅介護支援事業所番号(ケアプラン作成事業所)</label><input type="text" id="uf-kyotaku" placeholder="例: 1370100002">
+        <p class="muted">氏名カナ・生年月日・性別・認定有効期間・居宅介護支援事業所番号は、<b>国保連への請求データとLIFEの提出データに必要</b>な項目です。未入力でも検証版の金額計算はできますが、🧾請求タブの「必要情報チェック」に表示されます。</p>
         <div class="subttl" style="margin-top:14px">🏠 訪問時の注意(その家のルール)</div>
         <p class="muted">代替訪問・急な担当変更のときに最初に見る情報です。分かる範囲で構いません。</p>
         <div class="grid2">
@@ -912,6 +973,7 @@ const seed = {
   users: [
     { id:'u1', name:'佐藤さん', kana:'佐', note:'80代女性・独居。生活援助(調理・掃除・買い物)週3回。',
       hokenNo:'0123456789', care:'要介護2', wari:1, tatemono:0,
+      kanaName:'サトウ', birth:'1941-05-12', sex:'女', ninteiFrom:'2025-04-01', ninteiTo:'2027-03-31', kyotakuNo:'1370100002', hokenshaNo:'',
       rules:{ key:'キーボックス(玄関右・番号は事務所で確認)', park:'向かいのコインパーキング',
               pet:'なし', care:'玄関の段差で転倒歴あり。ゆっくり誘導', contact:'長女 → ケアマネの順' },
       history:['牛乳','食パン','卵','ヨーグルト','バナナ','トイレットペーパー'],
@@ -920,6 +982,7 @@ const seed = {
                 {item:'トイレットペーパー', why:'前回から3週間。そろそろ切れる頃'} ] },
     { id:'u2', name:'鈴木さん', kana:'鈴', note:'70代ご夫婦。身体介護+買い物支援 週2回。',
       hokenNo:'0123456790', care:'要介護3', wari:1, tatemono:0,
+      kanaName:'スズキ', birth:'1949-11-03', sex:'男', ninteiFrom:'2025-07-01', ninteiTo:'2027-06-30', kyotakuNo:'1370100002', hokenshaNo:'',
       rules:{ key:'ご家族が在宅。インターホンで呼び出し', park:'敷地内の空きスペース可',
               pet:'小型犬1匹(人なつこい)', care:'食事はきざみ食。水分にとろみ剤', contact:'ご主人 → 次男' },
       history:['お茶2L','りんご','味噌','カップ麺','単3電池'],
@@ -927,6 +990,7 @@ const seed = {
                 {item:'りんご', why:'前回「また頼む」とのお話でした'} ] },
     { id:'u3', name:'高橋さん', kana:'高', note:'90代男性・長男と同居。通院同行 月2回+生活援助。',
       hokenNo:'0123456791', care:'要介護4', wari:2, tatemono:0,
+      kanaName:'タカハシ', birth:'1933-02-20', sex:'男', ninteiFrom:'2025-10-01', ninteiTo:'2026-09-30', kyotakuNo:'1370100003', hokenshaNo:'',
       history:['お粥パック','経口補水液','ティッシュ'],
       suggest:[ {item:'経口補水液', why:'暑い時期の水分補給に。前回から10日'} ] },
   ],
@@ -934,7 +998,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -1000,7 +1064,8 @@ let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
-        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[];
+        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[];
+        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1011,7 +1076,8 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         if(of.gyakutai!==undefined){ setRate('119101', -1, !!of.gyakutai); delete of.gyakutai; }
         if(of.bcp!==undefined){ setRate('119201', -1, !!of.bcp); delete of.bcp; }
         if(of.shogu!==undefined){ setRate('116501', +of.shogu||0, +of.shogu>0); delete of.shogu; }
-        d.users.forEach(u=>{ u.care=u.care||'要介護1'; u.wari=u.wari||1; u.tatemono=u.tatemono||0; u.hokenNo=u.hokenNo||''; u.rules=u.rules||{}; });
+        d.users.forEach(u=>{ u.care=u.care||'要介護1'; u.wari=u.wari||1; u.tatemono=u.tatemono||0; u.hokenNo=u.hokenNo||''; u.rules=u.rules||{};
+          ['kanaName','birth','sex','ninteiFrom','ninteiTo','kyotakuNo','hokenshaNo'].forEach(k=>{ u[k]=u[k]||''; }); });
         d.reports.forEach(r=>{ r.kubun=r.kubun||'shintai'; }); d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function user(id){ return db.users.find(u=>u.id===id); }
@@ -1030,6 +1096,7 @@ function switchView(t, navKey){
 function go(t){
   switchView(t);
   if(t==='home') renderHome();
+  if(t==='chat') renderChat();
   if(t==='plan') renderPlan();
   if(t==='report'){ renderReports(); renderVisitRefs(); }
   if(t==='trip'){ renderTrips(); renderTripRoute(); }
@@ -1131,7 +1198,9 @@ async function callAI(kind, payload){
       return j.data;
     }catch(e){
       aiFallback=true;
-      alert('AIサーバに接続できませんでした('+(e.name==='AbortError'?'タイムアウト':e.message)+')。今回はデモ生成で表示します。保存すると履歴から「🤖再生成」できます。');
+      alert('AIサーバで生成できませんでした。\n\n理由: '+(e.name==='AbortError'?'タイムアウト(120秒)':e.message)
+        +'\n\n今回はデモ生成で表示します(報告は保存後に履歴から「🤖再生成」できます)。'
+        +'\n⚙️設定→AIサーバの「接続テスト」で、サーバの状態とAPIキーの設定を確認できます。');
     }
   }
   await new Promise(r=>setTimeout(r, 700));
@@ -1146,15 +1215,53 @@ async function testAI(){
       const token=document.getElementById('of-aitoken').value.trim();
       const res=await fetch(url.replace(/\/+$/,'')+'/health', {headers: token?{'x-relay-token':token}:{}});
       const j=await res.json();
-      el.innerHTML = j.ok
-        ? `<div class="banner">✅ 接続できました(モデル: ${esc(j.model||'?')} / 認証: ${j.auth==='token'?'トークンあり':'なし'})。保存すると次の生成からClaudeが使われます。</div>`
-        : `<div class="banner">⚠️ サーバは応答しましたが形式が想定と異なります。</div>`;
+      if(!j.ok){ el.innerHTML='<div class="banner">⚠️ サーバは応答しましたが形式が想定と異なります。</div>'; return; }
+      if(j.key===false){
+        el.innerHTML='<div class="banner">⚠️ <b>サーバには接続できましたが、APIキーが設定されていません。</b>'
+          +'このまま保存しても、生成のたびに失敗してデモ生成に切り替わります。'
+          +'<br>Cloud Runのサービス →「新しいリビジョンの編集とデプロイ」→「変数とシークレット」で、'
+          +'シークレットを<b>環境変数 ANTHROPIC_API_KEY</b> として参照し、デプロイし直してください。'
+          +'(ボリュームとしてマウントすると環境変数にはなりません)</div>';
+        return;
+      }
+      el.innerHTML='<div class="banner safe">✅ 接続できました(モデル: '+esc(j.model||'?')
+        +' / 認証: '+(j.auth==='token'?'トークンあり':'なし')
+        +' / APIキー: '+(j.key===undefined?'不明(サーバが古い可能性)':'設定済み')
+        +' / 事例の事業所共有: '+(j.share==='on'?'有効':'未設定')
+        +')。保存すると次の生成からClaudeが使われます。</div>';
     }catch(e){
       el.innerHTML=`<div class="banner">❌ 接続できません(${esc(e.message)})。URL・サーバの起動・CORS設定(ALLOWED_ORIGIN)を確認してください。</div>`;
     }
   });
 }
 const demoGenerators = {
+  chat({question, cases}){
+    const q=question||'';
+    const has=re=>re.test(q);
+    let a;
+    if(has(/特定事業所/)){
+      const miss=tokuteiItems().filter(i=>!i.ok), kb=tokuteiKubunNow();
+      a='【結論】いまの登録内容では、区分の判定は「'+kb.kubun+'」です。\n\n【根拠】体制要件は'
+        +(miss.length? miss.length+'項目が未整備です('+miss.map(i=>i.n).join(' / ')+')' : 'すべて整備済みです')
+        +'。人材要件(介護福祉士の割合30%以上)は'+(kb.jinzaiOk?'充足':'未充足')+'です。\n\n【次の一手】🧾請求タブの「特定事業所加算 要件チェック」で未整備の項目を記録し、📑申請タブで届出一式を下書きしてください。届出は原則、算定開始月の前月15日まで(保険者により異なります)。';
+    }else if(has(/生活援助|20分|所要時間|短時間/)){
+      a='【結論】生活援助は20分未満だと算定できません。身体介護は20分未満でも一定の要件下で算定できます。\n\n【根拠】報酬は所要時間区分ごとに設定されており、⚙️設定の単位数マスタでは 生活援助20分以上45分未満=179単位、45分以上=220単位 としています(暫定値)。\n\n【次の一手】🧾請求タブの請求前チェックに「算定できない訪問あり」と出ていないか確認してください。出ている場合は📋報告の開始・終了時刻を実態に合わせて修正します。';
+    }else if(has(/同一建物|減算/)){
+      a='【結論】同一建物等減算は、事業所と同一敷地内・隣接地の建物に住む利用者などに訪問した場合の減算です。\n\n【根拠】区分により減算率が異なり、令和6年度改定では「正当な理由なく利用が集中している場合(-12%)」が追加されました。\n\n【次の一手】🏡利用者タブで対象者の「同一建物区分」を設定すると、🧾請求の計算に自動反映されます。区分の判断は保険者の手引きでご確認ください。';
+    }else if(has(/LIFE|科学的介護/)){
+      a='【結論】訪問介護は現時点でLIFEの対象外です。このアプリのLIFE機能は先行実装です。\n\n【根拠】LIFE関連加算の対象は施設系・通所系・居住系などで、訪問系は含まれていません。\n\n【次の一手】通所介護などを併設していて法人単位でLIFEを運用する場合や、将来の対象拡大に備える場合に🧬LIFEタブをお使いください。日々の報告からAIが評価を下書きできます。';
+    }else if(has(/処遇改善/)){
+      a='【結論】処遇改善加算は「計画書を年度当初までに提出 → 年度終了後に実績報告」という流れです。\n\n【根拠】令和6年度改定で3加算が「介護職員等処遇改善加算(Ⅰ〜Ⅳ)」に一本化されました。区分ごとに職場環境等要件の必要数が異なります。\n\n【次の一手】📑申請タブで様式を「介護職員等処遇改善加算 計画書」に切り替えると、基本情報・職場環境等要件・賃金改善の3文書を下書きできます。提出期限・様式は提出先の手引きでご確認ください。';
+    }else if(has(/返戻|請求|国保連|伝送/)){
+      a='【結論】返戻の多くは「被保険者番号・認定情報の不一致」「限度額超過」「体制届の未提出」で起きます。\n\n【根拠】請求データは事業所情報と利用者の保険情報が揃っていないと受け付けられません。\n\n【次の一手】🧾請求タブの「請求前チェック」で⛔が出ていないか確認してください。⚙️設定の事業所番号・保険者番号、🏡利用者の被保険者番号・要介護度・認定有効期間の登録が前提です。';
+    }else if(has(/報告|記録|書き方|まとめて/)){
+      a='【結論】📋報告タブで一度入力すれば、正式報告書・記録アプリ用・サ責向け要約の3つが同時にできます。\n\n【根拠】「いつ・誰に・何をしたか」と「利用者の様子」「特記事項」が揃っていれば、実地指導でも請求でも通用する記録になります。\n\n【次の一手】移動中に気づいたことは📊ダッシュボードの「✍️その場でメモ・録音」に残し、報告作成時に「📋報告へ送る」で下書きに反映してください。';
+    }else{
+      a='【結論】この検証版では、代表的な相談にだけデモ回答を返します。\n\n【根拠】⚙️設定でAIサーバ(Claude)を設定すると、事例ライブラリの検索結果とこの事業所の登録内容を踏まえた回答に切り替わります。\n\n【次の一手】上の「よくある相談」のボタンをお試しください。';
+    }
+    return {answer:a, sources:(cases||[]).slice(0,2).map(c=>c.title),
+            followups:['この内容を届出書類に反映できますか?','根拠となる通知はどこで確認できますか?']};
+  },
   visit({userName, text, cond, start, end, staff}){
     const t = text.trim() || '生活援助を実施。';
     const good = /(元気|食欲|笑|安定|良好)/.test(t);
@@ -1711,11 +1818,89 @@ function seedDemoData(){
       dbd:[1,0,0,1,0,0,0,0,0,0,0,0,0], dbdTotal:2,
       vi:[2,2,2,2,1], viTotal:9, meds:'5',
       note:i===0?'前回評価。状態は安定。':'入浴時のふらつきあり。義歯の汚れも見られたため口腔ケアを強化中。',
-      sub:i===0, subDate:i===0?dayOf(90):''
+      sub:i===0?dayOf(90):''
     });
   });
 
   save();
+}
+
+/* ---------- 💬 AI相談(事例ライブラリを検索して答えるチャット) ---------- */
+const CHAT_SAMPLES = [
+  '特定事業所加算Ⅱを算定したいのですが、あと何が足りませんか?',
+  '生活援助20分未満は算定できますか?',
+  '同一建物等減算はどんなときに何%引かれますか?',
+  '訪問介護でもLIFEの提出は必要ですか?',
+  '処遇改善加算の実績報告はいつまでに何を出しますか?',
+  '返戻になりにくい報告書の書き方を教えてください',
+  '報告をまとめて作るにはどう操作しますか?'
+];
+function chatContext(){
+  const o=db.office||{}, ym=fullDate().slice(0,7);
+  const rs=db.reports.filter(r=>r.date.slice(0,7)===ym);
+  const kb=tokuteiKubunNow();
+  const care={}; db.users.forEach(u=>{ const k=u.care||'未設定'; care[k]=(care[k]||0)+1; });
+  const on=activeMaster(ym).filter(m=>m.on!==false&&(m.kind==='add'||m.kind==='rate')).map(m=>m.name);
+  return [
+    `事業所名: ${o.name||'(未登録)'} / 事業所番号: ${o.no?'登録済':'未登録'} / 保険者番号: ${o.city?'登録済':'未登録'} / 単位単価: ${+o.tanka||10}円`,
+    `利用者: ${db.users.length}名(${Object.keys(care).map(k=>k+' '+care[k]+'名').join('、')||'なし'})`,
+    `職員: ${(db.staff||[]).length}名`,
+    `${ym}の実績: 報告${rs.length}件 / 提供時間 合計${rs.reduce((a,r)=>a+(r.mins||0),0)}分`,
+    `特定事業所加算の現在の判定: ${kb.kubun}${kb.rate?'('+kb.rate+')':''} ― 体制要件${kb.taiseiOk?'充足':'未充足'} / 人材要件(介護福祉士割合30%以上)${kb.jinzaiOk?'充足':'未充足'}`,
+    `体制要件: ${tokuteiItems().map(i=>i.n+'='+(i.ok?'整備済':'未整備')).join(' / ')}`,
+    `算定ONの加算・減算: ${on.join('、')||'なし'}`,
+    `LIFE評価: ${(db.life||[]).length}件登録 / 事例ライブラリ: ${allCases().length}件`
+  ].join('\n');
+}
+function askChat(x){
+  const q = typeof x==='number' ? CHAT_SAMPLES[x] : x;
+  switchView('chat');
+  document.getElementById('chat-q').value=q;
+  return sendChat();
+}
+function clearChat(){
+  if(!(db.chat||[]).length) return;
+  if(!confirm('相談の履歴を消します。よろしいですか?')) return;
+  db.chat=[]; save(); renderChat();
+}
+async function sendChat(){
+  const ta=document.getElementById('chat-q');
+  const q=ta.value.trim();
+  if(!q){ alert('相談したいことを入力してください(🎤で音声入力もできます)。'); return; }
+  db.chat=db.chat||[];
+  const hist=db.chat.slice(-8).map(m=>({role:m.role==='me'?'user':'ai', text:m.text}));
+  db.chat.push({role:'me', text:q, ts:Date.now()});
+  ta.value=''; save(); renderChat();
+  const hits=searchCases(q, 4);
+  await withLoading('chat-send','考えています…', async()=>{
+    let r;
+    try{
+      r=await callAI('chat', {question:q, context:chatContext(), cases:hits.map(h=>h.c), history:hist});
+    }catch(e){
+      db.chat.push({role:'ai', text:'回答を作れませんでした('+(e.message||e)+')。もう一度お試しください。', ts:Date.now()});
+      save(); renderChat(); return;
+    }
+    db.chat.push({role:'ai', text:r.answer||'', ts:Date.now(),
+      refs:hits.map(h=>({title:h.c.title, src:h.c.src||''})),
+      followups:(r.followups||[]).slice(0,3),
+      demo: aiFallback || !(db.office||{}).aiUrl});
+    save(); renderChat();
+  });
+}
+function renderChat(){
+  const sp=document.getElementById('chat-samples');
+  if(sp) sp.innerHTML=CHAT_SAMPLES.map((s,i)=>`<span class="chip btnchip" onclick="askChat(${i})">${esc(s)}</span>`).join(' ');
+  const el=document.getElementById('chat-log'); if(!el) return;
+  const ms=db.chat||[];
+  el.innerHTML = ms.length ? ms.map(m=>{
+    if(m.role==='me') return `<div class="msg me"><div class="av">👤</div><div class="bub"><div class="tx">${esc(m.text)}</div></div></div>`;
+    const refs=(m.refs||[]).filter(r=>r.title);
+    const parts=[`<div class="tx">${esc(m.text)}</div>`];
+    if(m.demo) parts.push('<div class="src">🧪 デモ回答です。⚙️設定でAIサーバを設定するとClaudeが回答します。</div>');
+    if(refs.length) parts.push('<div class="src">📚 参照した事例: '+refs.map(r=>esc(r.title)+(r.src?` <a href="${esc(r.src)}" target="_blank" rel="noopener">🔗</a>`:'')).join(' / ')+'</div>');
+    if((m.followups||[]).length) parts.push('<div style="margin-top:9px">'+m.followups.map(f=>`<span class="chip btnchip" data-q="${esc(f)}" onclick="askChat(this.dataset.q)">${esc(f)}</span>`).join(' ')+'</div>');
+    return `<div class="msg"><div class="av">🤖</div><div class="bub">${parts.join('')}</div></div>`;
+  }).join('') : '<p class="muted">まだ相談はありません。上の「よくある相談」から選ぶか、下の欄に入力してください。</p>';
 }
 
 /* ---------- クイックメモ(ダッシュボード) ---------- */
@@ -2128,7 +2313,72 @@ function renderBilling(){
   renderBillPreview(ym);
   renderDiff();
   renderTokutei();
+  renderBillNeed(ym);
   billSec(billSecCur());
+}
+
+
+/* ---------- 提出・伝送に必要な情報のチェック ---------- */
+const NEED_USER = [
+  {k:'hokenNo',    n:'被保険者番号',    kokuho:true,  life:true},
+  {k:'kanaName',   n:'氏名カナ',        kokuho:true,  life:true},
+  {k:'birth',      n:'生年月日',        kokuho:true,  life:true},
+  {k:'sex',        n:'性別',            kokuho:true,  life:true},
+  {k:'ninteiFrom', n:'認定有効期間(開始)', kokuho:true, life:false},
+  {k:'ninteiTo',   n:'認定有効期間(終了)', kokuho:true, life:false},
+  {k:'kyotakuNo',  n:'居宅介護支援事業所番号', kokuho:true, life:false}
+];
+function missingUserFields(u, mode){
+  return NEED_USER.filter(f=>f[mode] && !String(u[f.k]||'').trim()).map(f=>f.n);
+}
+function needRow(ic, t, d){
+  return `<div class="check-row"><div class="check-ic">${ic}</div><div style="flex:1;min-width:0">
+    <div class="t">${esc(t)}</div><div class="d">${d}</div></div></div>`;
+}
+function renderBillNeed(ym){
+  const el=document.getElementById('bill-need'); if(!el) return;
+  const o=db.office||{}, rows=[];
+  rows.push(needRow(o.no?'✅':'⛔', '事業所番号(10桁)', o.no?esc(o.no):'⚙️設定→事業所情報 で登録してください。請求データの送付元になります。'));
+  rows.push(needRow(o.city?'✅':'⛔', '保険者番号(6桁)', o.city?esc(o.city):'⚙️設定→事業所情報 で登録してください。利用者ごとに異なる場合は🏡利用者側に登録します。'));
+  rows.push(needRow('ℹ️', 'サービス種別コード', '訪問介護は「11」。請求データのサービスコード先頭2桁として使われます(検証版は固定)。'));
+  rows.push(needRow((+o.tanka)?'✅':'⚠️', '地域区分の単位単価', (+o.tanka)?(o.tanka+'円 / 単位'):'未設定のため10円で計算しています。⚙️設定で地域区分に応じた単価を登録してください。'));
+  const bad=db.users.map(u=>({u, miss:missingUserFields(u,'kokuho')})).filter(x=>x.miss.length);
+  rows.push(bad.length
+    ? needRow('⚠️', `利用者情報が不足しています(${bad.length}名)`,
+        bad.map(x=>`<b>${esc(x.u.name)}</b>: ${esc(x.miss.join('・'))}`).join('<br>')+'<br>🏡利用者タブの「編集」から登録してください。')
+    : needRow('✅', '利用者情報', '請求に必要な項目はすべて登録されています。'));
+  const exp=db.users.filter(u=>u.ninteiTo && u.ninteiTo < ym+'-01');
+  if(exp.length) rows.push(needRow('⛔', '認定有効期間が切れている利用者がいます',
+    exp.map(u=>`${esc(u.name)}(〜${esc(u.ninteiTo)})`).join('、')+' ― 返戻の主因です。更新後の認定情報に更新してください。'));
+  rows.push(needRow('ℹ️', 'アプリの外で準備するもの',
+    '① <b>電子証明書</b>(介護保険証明書。電子請求受付システムでオンライン申請 → 発行手数料・有効期間3年)<br>'
+    +'② 電子請求受付システムの<b>ユーザID・パスワード</b>(国保連から通知)<br>'
+    +'③ 代理請求する場合は<b>代理人申請</b>と委任状<br>'
+    +'④ <b>体制届(介護給付費算定に係る体制等に関する届出)</b>の提出済みであること ― 未提出の加算は返戻になります'));
+  rows.push(needRow('🗓', '提出期限', 'サービス提供月の<b>翌月1日〜10日</b>に伝送します(10日が休日の場合も期限は変わりません)。'));
+  el.innerHTML=rows.join('');
+}
+function renderLifeNeed(){
+  const el=document.getElementById('life-need'); if(!el) return;
+  const o=db.office||{}, rows=[];
+  rows.push(needRow(o.no?'✅':'⛔', '事業所番号(10桁)', o.no?esc(o.no):'⚙️設定→事業所情報 で登録してください。'));
+  rows.push(needRow('ℹ️', 'LIFEのアカウント',
+    '介護サービス情報公表システムの<b>電子請求受付システムのID</b>でLIFEにログインします。'
+    +'管理者アカウントで<b>操作職員(ケア記録責任者など)</b>を登録し、利用者情報を作成しておく必要があります。'));
+  const bad=db.users.map(u=>({u, miss:missingUserFields(u,'life')})).filter(x=>x.miss.length);
+  rows.push(bad.length
+    ? needRow('⚠️', `利用者情報が不足しています(${bad.length}名)`,
+        bad.map(x=>`<b>${esc(x.u.name)}</b>: ${esc(x.miss.join('・'))}`).join('<br>')+'<br>🏡利用者タブの「編集」から登録してください。')
+    : needRow('✅', '利用者情報', 'LIFE提出に必要な項目はすべて登録されています。'));
+  rows.push(needRow('ℹ️', '評価データ',
+    '様式ごとに<b>評価日</b>と項目一式が必要です。このアプリではADL(Barthel Index)・栄養(BMI)・口腔・DBD13・意欲(Vitality Index)・薬剤数を持っています。'
+    +'本番では厚労省の<b>LIFE CSV連携仕様書</b>の項目定義・コード表に合わせて確定します。'));
+  rows.push(needRow('🗓', '提出の頻度・期限',
+    '原則<b>3か月に1回</b>。加算算定月は、サービス提供月の<b>翌月10日まで</b>に提出します。'
+    +'提出だけでなく<b>フィードバック票の活用</b>まで含めて算定要件です。'));
+  rows.push(needRow('⚠️', '訪問介護は現在LIFEの対象外',
+    'LIFE関連加算の対象は施設系・通所系・居住系などです。この機能は将来の対象拡大と法人一括運用に備えた<b>先行実装</b>です。'));
+  el.innerHTML=rows.join('');
 }
 
 function renderBillCheck(ym, list){
@@ -2136,7 +2386,10 @@ function renderBillCheck(ym, list){
   if(!o.no||!o.name) rows.push({ic:'⛔', t:'事業所情報が未登録', d:'⚙️設定で事業所番号・事業所名を登録してください。'});
   if(!(+o.tanka)) rows.push({ic:'⚠️', t:'単位単価が未設定', d:'⚙️設定で地域区分の単位単価を登録してください(未設定時は10円で計算)。'});
   list.forEach(r=>{
-    if(!r.u.hokenNo) rows.push({ic:'⛔', t:`${r.u.name}: 被保険者番号が未登録`, d:'⚙️設定の利用者情報に登録してください。'});
+    if(!r.u.hokenNo) rows.push({ic:'⛔', t:`${r.u.name}: 被保険者番号が未登録`, d:'🏡利用者タブの「編集」から登録してください。'});
+    if(r.u.ninteiTo && r.u.ninteiTo < ym+'-01') rows.push({ic:'⛔', t:`${r.u.name}: 認定有効期間が切れています`, d:`有効期間 〜${r.u.ninteiTo}。返戻の主因です。更新後の認定情報に更新してください。`});
+    const mis=missingUserFields(r.u,'kokuho');
+    if(mis.length) rows.push({ic:'⚠️', t:`${r.u.name}: 伝送に必要な項目が未登録`, d:mis.join('・')+' ― 金額計算には影響しませんが、国保連へ伝送するには必要です(📤請求データの「必要情報チェック」参照)。'});
     if(r.over) rows.push({ic:'⚠️', t:`${r.u.name}: 区分支給限度基準額の超過`, d:`${yen(r.units)}単位 / 限度 ${yen(r.gendo)}単位。超過 ${yen(r.over)}単位(${yen(r.futanOver)}円)は全額自己負担です。ケアマネへの確認を。`});
     if(r.visits.some(v=>v.base===0)) rows.push({ic:'⚠️', t:`${r.u.name}: 算定できない訪問あり`, d:'所要時間が短く算定要件を満たさない訪問があります(生活援助20分未満など)。'});
   });
@@ -2338,8 +2591,10 @@ function saveOffice(){
 }
 function seikyuRows(ym){
   const o=db.office||{};
-  const body=calcAllUsers(ym).map((r,i)=>['2', String(i+1), '1171', o.city||'', o.no||'', ym.replace('-',''),
-    r.u.hokenNo||'', r.u.name, r.u.care||'', String(r.count), String(r.units), String(r.total), String(r.futan), String(r.seikyu)]);
+  const body=calcAllUsers(ym).map((r,i)=>['2', String(i+1), '1171', r.u.hokenshaNo||o.city||'', o.no||'', ym.replace('-',''),
+    r.u.hokenNo||'', r.u.name, r.u.kanaName||'', (r.u.birth||'').replace(/-/g,''), r.u.sex==='男'?'1':(r.u.sex==='女'?'2':''),
+    (r.u.ninteiFrom||'').replace(/-/g,''), (r.u.ninteiTo||'').replace(/-/g,''), r.u.kyotakuNo||'',
+    r.u.care||'', String(r.count), String(r.units), String(r.total), String(r.futan), String(r.seikyu)]);
   if(!body.length) return [];
   return [['1','117',String(body.length),o.no||'',fullDate().replace(/-/g,'')], ...body, ['3']];
 }
@@ -2479,6 +2734,7 @@ function calcBmi(){
 }
 
 function renderLife(){
+  renderLifeNeed();
   const sel=document.getElementById('life-user');
   if(!sel.options.length) return;
   const uid=lifeUser();
@@ -2632,11 +2888,12 @@ function renderLifeHist(){
 
 function lifeCsvRows(){
   const o=db.office||{};
-  const head=['事業所番号','被保険者番号','氏名','評価日','ADL合計','食事','移乗','整容','トイレ動作','入浴','歩行','階段昇降','更衣','排便','排尿',
+  const head=['事業所番号','保険者番号','被保険者番号','氏名','氏名カナ','生年月日','性別','要介護度','評価日','ADL合計','食事','移乗','整容','トイレ動作','入浴','歩行','階段昇降','更衣','排便','排尿',
               '身長','体重','BMI','食べこぼし','むせ','歯や義歯の汚れ','義歯不適合','口腔乾燥','DBD13合計','意欲合計','薬剤数','特記事項'];
   const body=(db.life||[]).slice().sort((a,b)=>a.date<b.date?-1:1).map(r=>{
     const u=user(r.userId)||{};
-    return [o.no||'', u.hokenNo||'', u.name||'', r.date, r.biTotal,
+    return [o.no||'', u.hokenshaNo||o.city||'', u.hokenNo||'', u.name||'', u.kanaName||'',
+      (u.birth||'').replace(/-/g,''), u.sex==='男'?'1':(u.sex==='女'?'2':''), u.care||'', r.date, r.biTotal,
       ...BI_ITEMS.map(it=>r.bi?r.bi[it.k]:''),
       r.h||'', r.w||'', r.bmi||'',
       ...ORAL_ITEMS.map(it=>(r.oral&&r.oral[it.k])?'1':'0'),
@@ -2699,12 +2956,43 @@ function allCases(){
   const localIds=new Set((db.cases||[]).map(c=>c.id));
   return (db.cases||[]).concat((db.casesShared||[]).filter(c=>!localIds.has(c.id)).map(c=>Object.assign({shared:true}, c)));
 }
+/* 採用実績のある文例(実際に提出した文章)を上位に出す。
+   同じ書類を出すたびに 採用 → 次回の土台 が良くなる、というループを回すための重みづけ。 */
+function caseWeight(c){
+  const ad=Math.min(+c.adopted||0, 5);
+  return 1 + 0.12*ad;
+}
 function searchCases(q, k){
   return allCases()
-    .map(c=>({c, score:simScore(q, c.title+' '+(c.tags||'')+' '+c.text)}))
+    .map(c=>({c, score:simScore(q, c.title+' '+(c.tags||'')+' '+c.text)*caseWeight(c)}))
     .sort((a,b)=>b.score-a.score)
     .slice(0, k||3)
     .filter(x=>x.score>0.02);
+}
+/* 書類は3つの文書からできているので、文書ごとに別々の検索をかけて材料を集める。
+   1本の検索でまとめて引くより、各文書に効く文例が拾える。 */
+const SH_SECTIONS = {
+  tokutei: [
+    {label:'① 体制等状況一覧表', q:'介護給付費算定に係る体制等状況一覧表 特定事業所加算 区分 届出 体制'},
+    {label:'② 特定事業所加算に係る届出書', q:'特定事業所加算 届出書 算定開始 理由書 文例'},
+    {label:'③ 体制要件の整備状況の説明', q:'個別研修計画 会議 議事録 事前指示 報告 健康診断 緊急時 対応方針 整備状況'}
+  ],
+  shogu: [
+    {label:'① 計画書(基本情報)', q:'介護職員等処遇改善加算 計画書 基本情報 区分 対象職員 一本化'},
+    {label:'② 職場環境等要件の取組', q:'職場環境等要件 取組 資質向上 労働環境 やりがい 生産性向上 腰痛対策'},
+    {label:'③ 賃金改善の内容と周知', q:'賃金改善 方法 周知 就業規則 賃金規程 キャリアパス 月額賃金'}
+  ]
+};
+function shinseiRefs(form){
+  const secs=(SH_SECTIONS[form]||[]).map(s=>({label:s.label, hits:searchCases(s.q, 2)}));
+  const seen=new Set(), all=[];
+  secs.forEach(s=>s.hits.forEach(h=>{ if(!seen.has(h.c.id)){ seen.add(h.c.id); all.push(h); } }));
+  return {secs, all};
+}
+function caseBadges(c){
+  return (c.kind==='seido'?'<span class="chip y">制度情報</span> ':'')
+       + (c.shared?'<span class="chip g">🌐共有</span> ':'')
+       + ((+c.adopted||0)>0?`<span class="chip g">👍採用 ${+c.adopted}回</span> `:'');
 }
 
 function shinseiSec(s){
@@ -2776,24 +3064,28 @@ async function genShinsei(){
   const form=document.getElementById('sh-form').value;
   const items=tokuteiItems();
   const kb=tokuteiKubunNow();
-  // 検索クエリ: 様式名 + 各要件のキーワード(未整備のものを優先)
-  const q = form==='shogu'
-    ? '処遇改善加算 計画書 賃金改善 職場環境等要件 キャリアパス'
-    : '特定事業所加算 届出 '+items.map(i=>i.ref).join(' ');
-  const hits=searchCases(q, 3);
+  // 文書ごとに別々の検索をかけ、それぞれに効く文例を集める(採用実績のある文例が上位に来る)
+  const refs=shinseiRefs(form);
+  const hits=refs.all;
   document.getElementById('sh-refs-card').style.display='';
-  document.getElementById('sh-refs').innerHTML = hits.length ? hits.map(h=>`
-    <div class="check-row"><div class="check-ic">📎</div>
-      <div style="flex:1;min-width:0">
-        <div class="t">${h.c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${esc(h.c.title)} <span class="chip g">類似度 ${(h.score*100).toFixed(0)}%</span></div>
-        <div class="d">${esc(h.c.text.slice(0,80))}…${h.c.src?` <a href="${esc(h.c.src)}" target="_blank" rel="noopener">🔗原典</a>`:''}</div>
-      </div></div>`).join('')
-    : '<p class="muted">関連する事例が見つかりませんでした。📚事例ライブラリに記載例を追加すると下書きの質が上がります。</p>';
+  document.getElementById('sh-refs').innerHTML = hits.length
+    ? refs.secs.map(s=>`<div style="margin-bottom:12px">
+        <div class="subttl" style="margin-bottom:2px">${esc(s.label)}</div>
+        ${s.hits.length ? s.hits.map(h=>`
+          <div class="check-row"><div class="check-ic">📎</div>
+            <div style="flex:1;min-width:0">
+              <div class="t">${caseBadges(h.c)}${esc(h.c.title)} <span class="chip g">類似度 ${(h.score*100).toFixed(0)}%</span></div>
+              <div class="d">${esc(h.c.text.slice(0,80))}…${h.c.src?` <a href="${esc(h.c.src)}" target="_blank" rel="noopener">🔗原典</a>`:''}</div>
+            </div></div>`).join('')
+          : '<p class="muted">この文書に効く事例はまだありません。</p>'}
+      </div>`).join('')
+    : '<p class="muted">関連する事例が見つかりませんでした。📚事例ライブラリに記載例を追加するか、下書きを「採用」すると次回から参照されます。</p>';
   await withLoading('sh-gen','事例を参照して作成中…', async()=>{
+    const sections=refs.secs.map(s=>({label:s.label, cases:s.hits.map(h=>h.c)}));
     const r = form==='shogu'
       ? await callAI('shogu', {office:o, kubun:document.getElementById('sh-shogu-kubun').value,
-                               staffCount:(db.staff||[]).length, cases:hits.map(h=>h.c)})
-      : await callAI('shinsei', {office:o, items, kubun:kb, tokutei:db.tokutei||{}, cases:hits.map(h=>h.c)});
+                               staffCount:(db.staff||[]).length, cases:hits.map(h=>h.c), sections})
+      : await callAI('shinsei', {office:o, items, kubun:kb, tokutei:db.tokutei||{}, cases:hits.map(h=>h.c), sections});
     document.getElementById('sh-note').innerHTML=`<div class="banner">${r.note}</div>`;
     document.getElementById('sh-out').innerHTML = r.docs.map(d=>`
       <div style="margin-bottom:22px">
@@ -2801,6 +3093,7 @@ async function genShinsei(){
         <div class="tblwrap"><table class="tbl"><tr><td style="text-align:left;white-space:pre-wrap">${esc(d.text)}</td></tr></table></div>
       </div>`).join('');
     document.getElementById('sh-out-card').style.display='';
+    renderShAdopt(form, r.docs);
     const missing=items.filter(i=>!i.ok);
     document.getElementById('sh-todo').innerHTML = form==='shogu'
       ? ((db.staff||[]).length ? '' : `<div class="check-row"><div class="check-ic">⚠️</div>
@@ -2816,6 +3109,59 @@ async function genShinsei(){
     document.getElementById('sh-todo-card').style.display='';
     document.getElementById('sh-out-card').scrollIntoView({behavior:'smooth', block:'start'});
   });
+}
+
+
+/* ---------- 生成結果を「採用」して次回の土台にする ---------- */
+let shLastDocs=null;
+function renderShAdopt(form, docs){
+  shLastDocs={form, docs};
+  const where = caseSyncState==='on'
+    ? '<b>事業所の共有ライブラリ</b>に保存され、他の端末・他の事業所の下書きにも活かされます'
+    : 'この端末のライブラリに保存されます(⚙️設定でAIサーバを設定すると事業所間で共有できます)';
+  document.getElementById('sh-adopt').innerHTML =
+    '<p class="muted">提出できる形に直してから「採用」してください。採用した文章は📚事例ライブラリに<b>採用実績つき</b>で貯まり、<b>次回以降の下書きはこの構成を優先的に踏襲</b>します。'+where+'。実名・個人情報は残さないでください。</p>'
+    + docs.map((d,i)=>`<details class="acc"><summary>${esc(d.title)}</summary><div class="accbody">
+        <textarea id="sh-adopt-${i}" style="min-height:200px">${esc(d.text)}</textarea>
+        <button class="btn sec" style="margin-top:8px" onclick="adoptShinsei(${i})">👍 この文書を採用して保存</button>
+      </div></details>`).join('')
+    + `<button class="btn" style="margin-top:14px" onclick="adoptShinsei()">👍 ${docs.length}件すべてを採用して事例に保存</button>`;
+  document.getElementById('sh-adopt-card').style.display='';
+}
+function adoptOne(title, tags, text){
+  const ex=allCases().find(c=>c.title===title);
+  const c = ex
+    ? {id:ex.id, title, tags:ex.tags||tags, text, kind:'jirei', adopted:(+ex.adopted||0)+1}
+    : {id:'ad'+Date.now()+Math.floor(Math.random()*1000), title, tags, text, kind:'jirei', adopted:1};
+  if((db.office||{}).aiUrl && caseSyncState==='on'){
+    return casesApi('POST', c).then(saved=>{
+      db.casesShared=(db.casesShared||[]).filter(x=>x.id!==saved.id).concat([saved]);
+      db.cases=(db.cases||[]).filter(x=>x.id!==c.id);
+    });
+  }
+  db.cases=(db.cases||[]).filter(x=>x.id!==c.id).concat([c]);
+  return Promise.resolve();
+}
+async function adoptShinsei(i){
+  if(!shLastDocs){ alert('先に下書きを作成してください。'); return; }
+  const form=shLastDocs.form, docs=shLastDocs.docs;
+  const idx = (i===undefined) ? docs.map((_,n)=>n) : [i];
+  const lbl = form==='shogu' ? '処遇改善加算 計画書' : '特定事業所加算 届出';
+  const tags = form==='shogu'
+    ? '処遇改善加算 計画書 賃金改善 職場環境等要件 採用文例'
+    : '特定事業所加算 届出 体制要件 理由書 採用文例';
+  const jobs=[];
+  idx.forEach(x=>{
+    const ta=document.getElementById('sh-adopt-'+x);
+    const text=((ta?ta.value:docs[x].text)||'').trim();
+    if(!text) return;
+    jobs.push(adoptOne(`【採用文例】${lbl} ― ${docs[x].title}`, tags, text));
+  });
+  if(!jobs.length){ alert('保存できる本文がありません。'); return; }
+  try{ await Promise.all(jobs); }
+  catch(e){ alert('共有ライブラリに保存できませんでした('+e.message+')。'); }
+  save(); renderCaseLib(); caseSearchTest();
+  alert(jobs.length+'件を事例ライブラリに保存しました。次回の下書きから、この文章の構成が優先的に使われます。');
 }
 
 /* ---------- サービス提供記録(利用者宅控え) ---------- */
@@ -2857,7 +3203,7 @@ function renderCaseLib(){
   document.getElementById('cs-count').textContent=cs.length+'件';
   el.innerHTML = cs.length ? cs.map(c=>`
     <div class="rec-item" onclick="this.classList.toggle('open')">
-      <div class="h"><span style="font-weight:700">${c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${c.shared?'<span class="chip g">🌐共有</span> ':''}${esc(c.title)}</span>
+      <div class="h"><span style="font-weight:700">${caseBadges(c)}${esc(c.title)}</span>
         <span onclick="event.stopPropagation()"><button class="btn mini sec" onclick="delCase('${c.id}')">削除</button></span></div>
       <div class="muted" style="margin-top:2px">${esc(c.tags||'')}</div>
       <div class="body">${esc(c.text)}${c.src?`<div style="margin-top:8px"><a href="${esc(c.src)}" target="_blank" rel="noopener">🔗 原典を開く</a></div>`:''}</div>
@@ -2907,7 +3253,7 @@ function caseSearchTest(){
   const hits=searchCases(q, 5);
   el.innerHTML = hits.length ? hits.map(h=>`
     <div class="check-row"><div class="check-ic">🔎</div>
-      <div style="flex:1;min-width:0"><div class="t">${h.c.kind==='seido'?'<span class="chip y">制度情報</span> ':''}${esc(h.c.title)} <span class="chip g">${(h.score*100).toFixed(0)}%</span></div>
+      <div style="flex:1;min-width:0"><div class="t">${caseBadges(h.c)}${esc(h.c.title)} <span class="chip g">${(h.score*100).toFixed(0)}%</span></div>
       <div class="d">${esc(h.c.text.slice(0,60))}…${h.c.src?` <a href="${esc(h.c.src)}" target="_blank" rel="noopener">🔗原典</a>`:''}</div></div></div>`).join('')
     : '<p class="muted">一致する事例がありません。</p>';
 }
@@ -2936,13 +3282,17 @@ function renderShopList(){
 let editingUser=null;
 function editUser(id){
   editingUser=id;
-  const u = id ? user(id) : {name:'', note:'', hokenNo:'', care:'要介護1', wari:1, tatemono:0, rules:{}};
+  const u = id ? user(id) : {name:'', note:'', hokenNo:'', care:'要介護1', wari:1, tatemono:0, rules:{},
+                             kanaName:'', birth:'', sex:'', ninteiFrom:'', ninteiTo:'', kyotakuNo:'', hokenshaNo:''};
   document.getElementById('uf-name').value=u.name||'';
   document.getElementById('uf-note').value=u.note||'';
   document.getElementById('uf-hokenno').value=u.hokenNo||'';
   document.getElementById('uf-care').value=u.care||'要介護1';
   document.getElementById('uf-wari').value=String(u.wari||1);
   document.getElementById('uf-tatemono').value=String(u.tatemono||0);
+  [['uf-kananame','kanaName'],['uf-birth','birth'],['uf-sex','sex'],['uf-hokensha','hokenshaNo'],
+   ['uf-nintei-from','ninteiFrom'],['uf-nintei-to','ninteiTo'],['uf-kyotaku','kyotakuNo']]
+    .forEach(([el,k])=>{ document.getElementById(el).value=u[k]||''; });
   const rr=u.rules||{};
   [['uf-r-key','key'],['uf-r-park','park'],['uf-r-pet','pet'],['uf-r-contact','contact'],['uf-r-care','care']].forEach(([id,k])=>{ document.getElementById(id).value=rr[k]||''; });
   const f=document.getElementById('user-form');
@@ -2960,6 +3310,13 @@ function saveUser(){
               care:document.getElementById('uf-care').value,
               wari:+document.getElementById('uf-wari').value||1,
               tatemono:+document.getElementById('uf-tatemono').value||0,
+              kanaName:document.getElementById('uf-kananame').value.trim(),
+              birth:document.getElementById('uf-birth').value,
+              sex:document.getElementById('uf-sex').value,
+              hokenshaNo:document.getElementById('uf-hokensha').value.trim(),
+              ninteiFrom:document.getElementById('uf-nintei-from').value,
+              ninteiTo:document.getElementById('uf-nintei-to').value,
+              kyotakuNo:document.getElementById('uf-kyotaku').value.trim(),
               rules:{ key:document.getElementById('uf-r-key').value.trim(), park:document.getElementById('uf-r-park').value.trim(),
                       pet:document.getElementById('uf-r-pet').value.trim(), contact:document.getElementById('uf-r-contact').value.trim(),
                       care:document.getElementById('uf-r-care').value.trim() } };

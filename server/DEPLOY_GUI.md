@@ -56,6 +56,7 @@ GitHubリポジトリを直接つなぐため、**構築後は `main` にマー�
        - シークレット `anthropic-api-key` → 参照方法 **環境変数として公開** → 名前 **`ANTHROPIC_API_KEY`** → バージョン latest
        - シークレット `kakehashi-relay-token` → 環境変数 **`RELAY_TOKEN`** → latest
      - ⚠️ ここで「(サービスアカウント)に権限を付与」と表示されたら **「付与」を押す**(Secret Managerの読み取り権限)
+     - ⚠️ **参照方法は必ず「環境変数として公開」**を選ぶこと。「ボリュームとしてマウント」を選ぶと環境変数にはならず、生成のたびに認証エラーになります
 5. **「作成」** → 初回ビルドが走る(2〜5分)。完了するとサービスに **`https://kakehashi-ai-relay-….run.app`** のURLが表示される
 
 ## 3. 動作確認
@@ -63,10 +64,12 @@ GitHubリポジトリを直接つなぐため、**構築後は `main` にマー�
 ブラウザで `https://<表示されたURL>/health` を開き、次のようなJSONが出ればOK:
 
 ```json
-{"ok":true,"service":"kakehashi-ai-relay","model":"claude-opus-5","auth":"token"}
+{"ok":true,"service":"kakehashi-ai-relay","model":"claude-opus-5","auth":"token","share":"on","key":true}
 ```
 
-`auth` が `"open"` の場合は `RELAY_TOKEN` が設定されていません(手順2-4を確認)。
+- `key` が **`false`** の場合は `ANTHROPIC_API_KEY` がリビジョンに渡っていません。**サーバは起動しますが、生成のたびに失敗します**(手順2-4を確認)
+- `auth` が `"open"` の場合は `RELAY_TOKEN` が設定されていません(手順2-4を確認)
+- `share` が `"off"` の場合は Firestore が未設定です(事例の事業所共有だけが無効。他の機能には影響しません)
 
 ## 4. アプリ側の設定
 
@@ -92,3 +95,5 @@ GitHubリポジトリを直接つなぐため、**構築後は `main` にマー�
 | デプロイ失敗: シークレットへのアクセス拒否(PERMISSION_DENIED) | IAM → Compute Engine デフォルトSA(`…-compute@developer.gserviceaccount.com`)に **Secret Manager のシークレット アクセサー** ロールを付与 |
 | 接続テストで ❌(CORS) | `ALLOWED_ORIGIN` の値が `https://emcyrup.github.io` (末尾スラッシュなし)か確認 |
 | 401 が返る | アプリ⚙️設定のトークンと `kakehashi-relay-token` の値が一致しているか確認 |
+| 生成時に **`Could not resolve authentication method`** / 「サーバにAPIキーが設定されていません」 | `ANTHROPIC_API_KEY` がリビジョンに渡っていない。Cloud Run → サービス →「新しいリビジョンの編集とデプロイ」→「変数とシークレット」で、`anthropic-api-key` が **環境変数 `ANTHROPIC_API_KEY` として公開**されているか確認(ボリュームマウントでは環境変数にならない)。直したら**デプロイし直す**(既存リビジョンには反映されない)。`/health` の `key` が `true` になれば解決 |
+| `/health` は成功するのに生成だけ失敗する | `/health` はClaudeを呼ばないため、APIキーがなくても成功する。`key:false` を確認すること(古いリビジョンでは `key` 自体が返らない) |

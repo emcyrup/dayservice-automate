@@ -21,7 +21,7 @@ ANTHROPIC_API_KEY=sk-ant-... npm start   # → http://localhost:8787
 
 | 変数 | 必須 | 内容 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | ✅ | [Anthropic Console](https://console.anthropic.com) で発行 |
+| `ANTHROPIC_API_KEY` | ✅ | [Anthropic Console](https://console.anthropic.com) で発行。**未設定でもサーバは起動し `/health` は応答するが、生成はすべて 503 になる**(`/health` の `key:false` で検知できる) |
 | `ANTHROPIC_MODEL` | ― | 省略時 `claude-opus-5` |
 | `RELAY_TOKEN` | 推奨 | 設定するとアプリからの呼び出しに `x-relay-token` ヘッダを要求(キーの無断利用を防ぐ) |
 | `ALLOWED_ORIGIN` | 推奨 | CORS許可オリジン。本番は `https://emcyrup.github.io` に絞る(省略時 `*`) |
@@ -40,8 +40,8 @@ ANTHROPIC_API_KEY=sk-ant-... npm start   # → http://localhost:8787
 
 | エンドポイント | 内容 |
 |---|---|
-| `GET /health` | 疎通確認。`{ok, service, model, auth}` |
-| `POST /ai` | `{app, kind, payload}` → `{ok:true, data}`。`kind`: `visit`(報告3形態) / `life`(LIFE下書き) / `ocr`(帳票読み取り・画像はbase64で受け取り**保存しない**) / `shinsei`(特定事業所加算 届出一式) |
+| `GET /health` | 疎通確認。`{ok, service, model, auth, share, key}`。**`key` は `ANTHROPIC_API_KEY` が設定されているかの真偽値**(値そのものは返さない)。アプリの「接続テスト」はこれを見て、キー未設定なら警告を出す |
+| `POST /ai` | `{app, kind, payload}` → `{ok:true, data}`。`kind`: `visit`(報告3形態) / `life`(LIFE下書き) / `ocr`(帳票読み取り・画像はbase64で受け取り**保存しない**) / `shinsei`(特定事業所加算 届出一式) / `shogu`(処遇改善加算 計画書) / `chat`(AI相談。事例と事業所の集計情報を渡して回答) |
 
 出力はフロントのデモ生成と同じデータ形状で、構造化出力(JSON Schema)により形式を保証しています。
 
