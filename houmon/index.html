@@ -136,9 +136,24 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print{display:none}
+  #report-print,#kei-print,#tk-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
+  .tkgrid{font-size:11px}
+  .tkgrid th,.tkgrid td{padding:2px 3px;text-align:center;white-space:nowrap;border:1px solid var(--line)}
+  .tkgrid td.l{text-align:left;white-space:normal;min-width:130px}
+  .tkgrid .sun{color:var(--danger)}
+  .tkgrid .sat{color:var(--brand)}
+  .tkgrid .yotei{background:var(--bg)}
+  .tkgrid .tkk{position:sticky;left:0;z-index:2;background:var(--card);box-shadow:1px 0 0 var(--line)}
+  .tkgrid tr.yotei .tkk{background:var(--bg)}
+  @media print{ .tkgrid .tkk{position:static;box-shadow:none} }
+  @media print{
+    .tkgrid{font-size:8px}
+    .tkgrid th,.tkgrid td{padding:1px 2px;border:1px solid #999}
+    #tk-print.on{page:land}
+  }
+  @page land{size:A4 landscape;margin:8mm}
   .tblwrap{overflow-x:auto}
   .tbl{width:100%;border-collapse:collapse;font-size:13px}
   .tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
@@ -177,7 +192,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -659,6 +674,7 @@
     <div class="subnav noprint">
       <button data-s="sum" class="on" onclick="billSec('sum')">📊 サマリー・点検</button>
       <button data-s="meisai" onclick="billSec('meisai')">📄 明細書</button>
+      <button data-s="teikyo" onclick="billSec('teikyo')">📄 提供票</button>
       <button data-s="tokutei" onclick="billSec('tokutei')">⭐ 特定事業所加算</button>
       <button data-s="diff" onclick="billSec('diff')">🔀 改定差分</button>
       <button data-s="data" onclick="billSec('data')">📤 請求データ</button>
@@ -691,6 +707,17 @@
         <button class="btn mini sec noprint" style="float:right" onclick="window.print()">🖨 印刷</button></div>
       <div id="kiroku-out" class="sheet"></div>
     </div>
+    <div data-sec="teikyo" class="card noprint">
+      <div class="subttl">📄 サービス提供票・別表(ケアマネ提出用)</div>
+      <p class="muted">ケアマネジャーから受け取った提供票に<b>当月の実績を書き込んで返す</b>作業を、アプリ側で作ります。<b>予定は📅予定タブ、実績は📋報告から自動集計</b>します。標準様式(第6表・第7表)に沿った<b>試作</b>です ― 実際の様式・記号は保険者やケアマネの運用に合わせてご確認ください。</p>
+      <label class="fld">利用者</label><select id="tk-user" onchange="renderTeikyo()"></select>
+      <div class="row" style="margin-top:12px">
+        <button class="btn sec" onclick="printTeikyo()">🖨 印刷(A4横)</button>
+        <button class="btn sec" onclick="exportTeikyoCsv()">⬇ 提供票CSV</button>
+      </div>
+      <div id="tk-out" class="sheet" style="margin-top:14px"></div>
+    </div>
+    <div id="tk-print" class="sheet"></div>
     <div data-sec="diff" class="card noprint">
       <div class="subttl">🔀 改定の新旧差分チェック</div>
       <p class="muted">同じ実績を別の改定版で計算し、差額を確認します。改定版を作ったら必ず前月実績で確認してください。</p>
@@ -1285,6 +1312,7 @@ function fillSelects(){
   const mu=document.getElementById('money-user'); if(mu) mu.innerHTML=opts;
   const tu=document.getElementById('trip-user'); if(tu){ const k=tu.value; tu.innerHTML='<option value="">(利用者を選ばない)</option>'+opts; if(k) tu.value=k; }
   const ku=document.getElementById('kiroku-user'); if(ku){ const k=ku.value; ku.innerHTML=opts; if(k) ku.value=k; }
+  const tk=document.getElementById('tk-user'); if(tk){ const k=tk.value; tk.innerHTML=opts; if(k) tk.value=k; }
   const mo=document.getElementById('memo-user'); if(mo){ const k=mo.value; mo.innerHTML='<option value="">(利用者を選ばない)</option>'+opts; if(k) mo.value=k; }
   const vs=document.getElementById('visit-staff');
   if(vs){ const k=vs.value;
@@ -2593,8 +2621,8 @@ function pickBase(ms, svc, mins){
 }
 function visitUnits(ms, r){
   const kubun=r.kubun||'shintai', mins=r.mins||0;
-  if(kubun==='joukou'){ const b=pickBase(ms,'joukou',mins); return b?{unit:+b.unit||0,label:b.name}:{unit:0,label:'通院等乗降介助(算定外)'}; }
-  if(kubun==='seikatsu'){ const b=pickBase(ms,'seikatsu',mins); return b?{unit:+b.unit||0,label:b.name}:{unit:0,label:'生活援助(20分未満・算定外)'}; }
+  if(kubun==='joukou'){ const b=pickBase(ms,'joukou',mins); return b?{unit:+b.unit||0,label:b.name,code:b.code}:{unit:0,label:'通院等乗降介助(算定外)',code:''}; }
+  if(kubun==='seikatsu'){ const b=pickBase(ms,'seikatsu',mins); return b?{unit:+b.unit||0,label:b.name,code:b.code}:{unit:0,label:'生活援助(20分未満・算定外)',code:''}; }
   const sm=kubun==='both'?Math.max(0,+r.smins||0):0;
   const bm=Math.max(0,mins-sm);
   const b=pickBase(ms,'shintai',bm);
@@ -2608,7 +2636,7 @@ function visitUnits(ms, r){
     const a=ms.find(m=>m.kind==='addseik'&&m.on!==false);
     if(a){ const n=Math.min(+a.max||3, Math.floor(sm/20)); u+=(+a.unit||0)*n; label+='＋生活援助加算×'+n; }
   }
-  return {unit:u, label};
+  return {unit:u, label, code:b?b.code:''};
 }
 function timeRate(start){
   const h=+((start||'10:00').split(':')[0]);
@@ -2625,7 +2653,7 @@ function calcUser(u, ym, ver){
     const b=visitUnits(ms, r);
     const t=timeRate(r.start);
     const futari=r.futari?2:1;
-    return {date:r.date, label:b.label, base:b.unit, futari, tRate:t.rate, tLabel:t.label,
+    return {date:r.date, label:b.label, code:b.code||'', base:b.unit, futari, tRate:t.rate, tLabel:t.label,
             unit:Math.round(b.unit*futari*t.rate), kinkyu:!!r.kinkyu, mins:r.mins||0};
   });
   let units=visits.reduce((s,v)=>s+v.unit, 0);
@@ -2642,7 +2670,7 @@ function calcUser(u, ym, ver){
     let n=cnt[m.trig]||0;
     if(m.max) n=Math.min(n,+m.max);
     const uu=+m.unit||0;
-    if(n>0&&uu!==0){ units+=uu*n; steps.push({t:m.name+(n>1?` ×${n}回`:''), v:uu*n}); }
+    if(n>0&&uu!==0){ units+=uu*n; steps.push({t:m.name+(n>1?` ×${n}回`:''), v:uu*n, code:m.code}); }
   });
   // 率(順序つき)。useUser の行は利用者ごとの率(同一建物区分)を使う
   ms.filter(m=>m.kind==='rate'&&m.on!==false)
@@ -2651,7 +2679,7 @@ function calcUser(u, ym, ver){
       const rate = m.useUser ? -(+u.tatemono||0) : (+m.rate||0);
       if(!rate||!units) return;
       const v=Math.round(units*rate/100); units+=v;
-      steps.push({t:`${m.name}(${rate>0?'＋':''}${rate}%)`, v});
+      steps.push({t:`${m.name}(${rate>0?'＋':''}${rate}%)`, v, code:m.code});
     });
   const gendo=gendoFor(u.care||'要介護1', ym);
   const over=Math.max(0, units-gendo);
@@ -2692,6 +2720,7 @@ function renderBilling(){
   renderBillPreview(ym);
   renderDiff();
   renderTokutei();
+  renderTeikyo();
   renderBillNeed(ym);
   billSec(billSecCur());
 }
@@ -3822,6 +3851,155 @@ function printKeikaku(id){
   el.classList.add('on');
   window.print();
   setTimeout(()=>el.classList.remove('on'), 500);
+}
+
+/* ============================================================
+   サービス提供票(第6表)・提供票別表(第7表)
+   毎月ケアマネから届く提供票に実績を書いて返す作業を置き換える。
+   予定=📅予定タブ / 実績=📋報告 から自動で組み立てる。
+   様式は標準様式に沿った試作。項目・記号は保険者ごとの運用で確認が必要。
+   ============================================================ */
+function tkUid(){ const e=document.getElementById('tk-user'); return e?e.value:''; }
+function daysInMonth(ym){ return new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate(); }
+/* 予定と実績を同じ行にまとめる。開始時刻が±60分以内で同じ区分なら同じ訪問とみなす */
+function teikyoTable(u, ym){
+  const days=daysInMonth(ym), rows=[];
+  const find=(start, kubun)=>{
+    const a=hhmm(start);
+    return rows.find(r=>r.kubun===kubun && (a===null||hhmm(r.start)===null || Math.abs(hhmm(r.start)-a)<=60));
+  };
+  for(let d=1; d<=days; d++){
+    const ds=`${ym}-${String(d).padStart(2,'0')}`;
+    plansFor(ds).filter(p=>p.userId===u.id).forEach(p=>{
+      let r=find(p.start, p.kubun);
+      if(!r){ r={start:p.start, end:p.end, kubun:p.kubun, plan:{}, real:{}}; rows.push(r); }
+      r.plan[d]=(r.plan[d]||0)+1;
+    });
+  }
+  db.reports.filter(r=>r.userId===u.id && (r.date||'').slice(0,7)===ym).forEach(rep=>{
+    const d=+rep.date.slice(8,10);
+    let r=find(rep.start, rep.kubun);
+    if(!r){ r={start:rep.start, end:rep.end, kubun:rep.kubun, plan:{}, real:{}}; rows.push(r); }
+    r.real[d]=(r.real[d]||0)+1;
+  });
+  rows.sort((a,b)=>((a.start||'')+(a.kubun||''))<((b.start||'')+(b.kubun||''))?-1:1);
+  return {days, rows};
+}
+/* 別表の行。訪問はサービス内容ごとにまとめ、加算・減算は内訳の1行にする */
+function teikyoBeppyo(r){
+  const g={};
+  (r.visits||[]).forEach(v=>{
+    const name=v.label+(v.futari>1?'・2人対応':'')+(v.tLabel?'・'+v.tLabel:'');
+    const k=(v.code||'')+'|'+name+'|'+v.unit;
+    if(!g[k]) g[k]={code:v.code||'', name, unit:v.unit, n:0};
+    g[k].n++;
+  });
+  const rows=Object.values(g).map(x=>({code:x.code, name:x.name, unit:x.unit, n:x.n, sum:x.unit*x.n}));
+  (r.steps||[]).slice(1).forEach(s=>{ if(s.v) rows.push({code:s.code||'', name:s.t, unit:'', n:'', sum:s.v}); });
+  return rows;
+}
+function teikyoHtml(u, ym){
+  const o=db.office||{}, t=teikyoTable(u, ym), r=calcUser(u, ym);
+  const y=+ym.slice(0,4), m=+ym.slice(5,7);
+  const wd=d=>new Date(y, m-1, d).getDay();
+  const cls=d=>wd(d)===0?' class="sun"':wd(d)===6?' class="sat"':'';
+  const dayTh=Array.from({length:t.days},(_,i)=>`<th${cls(i+1)}>${i+1}</th>`).join('');
+  const wdTh=Array.from({length:t.days},(_,i)=>`<th${cls(i+1)}>${WD_LBL[wd(i+1)]}</th>`).join('');
+  const line=(row, kind)=>{
+    const src=kind==='plan'?row.plan:row.real;
+    const cells=Array.from({length:t.days},(_,i)=>`<td${cls(i+1)}>${src[i+1]?src[i+1]:''}</td>`).join('');
+    const n=Object.values(src).reduce((a,b)=>a+b,0);
+    return `<tr class="${kind==='plan'?'yotei':''}"><td class="tkk">${kind==='plan'?'予定':'実績'}</td>${cells}<td>${n||''}</td></tr>`;
+  };
+  const grid = t.rows.length ? t.rows.map(row=>`
+      <tr class="yotei"><td rowspan="2">${esc(row.start||'')}〜${esc(row.end||'')}</td>
+          <td rowspan="2" class="l">${esc(KUBUN_LBL[row.kubun]||'')}</td>
+          <td rowspan="2" class="l">${esc(o.name||'(未登録)')}</td>${line(row,'plan').replace(/^<tr[^>]*>/,'')}
+      ${line(row,'real')}`).join('')
+    : `<tr><td colspan="${t.days+4}" style="padding:14px">この月の予定・実績がありません。</td></tr>`;
+
+  const bp=teikyoBeppyo(r);
+  const tanka=+o.tanka||10, wari=+u.wari||1, kyufu=(10-wari)*10;
+  const beppyo = bp.length ? bp.map(x=>`<tr>
+      <td class="l">${esc(x.name)}</td><td>${esc(x.code||'')}</td>
+      <td>${x.unit===''?'':yen(x.unit)}</td><td>${x.n===''?'':x.n}</td><td>${yen(x.sum)}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="padding:14px">この月の実績がありません。</td></tr>';
+
+  return `
+  <div style="text-align:center;font-weight:800;font-size:15px;margin-bottom:8px">サービス提供票(第6表) ${esc(ym.replace('-','年'))}月分</div>
+  <div class="shead">
+    <div><b>被保険者番号</b>${esc(u.hokenNo||'(未登録)')}</div>
+    <div><b>保険者番号</b>${esc(u.hokenshaNo||o.city||'(未登録)')}</div>
+    <div><b>被保険者氏名</b>${esc(u.name||'')} 様</div>
+    <div><b>生年月日</b>${esc(u.birth||'')}</div>
+    <div><b>要介護状態区分</b>${esc(u.care||'')}</div>
+    <div><b>区分支給限度基準額</b>${yen(r.gendo)} 単位/月</div>
+    <div><b>限度額適用期間</b>${esc(u.ninteiFrom||'')}〜${esc(u.ninteiTo||'')}</div>
+    <div><b>居宅介護支援事業所番号</b>${esc(u.kyotakuNo||'(未登録)')}</div>
+    <div><b>サービス事業所</b>${esc(o.name||'(未登録)')}</div>
+    <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+  </div>
+  <div class="tblwrap"><table class="tbl tkgrid">
+    <tr><th>提供時間帯</th><th>サービス内容</th><th>事業所</th><th class="tkk">区分</th>${dayTh}<th>合計</th></tr>
+    <tr><th colspan="4">曜日</th>${wdTh}<th></th></tr>
+    ${grid}
+  </table></div>
+  <p class="muted" style="margin-top:6px;font-size:11px">※ 予定は📅予定タブ、実績は📋報告から自動集計しています。数字は当日の提供回数です。</p>
+
+  <div style="text-align:center;font-weight:800;font-size:15px;margin:18px 0 8px">サービス提供票別表(第7表)</div>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th style="text-align:left">サービス内容／種類</th><th>サービスコード</th><th>単位数</th><th>回数</th><th>サービス単位数</th></tr>
+    ${beppyo}
+    <tr><th style="text-align:left">合計単位数</th><th></th><th></th><th></th><th>${yen(r.units)}</th></tr>
+  </table></div>
+  <div class="tblwrap" style="margin-top:10px"><table class="tbl">
+    <tr><th>区分支給限度基準額</th><td>${yen(r.gendo)} 単位</td><th>限度額を超える単位数</th><td>${yen(r.over)} 単位</td></tr>
+    <tr><th>限度額管理対象内 単位数</th><td>${yen(r.units-r.over)} 単位</td><th>単位数単価</th><td>${tanka} 円/単位</td></tr>
+    <tr><th>費用総額(保険対象分)</th><td>${yen(r.total)} 円</td><th>給付率</th><td>${kyufu}%</td></tr>
+    <tr><th>保険給付額</th><td>${yen(r.seikyu)} 円</td><th>利用者負担(保険対象分)</th><td>${yen(r.futanIns)} 円</td></tr>
+    <tr><th>利用者負担(全額負担分)</th><td>${yen(r.futanOver)} 円</td><th>利用者負担 合計</th><td><b>${yen(r.futan)} 円</b></td></tr>
+  </table></div>
+  <div class="sfoot"><span>提供回数: ${r.count}回</span><span>合計時間: ${r.mins}分</span><span>作成年月日: ${fullDate()}</span></div>
+  <p class="muted" style="margin-top:8px">※ 単位数は⚙️設定のマスタ(<b>初期値は暫定</b>)で計算しています。ケアマネジャーへ返す前に、実際の提供票と単位数・回数を突き合わせてください。</p>`;
+}
+function renderTeikyo(){
+  const el=document.getElementById('tk-out'); if(!el) return;
+  const u=user(tkUid());
+  if(!u){ el.innerHTML='<p class="muted">利用者が登録されていません。🏡利用者タブから追加してください。</p>'; return; }
+  el.innerHTML=teikyoHtml(u, billYm());
+}
+function printTeikyo(){
+  const u=user(tkUid()); if(!u){ alert('利用者を選択してください。'); return; }
+  const el=document.getElementById('tk-print');
+  el.innerHTML=teikyoHtml(u, billYm());
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+function exportTeikyoCsv(){
+  const u=user(tkUid()); if(!u){ alert('利用者を選択してください。'); return; }
+  const ym=billYm(), t=teikyoTable(u, ym), r=calcUser(u, ym), o=db.office||{};
+  const days=Array.from({length:t.days},(_,i)=>String(i+1));
+  const rows=[['サービス提供票', ym, u.name, '被保険者番号', u.hokenNo||''],
+              ['提供時間帯','サービス内容','事業所','区分', ...days, '合計']];
+  t.rows.forEach(row=>{
+    ['plan','real'].forEach(k=>{
+      const src=k==='plan'?row.plan:row.real;
+      rows.push([`${row.start||''}〜${row.end||''}`, KUBUN_LBL[row.kubun]||'', o.name||'', k==='plan'?'予定':'実績',
+        ...days.map(d=>src[+d]?String(src[+d]):''), String(Object.values(src).reduce((a,b)=>a+b,0))]);
+    });
+  });
+  rows.push([]);
+  rows.push(['サービス提供票別表']);
+  rows.push(['サービス内容／種類','サービスコード','単位数','回数','サービス単位数']);
+  teikyoBeppyo(r).forEach(x=>rows.push([x.name, x.code||'', String(x.unit), String(x.n), String(x.sum)]));
+  rows.push(['合計単位数','','','',String(r.units)]);
+  rows.push(['区分支給限度基準額',String(r.gendo),'限度額を超える単位数',String(r.over)]);
+  rows.push(['費用総額',String(r.total),'保険給付額',String(r.seikyu),'利用者負担',String(r.futan)]);
+  const csv='﻿'+rows.map(x=>x.map(c=>/[,"\n]/.test(c||'')?'"'+String(c).replace(/"/g,'""')+'"':(c||'')).join(',')).join('\r\n')+'\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`teikyo_${u.name}_${ym}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
 /* ---------- サービス提供記録(利用者宅控え) ---------- */
