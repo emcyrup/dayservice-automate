@@ -136,7 +136,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print{display:none}
+  #report-print,#kei-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tblwrap{overflow-x:auto}
@@ -177,7 +177,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on{display:block!important}
+    #report-print.on,#kei-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -246,6 +246,7 @@
     <button data-t="chat" onclick="go('chat')">💬 AI相談</button>
     <div class="navsec">日々の支援</div>
     <button data-t="plan" onclick="go('plan')">📅 予定</button>
+    <button data-t="keikaku" onclick="go('keikaku')">📝 計画</button>
     <button data-t="report" onclick="go('report')">📋 報告</button>
     <button data-t="scan" onclick="go('scan')">📷 スキャン</button>
     <button data-t="trip" onclick="go('trip')">🚗 移動</button>
@@ -373,6 +374,69 @@
       </div>
     </details>
     <div class="card"><div class="subttl">登録済みの予定 <span class="chip g" id="plan-count"></span></div><div id="plan-list"></div></div>
+  </section>
+
+
+  <!-- ============ 訪問介護計画書 ============ -->
+  <section id="v-keikaku" class="view">
+    <h2 class="title noprint">📝 訪問介護計画書</h2>
+    <div class="banner noprint">📋 <b>運営基準で作成・説明・同意・交付が義務</b>づけられた書類です(未作成は減算・指導の対象)。居宅サービス計画(ケアプラン)の目標に沿って援助目標とサービス内容を定め、変更のたびに作り直します。<br>🤖 <b>直近の訪問報告からAIが下書き</b>します ― 「実際に行っている支援」を拾うので、ゼロから書くより早く、計画と実態のズレも減らせます。<b>内容は必ずサービス提供責任者が確認・修正</b>してから説明・交付してください。</div>
+    <div class="card noprint">
+      <label class="fld">利用者</label>
+      <select id="kei-user" onchange="renderKeikaku()"></select>
+      <div id="kei-status" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="newKeikaku()">＋ 新しい計画を作る</button>
+      </div>
+    </div>
+
+    <div class="card noprint" id="kei-form" style="display:none">
+      <div class="subttl" id="kei-form-title">計画書の作成</div>
+      <div class="grid2">
+        <div><label class="fld">作成日</label><input type="date" id="kei-date"></div>
+        <div><label class="fld">作成者(サービス提供責任者)</label><select id="kei-staff"></select></div>
+      </div>
+      <div class="grid2">
+        <div><label class="fld">居宅介護支援事業所</label><input type="text" id="kei-cmoffice" placeholder="例: ◯◯居宅介護支援センター"></div>
+        <div><label class="fld">担当ケアマネジャー</label><input type="text" id="kei-cmname" placeholder="例: ◯◯さん"></div>
+      </div>
+
+      <div class="subttl" style="margin-top:16px">① 居宅サービス計画(ケアプラン)の目標</div>
+      <p class="muted">ケアマネジャーから受け取ったケアプランの目標を写します。訪問介護計画はこの目標に沿って作ります。</p>
+      <label class="fld">長期目標</label><textarea id="kei-cplong" placeholder="例: 住み慣れた自宅で安全に生活を続けられる"></textarea>
+      <label class="fld">短期目標</label><textarea id="kei-cpshort" placeholder="例: 転倒せずに入浴・調理ができる"></textarea>
+
+      <div class="subttl" style="margin-top:16px">② 利用者・ご家族の意向</div>
+      <textarea id="kei-ikou" placeholder="例: できる限り自宅で過ごしたい。調理は自分でもやりたい。"></textarea>
+
+      <div class="subttl" style="margin-top:16px">③ 援助の目標</div>
+      <label class="fld">長期目標(6か月〜1年)</label><textarea id="kei-goallong"></textarea>
+      <label class="fld">短期目標(1〜3か月)</label><textarea id="kei-goalshort"></textarea>
+
+      <div class="subttl" style="margin-top:16px">④ サービス内容</div>
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn mini sec" onclick="keiFromPlan()">📅 訪問予定から取り込む</button>
+        <button class="btn mini sec" onclick="addKeiService()">＋ 行を追加</button>
+      </div>
+      <div id="kei-services"></div>
+
+      <div class="subttl" style="margin-top:16px">⑤ 留意事項</div>
+      <textarea id="kei-ryui" placeholder="例: 玄関の段差で転倒歴あり。食事はきざみ食で水分にとろみ剤。"></textarea>
+
+      <div id="kei-ai-note" style="margin-top:12px"></div>
+      <button class="btn" id="kei-gen" style="margin-top:12px" onclick="genKeikaku()">🤖 直近の報告から下書きを作る</button>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="saveKeikaku()">💾 計画を保存</button>
+        <button class="btn sec" onclick="hideKeiForm()">キャンセル</button>
+      </div>
+    </div>
+
+    <div class="card noprint">
+      <div class="subttl">この方の計画書 <span class="chip g" id="kei-count"></span></div>
+      <div id="kei-list"></div>
+    </div>
+
+    <div id="kei-print" class="sheet"></div>
   </section>
 
   <section id="v-report" class="view">
@@ -1039,7 +1103,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -1105,7 +1169,7 @@ let shopSel = [];
 function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.users){ d.office=d.office||{}; d.office.tanka=d.office.tanka||10; d.office.shogu=d.office.shogu||0;
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
-        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[];
+        d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[]; d.keikaku=d.keikaku||[];
         d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
@@ -1139,6 +1203,7 @@ function go(t){
   if(t==='home') renderHome();
   if(t==='chat') renderChat();
   if(t==='plan') renderPlan();
+  if(t==='keikaku') renderKeikaku();
   if(t==='report'){ renderReports(); renderVisitRefs(); renderVisitEditing(); markVisitDate(); }
   if(t==='trip'){ renderTrips(); renderTripRoute(); }
   if(t==='shop'){ renderShop(); renderMoney(); }
@@ -1183,6 +1248,17 @@ function renderHome(){
       if(miss) alerts.push({ic:'⭐', t:`特定事業所加算の要件が ${miss} 件未整備`, d:'🧾実績・請求タブの要件チェックで確認・記録してください', go:'billing'});
     }
   }catch(e){}
+  const noKei=db.users.filter(u=>!latestKei(u.id));
+  if(noKei.length) alerts.push({ic:'📝', t:`訪問介護計画書が未作成の利用者が ${noKei.length} 名`,
+    d:noKei.slice(0,4).map(u=>u.name).join('、')+(noKei.length>4?' ほか':'')+' ― 運営基準上の必須書類です(未作成は減算・指導の対象)', go:'keikaku'});
+  const keiPend=db.users.map(u=>latestKei(u.id)).filter(k=>k&&(!k.doui||!k.koufu)).length;
+  if(keiPend) alerts.push({ic:'✍️', t:`計画書の同意・交付が未済 ${keiPend} 件`, d:'利用者への説明と同意・交付の記録が必要です', go:'keikaku'});
+  const keiMon=db.users.map(u=>latestKei(u.id)).filter(k=>{
+    if(!k||!k.doui) return false;
+    const m=(k.monitors||[]).slice(-1)[0];
+    return !m || daysSince(m.date)>92;
+  }).length;
+  if(keiMon) alerts.push({ic:'📈', t:`計画のモニタリングが3か月以上未実施 ${keiMon} 件`, d:'実施状況を評価し、必要なら計画を見直してください', go:'keikaku'});
   const drafts=db.reports.filter(r=>r.draft).length;
   if(drafts) alerts.push({ic:'📝', t:`未確定(下書き)の報告が ${drafts} 件`, d:'📋報告の履歴から内容を確認し「✅ 確定」を押してください。実績・請求には下書きも含まれます', go:'report'});
   const unusedMemos=(db.memos||[]).filter(m=>!m.used).length;
@@ -1217,6 +1293,13 @@ function fillSelects(){
       : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
     if(k&&staff(k)) vs.value=k; }
   const lu=document.getElementById('life-user'); if(lu){ const k=lu.value; lu.innerHTML=opts; if(k) lu.value=k; }
+  const ku2=document.getElementById('kei-user'); if(ku2){ const k=ku2.value; ku2.innerHTML=opts; if(k) ku2.value=k; }
+  const ks2=document.getElementById('kei-staff');
+  if(ks2){ const k=ks2.value;
+    ks2.innerHTML=(db.staff||[]).length
+      ? db.staff.map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
+      : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
+    if(k&&staff(k)) ks2.value=k; }
   const hu=document.getElementById('hist-user'); if(hu){ const k=hu.value; hu.innerHTML='<option value="">利用者: すべて</option>'+opts; hu.value=k; }
   const hs=document.getElementById('hist-staff'); if(hs){ const k=hs.value;
     hs.innerHTML='<option value="">担当: すべて</option>'+(db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join(''); hs.value=k; }
@@ -1281,6 +1364,33 @@ async function testAI(){
   });
 }
 const demoGenerators = {
+  keikaku({userName, care, reports, plans, cpLong, cpShort, rules}){
+    const rs=(reports||[]).join(' ');
+    const has=re=>re.test(rs);
+    const acts=[];
+    if(has(/入浴|清拭|整容/)) acts.push({k:'shintai', c:'入浴介助。浴室への移動時は手すりの使用を促し、洗身・洗髪を一部介助。脱衣所の室温に留意する。'});
+    if(has(/調理|食事|きざみ/)) acts.push({k:'seikatsu', c:'調理(昼食・夕食分の作り置き)。ご本人の希望を確認しながら味付けを調整し、食事状況を記録する。'});
+    if(has(/掃除|洗濯|ゴミ/)) acts.push({k:'seikatsu', c:'居室と水回りの清掃、洗濯、ゴミ出し。ご本人ができる範囲は一緒に行う。'});
+    if(has(/買い物/)) acts.push({k:'seikatsu', c:'買い物代行。預り金と使用額・レシートを記録し、その場でご本人と確認する。'});
+    if(has(/通院|同行/)) acts.push({k:'joukou', c:'通院同行。乗降介助と受付までの付き添いを行い、受診結果をご家族へ申し送る。'});
+    if(!acts.length) acts.push({k:'seikatsu', c:'居室の清掃と調理。生活状況を確認し、変化があれば記録する。'});
+    const svc=(plans||[]).length
+      ? plans.map((p,i)=>({ when:String(p).replace(/\(.*\)$/,'').trim(),
+                            kubun:/身体＋生活|身体\+生活/.test(p)?'both':/身体/.test(p)?'shintai':/乗降/.test(p)?'joukou':'seikatsu',
+                            content:(acts[i%acts.length]||acts[0]).c }))
+      : acts.map(a=>({when:'(訪問予定を登録してください)', kubun:a.k, content:a.c}));
+    const risk=has(/ふらつ|転倒|滑|むせ/);
+    return {
+      ikou: `${userName}ご本人からは、住み慣れた自宅での生活を続けたいというお話がありました。できることはご自身で続けたいというご意向です。※デモ生成のため、実際の意向は聞き取りのうえ書き換えてください。`,
+      goalLong: cpLong || `自宅での生活を安全に続けられ、${risk?'転倒なく':'体調を崩さず'}日常生活を送ることができる。`,
+      goalShort: cpShort || (risk
+        ? '移動・入浴の場面で見守りと声かけを受けながら、転倒せずに過ごすことができる。'
+        : '食事・清潔・住環境が整い、体調の変化に早く気づける状態を保つことができる。'),
+      services: svc,
+      ryui: (rules||[]).join(' / ') + (risk ? (rules||[]).length?' / 移動時のふらつきに注意し、手すり・声かけで転倒を予防する。':'移動時のふらつきに注意し、手すり・声かけで転倒を予防する。' : ''),
+      note: `直近の報告${(reports||[]).length}件から、実際に行っている支援を抽出しました。(検証版のデモ生成です)`
+    };
+  },
   chat({question, cases}){
     const q=question||'';
     const has=re=>re.test(q);
@@ -2050,6 +2160,29 @@ function seedDemoData(){
     });
   });
 
+  // --- 訪問介護計画書(u1のみ。u2・u3は未作成にして⚠️要対応の見え方を確認できるようにする) ---
+  const u1=db.users.find(x=>x.id==='u1');
+  if(u1){
+    db.keikaku.push({
+      id:'demo-kk1', userId:'u1', date:dayOf(45), staffId:st1, staffName:'職員A',
+      cmOffice:'かけはし居宅介護支援センター', cmName:'田中さん',
+      cpLong:'住み慣れた自宅で、安全に生活を続けることができる。',
+      cpShort:'転倒せずに、食事・清潔・住環境を整えた生活を送ることができる。',
+      ikou:'できる限り自宅で過ごしたい。調理は自分でもやりたいので、できるところは一緒にやってほしい。(長女さまも同意)',
+      goalLong:'自宅での生活を安全に続けられ、体調を崩さず日常生活を送ることができる。',
+      goalShort:'食事・清潔・住環境が整い、体調の変化に早く気づける状態を保つことができる。',
+      services:[
+        {when:'毎週 月・水・金曜 9:00〜10:00', kubun:'seikatsu',
+         content:'居室と水回りの清掃、洗濯、ゴミ出し。昼食・夕食分の調理(味付けはご本人の希望を確認)。冷蔵庫の在庫を確認し、不足品は次回の買い物で対応する。'},
+        {when:'隔週 金曜 9:00〜10:00(買い物代行を含む)', kubun:'seikatsu',
+         content:'買い物代行。預り金・使用額・レシートを記録し、その場でご本人と確認する。'}
+      ],
+      ryui:'🔑 鍵・入室: キーボックス(玄関右・番号は事務所で確認) / ⚠️ 禁忌・注意: 玄関の段差で転倒歴あり。ゆっくり誘導 / 📞 緊急連絡: 長女 → ケアマネの順',
+      setsumei:dayOf(44), doui:dayOf(44), koufu:dayOf(44),
+      monitors:[{date:dayOf(14), text:'短期目標はおおむね達成。調理・清掃は安定して実施できている。食欲良好で体調の変化なし。買い物の頻度は現状のままで問題なし。', need:'不要(継続)'}]
+    });
+  }
+
   save();
 }
 
@@ -2631,6 +2764,8 @@ function renderBillCheck(ym, list){
   const rows=[]; const o=db.office||{};
   if(!o.no||!o.name) rows.push({ic:'⛔', t:'事業所情報が未登録', d:'⚙️設定で事業所番号・事業所名を登録してください。'});
   if(!(+o.tanka)) rows.push({ic:'⚠️', t:'単位単価が未設定', d:'⚙️設定で地域区分の単位単価を登録してください(未設定時は10円で計算)。'});
+  const nk=list.map(r=>r.u).filter(u=>!latestKei(u.id));
+  if(nk.length) rows.push({ic:'⚠️', t:`訪問介護計画書が未作成 ${nk.length} 名`, d:nk.map(u=>u.name).join('、')+' ― 📝計画タブで作成してください。未作成は減算・指導の対象です。'});
   const dft=db.reports.filter(r=>r.draft && (r.date||'').slice(0,7)===ym).length;
   if(dft) rows.push({ic:'⚠️', t:`未確定(下書き)の報告が ${dft} 件`, d:'この月の集計に含まれています。📋報告の履歴で内容を確認し、確定または削除してください。'});
   list.forEach(r=>{
@@ -3412,6 +3547,283 @@ async function adoptShinsei(i){
   alert(jobs.length+'件を事例ライブラリに保存しました。次回の下書きから、この文章の構成が優先的に使われます。');
 }
 
+/* ============================================================
+   訪問介護計画書
+   運営基準上の必須書類。ケアプランの目標 → 援助目標 → サービス内容 を定め、
+   利用者への説明・同意・交付とモニタリングまでを1画面で管理する。
+   AI下書きは「直近の報告(実際に行っている支援)」を材料にする。
+   ============================================================ */
+let editingKei=null, keiServices=[];
+
+function keiUid(){ return (document.getElementById('kei-user')||{}).value || ''; }
+function keiOf(uid){ return (db.keikaku||[]).filter(k=>k.userId===uid).slice().sort((a,b)=>a.date<b.date?1:-1); }
+function latestKei(uid){ return keiOf(uid)[0]; }
+function keiStatus(k){
+  if(!k) return {c:'r', t:'未作成'};
+  if(!k.doui) return {c:'y', t:'同意待ち'};
+  if(!k.koufu) return {c:'y', t:'交付待ち'};
+  const m=(k.monitors||[]).slice(-1)[0];
+  if(!m) return {c:'y', t:'モニタリング未実施'};
+  if(daysSince(m.date)>92) return {c:'y', t:'モニタリング期限超過'};
+  return {c:'g', t:'運用中'};
+}
+function keiSvcRow(s, i){
+  const opt=(v,l)=>`<option value="${v}"${s.kubun===v?' selected':''}>${l}</option>`;
+  return `<div class="check-row"><div class="check-ic">🕐</div>
+    <div style="flex:1;min-width:0">
+      <div class="grid2">
+        <div><label class="fld">曜日・時間帯</label><input type="text" data-ks="when" data-ki="${i}" value="${esc(s.when||'')}" placeholder="例: 月・水・金 9:00〜10:00"></div>
+        <div><label class="fld">サービス区分</label><select data-ks="kubun" data-ki="${i}">
+          ${opt('shintai','身体介護')}${opt('seikatsu','生活援助')}${opt('both','身体介護＋生活援助')}${opt('joukou','通院等乗降介助')}</select></div>
+      </div>
+      <label class="fld">支援内容・手順</label><textarea data-ks="content" data-ki="${i}" placeholder="例: 居室と水回りの清掃、洗濯、翌日分の副菜を調理">${esc(s.content||'')}</textarea>
+    </div>
+    <button class="btn mini sec" onclick="delKeiService(${i})">削除</button></div>`;
+}
+function renderKeiServices(){
+  const el=document.getElementById('kei-services'); if(!el) return;
+  el.innerHTML = keiServices.length ? keiServices.map(keiSvcRow).join('')
+    : '<p class="muted">まだサービス内容がありません。「📅 訪問予定から取り込む」か「＋ 行を追加」から入力してください。</p>';
+}
+function readKeiServices(){
+  const el=document.getElementById('kei-services'); if(!el) return;
+  el.querySelectorAll('[data-ks]').forEach(inp=>{
+    const i=+inp.dataset.ki; if(!keiServices[i]) return;
+    keiServices[i][inp.dataset.ks]=inp.value;
+  });
+}
+function addKeiService(){ readKeiServices(); keiServices.push({when:'', kubun:'seikatsu', content:''}); renderKeiServices(); }
+function delKeiService(i){ readKeiServices(); keiServices.splice(i,1); renderKeiServices(); }
+function keiFromPlan(){
+  const uid=keiUid();
+  const ps=(db.plans||[]).filter(p=>p.userId===uid);
+  if(!ps.length){ alert('この方の訪問予定が登録されていません。📅予定タブで登録するか、「＋ 行を追加」で手入力してください。'); return; }
+  readKeiServices();
+  ps.forEach(p=>{
+    const when = p.type==='once' ? `${p.date} ${p.start}〜${p.end}`
+      : `毎週 ${(p.days||[]).map(d=>WD_LBL[d]).join('・')}曜 ${p.start}〜${p.end}`;
+    if(!keiServices.some(s=>s.when===when)) keiServices.push({when, kubun:p.kubun||'seikatsu', content:''});
+  });
+  renderKeiServices();
+}
+function newKeikaku(){
+  const uid=keiUid();
+  if(!uid){ alert('利用者を選択してください。🏡利用者タブから追加できます。'); return; }
+  const prev=latestKei(uid);
+  editingKei=null;
+  document.getElementById('kei-form-title').textContent = prev ? '計画書の作成(前回の内容を土台にしています)' : '計画書の作成';
+  document.getElementById('kei-date').value=fullDate();
+  const sf=document.getElementById('kei-staff'); if(sf&&(db.staff||[]).length) sf.value=(prev&&prev.staffId&&staff(prev.staffId))?prev.staffId:db.staff[0].id;
+  [['kei-cmoffice','cmOffice'],['kei-cmname','cmName'],['kei-cplong','cpLong'],['kei-cpshort','cpShort'],
+   ['kei-ikou','ikou'],['kei-goallong','goalLong'],['kei-goalshort','goalShort'],['kei-ryui','ryui']]
+    .forEach(([id,k])=>{ document.getElementById(id).value = prev ? (prev[k]||'') : ''; });
+  keiServices = prev ? structuredClone(prev.services||[]) : [];
+  if(!keiServices.length) keiFromPlanQuiet(uid);
+  renderKeiServices();
+  document.getElementById('kei-ai-note').innerHTML='';
+  const f=document.getElementById('kei-form'); f.style.display='block';
+  f.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function keiFromPlanQuiet(uid){
+  (db.plans||[]).filter(p=>p.userId===uid).forEach(p=>{
+    const when = p.type==='once' ? `${p.date} ${p.start}〜${p.end}`
+      : `毎週 ${(p.days||[]).map(d=>WD_LBL[d]).join('・')}曜 ${p.start}〜${p.end}`;
+    keiServices.push({when, kubun:p.kubun||'seikatsu', content:''});
+  });
+}
+function editKeikaku(id){
+  const k=(db.keikaku||[]).find(x=>x.id===id); if(!k) return;
+  editingKei=id;
+  document.getElementById('kei-user').value=k.userId;
+  document.getElementById('kei-form-title').textContent=`${k.date} 作成の計画書を編集`;
+  document.getElementById('kei-date').value=k.date||fullDate();
+  if(k.staffId&&staff(k.staffId)) document.getElementById('kei-staff').value=k.staffId;
+  [['kei-cmoffice','cmOffice'],['kei-cmname','cmName'],['kei-cplong','cpLong'],['kei-cpshort','cpShort'],
+   ['kei-ikou','ikou'],['kei-goallong','goalLong'],['kei-goalshort','goalShort'],['kei-ryui','ryui']]
+    .forEach(([id2,f])=>{ document.getElementById(id2).value=k[f]||''; });
+  keiServices=structuredClone(k.services||[]);
+  renderKeiServices();
+  document.getElementById('kei-ai-note').innerHTML='';
+  const f=document.getElementById('kei-form'); f.style.display='block';
+  f.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function hideKeiForm(){ document.getElementById('kei-form').style.display='none'; editingKei=null; }
+function saveKeikaku(){
+  const uid=keiUid();
+  if(!uid){ alert('利用者を選択してください。'); return; }
+  readKeiServices();
+  const v=id=>document.getElementById(id).value.trim();
+  if(!v('kei-goalshort') && !keiServices.length){
+    if(!confirm('援助目標もサービス内容も未入力です。このまま保存しますか?')) return;
+  }
+  const sid=document.getElementById('kei-staff').value||'';
+  const body={ userId:uid, date:document.getElementById('kei-date').value||fullDate(),
+    staffId:sid, staffName:(staff(sid)||{}).name||'',
+    cmOffice:v('kei-cmoffice'), cmName:v('kei-cmname'),
+    cpLong:v('kei-cplong'), cpShort:v('kei-cpshort'), ikou:v('kei-ikou'),
+    goalLong:v('kei-goallong'), goalShort:v('kei-goalshort'),
+    services:keiServices.filter(s=>(s.when||'').trim()||(s.content||'').trim()), ryui:v('kei-ryui') };
+  db.keikaku=db.keikaku||[];
+  if(editingKei){ Object.assign(db.keikaku.find(x=>x.id===editingKei), body); }
+  else { db.keikaku.push(Object.assign({id:'kk'+Date.now(), setsumei:'', doui:'', koufu:'', monitors:[]}, body)); }
+  save(); hideKeiForm(); renderKeikaku(); renderHome();
+  alert('計画書を保存しました。利用者に説明し、同意・交付を記録してください。');
+}
+function delKeikaku(id){
+  const k=(db.keikaku||[]).find(x=>x.id===id); if(!k) return;
+  if(!confirm(`${k.date} 作成の計画書を削除します。よろしいですか?`)) return;
+  db.keikaku=db.keikaku.filter(x=>x.id!==id);
+  if(editingKei===id) hideKeiForm();
+  save(); renderKeikaku(); renderHome();
+}
+function signKei(id, field){
+  const k=(db.keikaku||[]).find(x=>x.id===id); if(!k) return;
+  const lbl={setsumei:'説明', doui:'同意', koufu:'交付'}[field];
+  if(k[field]){ if(!confirm(`${lbl}日を今日の日付に上書きしますか?`)) return; }
+  k[field]=fullDate(); save(); renderKeikaku(); renderHome();
+}
+function addMonitor(id){
+  const k=(db.keikaku||[]).find(x=>x.id===id); if(!k) return;
+  const d=document.getElementById('mon-date').value||fullDate();
+  const t=document.getElementById('mon-text').value.trim();
+  if(!t){ alert('モニタリングの内容を入力してください。'); return; }
+  k.monitors=k.monitors||[];
+  k.monitors.push({date:d, text:t, need:document.getElementById('mon-need').value});
+  save(); renderKeikaku(); renderHome();
+}
+function delMonitor(id, i){
+  const k=(db.keikaku||[]).find(x=>x.id===id); if(!k) return;
+  k.monitors.splice(i,1); save(); renderKeikaku();
+}
+function renderKeikaku(){
+  const sel=document.getElementById('kei-user'); if(!sel) return;
+  const uid=keiUid();
+  const ks=keiOf(uid);
+  const cur=ks[0];
+  const st=keiStatus(cur);
+  const u=user(uid);
+  document.getElementById('kei-status').innerHTML = !u
+    ? '<p class="muted">利用者が登録されていません。🏡利用者タブから追加してください。</p>'
+    : `<div class="check-row"><div class="check-ic">${cur?'📝':'⚠️'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="t">${esc(u.name)}の訪問介護計画 <span class="chip ${st.c}">${st.t}</span></div>
+          <div class="d">${cur
+            ? `${esc(cur.date)} 作成${cur.staffName?' / '+esc(cur.staffName):''}・サービス ${(cur.services||[]).length}件${cur.koufu?`・交付 ${esc(cur.koufu)}`:''}`
+            : '<b>まだ計画書がありません。</b>訪問介護計画の未作成は減算・指導の対象です。'}</div>
+        </div></div>`;
+  document.getElementById('kei-count').textContent=ks.length+'件';
+  document.getElementById('kei-list').innerHTML = ks.length ? ks.map((k,idx)=>{
+    const s=keiStatus(k), latest=idx===0;
+    const sign=(f,l)=>`<div class="d">${l}: ${k[f]?esc(k[f]):'<span class="chip y">未</span>'}
+      ${k[f]?'':`<button class="btn mini sec" style="margin-left:6px" onclick="signKei('${k.id}','${f}')">今日で記録</button>`}</div>`;
+    const mons=(k.monitors||[]).slice().reverse();
+    return `<div class="rec-item rich${latest?' open':''}">
+      <div class="h" onclick="this.parentElement.classList.toggle('open')">
+        <span><b>${esc(k.date)}</b> 作成${k.staffName?`<span class="muted"> ／ ${esc(k.staffName)}</span>`:''}</span>
+        <span>${latest?'<span class="chip g">有効</span> ':'<span class="chip">過去</span> '}<span class="chip ${s.c}">${s.t}</span></span>
+      </div>
+      <div class="body">
+        <div class="out"><div class="ot"><span>援助の目標</span></div>
+          <span>長期: ${esc(k.goalLong||'(未入力)')}\n短期: ${esc(k.goalShort||'(未入力)')}</span></div>
+        <div class="tblwrap" style="margin-top:10px"><table class="tbl">
+          <tr><th style="min-width:150px">曜日・時間帯</th><th style="min-width:74px">区分</th><th style="text-align:left;min-width:230px">支援内容</th></tr>
+          ${(k.services||[]).length ? k.services.map(x=>`<tr><td>${esc(x.when||'')}</td><td>${esc(KUBUN_LBL[x.kubun]||'')}</td>
+            <td style="text-align:left;white-space:normal">${esc(x.content||'')}</td></tr>`).join('')
+            : '<tr><td colspan="3" style="padding:14px">サービス内容が未入力です。</td></tr>'}
+        </table></div>
+        <div class="subttl" style="margin-top:14px">説明・同意・交付</div>
+        ${sign('setsumei','説明日')}${sign('doui','同意日(署名の受領)')}${sign('koufu','交付日')}
+        ${latest?`
+        <div class="subttl" style="margin-top:14px">モニタリング <span class="muted" style="font-weight:400;font-size:12px">※法令上は「定期的に」。実務では月1回程度が一般的です(このアプリは3か月を超えると警告します)</span></div>
+        <div class="grid2">
+          <div><label class="fld">実施日</label><input type="date" id="mon-date" value="${fullDate()}"></div>
+          <div><label class="fld">見直しの要否</label><select id="mon-need"><option>不要(継続)</option><option>要(計画を見直す)</option></select></div>
+        </div>
+        <label class="fld">実施状況・評価</label><textarea id="mon-text" placeholder="例: 短期目標はおおむね達成。入浴時のふらつきがあり、手すりの利用を継続。"></textarea>
+        <button class="btn sec" style="margin-top:10px" onclick="addMonitor('${k.id}')">💾 モニタリングを記録</button>`:''}
+        ${mons.length?`<div style="margin-top:12px">${mons.map((m,i)=>`<div class="check-row"><div class="check-ic">📈</div>
+          <div style="flex:1;min-width:0"><div class="t">${esc(m.date)} <span class="chip ${/要\(/.test(m.need||'')?'y':'g'}">${esc(m.need||'')}</span></div>
+          <div class="d">${esc(m.text||'')}</div></div>
+          <button class="btn mini sec" onclick="delMonitor('${k.id}',${(k.monitors||[]).length-1-i})">削除</button></div>`).join('')}</div>`:''}
+        <div class="row" style="margin-top:12px">
+          <button class="btn mini sec" onclick="editKeikaku('${k.id}')">✏️ 編集</button>
+          <button class="btn mini sec" onclick="printKeikaku('${k.id}')">🖨 印刷</button>
+          <button class="btn mini sec" style="color:var(--danger)" onclick="delKeikaku('${k.id}')">🗑 削除</button>
+        </div>
+      </div></div>`;
+  }).join('') : '<p class="muted">まだ計画書がありません。「＋ 新しい計画を作る」から作成してください。</p>';
+}
+async function genKeikaku(){
+  const uid=keiUid(), u=user(uid);
+  if(!u){ alert('利用者を選択してください。'); return; }
+  readKeiServices();
+  const rs=db.reports.filter(r=>r.userId===uid).slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,8);
+  const plans=(db.plans||[]).filter(p=>p.userId===uid).map(p=>p.type==='once'
+    ? `${p.date} ${p.start}〜${p.end}(${KUBUN_LBL[p.kubun]||''})`
+    : `毎週 ${(p.days||[]).map(d=>WD_LBL[d]).join('・')}曜 ${p.start}〜${p.end}(${KUBUN_LBL[p.kubun]||''})`);
+  const rr=u.rules||{};
+  const rules=RULE_DEFS.filter(([k])=>rr[k]).map(([k,l])=>`${l}: ${rr[k]}`);
+  const prev=latestKei(uid);
+  await withLoading('kei-gen','報告を読んで下書きを作成中…', async()=>{
+    const r=await callAI('keikaku', {
+      userName:u.name, care:u.care||'', note:u.note||'',
+      cm:[document.getElementById('kei-cmoffice').value, document.getElementById('kei-cmname').value].filter(Boolean).join(' / '),
+      cpLong:document.getElementById('kei-cplong').value, cpShort:document.getElementById('kei-cpshort').value,
+      plans, rules,
+      reports: rs.map(r2=>`${r2.date} ${r2.start||''}〜${r2.end||''} ${(r2.src&&r2.src.text)||r2.summary||''}`),
+      prev: prev ? `長期目標: ${prev.goalLong||''} / 短期目標: ${prev.goalShort||''} / 留意: ${prev.ryui||''}` : ''
+    });
+    const set=(id,val)=>{ const e=document.getElementById(id); if(e && val) e.value=val; };
+    set('kei-ikou', r.ikou); set('kei-goallong', r.goalLong); set('kei-goalshort', r.goalShort); set('kei-ryui', r.ryui);
+    if((r.services||[]).length) keiServices=r.services.map(s=>({when:s.when||'', kubun:s.kubun||'seikatsu', content:s.content||''}));
+    renderKeiServices();
+    document.getElementById('kei-ai-note').innerHTML=
+      `<div class="banner">🤖 <b>直近の報告${rs.length}件から下書きしました。</b>${esc(r.note||'')}
+       <br>内容を必ず確認・修正し、ご本人・ご家族の意向を聞き取ってから確定してください。</div>`;
+  });
+}
+function printKeikaku(id){
+  const k=(db.keikaku||[]).find(x=>x.id===id); if(!k) return;
+  const u=user(k.userId)||{}, o=db.office||{};
+  const el=document.getElementById('kei-print');
+  const row=(l,v)=>`<tr><th style="width:28%">${l}</th><td style="text-align:left;white-space:pre-wrap">${esc(v||'')}</td></tr>`;
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">訪問介護計画書</div>
+    <div class="shead">
+      <div><b>利用者</b>${esc(u.name||'')} 様</div>
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>要介護度</b>${esc(u.care||'')}</div>
+      <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+      <div><b>被保険者番号</b>${esc(u.hokenNo||'')}</div>
+      <div><b>作成年月日</b>${esc(k.date||'')}</div>
+      <div><b>居宅介護支援事業所</b>${esc(k.cmOffice||'')}</div>
+      <div><b>作成者(サ責)</b>${esc(k.staffName||'')}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      ${row('ケアプランの長期目標', k.cpLong)}${row('ケアプランの短期目標', k.cpShort)}
+      ${row('利用者・ご家族の意向', k.ikou)}
+      ${row('援助の長期目標', k.goalLong)}${row('援助の短期目標', k.goalShort)}
+    </table></div>
+    <div style="font-weight:700;margin:12px 0 6px">サービス内容</div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>曜日・時間帯</th><th>サービス区分</th><th style="text-align:left">支援内容・手順</th></tr>
+      ${(k.services||[]).length ? k.services.map(x=>`<tr><td>${esc(x.when||'')}</td><td>${esc(KUBUN_LBL[x.kubun]||'')}</td>
+        <td style="text-align:left;white-space:normal">${esc(x.content||'')}</td></tr>`).join('')
+        : '<tr><td colspan="3" style="padding:14px">―</td></tr>'}
+    </table></div>
+    <div class="tblwrap" style="margin-top:12px"><table class="tbl">${row('留意事項', k.ryui)}</table></div>
+    <div class="tblwrap" style="margin-top:12px"><table class="tbl">
+      <tr><th>説明年月日</th><td>${esc(k.setsumei||'　　　年　　月　　日')}</td>
+          <th>交付年月日</th><td>${esc(k.koufu||'　　　年　　月　　日')}</td></tr>
+      <tr><th>同意年月日</th><td>${esc(k.doui||'　　　年　　月　　日')}</td>
+          <th>利用者署名</th><td style="width:30%">　　　　　　　　　</td></tr>
+    </table></div>
+    <p class="muted" style="margin-top:10px">上記の訪問介護計画について説明を受け、内容に同意します。</p>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
 /* ---------- サービス提供記録(利用者宅控え) ---------- */
 function renderKiroku(){
   const u=user(document.getElementById('kiroku-user').value);
@@ -3604,6 +4016,7 @@ function removeSamples(){
   db.moneys=(db.moneys||[]).filter(m=>!['u1','u2','u3'].includes(m.userId));
   db.trips=(db.trips||[]).filter(t=>!['u1','u2','u3'].includes(t.userId));
   db.life=(db.life||[]).filter(l=>!['u1','u2','u3'].includes(l.userId));
+  db.keikaku=(db.keikaku||[]).filter(k=>!['u1','u2','u3'].includes(k.userId));
   save(); renderUsers(); renderStaff(); fillSelects(); renderHome(); renderShop();
 }
 function resetAll(){
