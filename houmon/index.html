@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -201,7 +201,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -918,6 +918,7 @@
       <button data-s="meisai" onclick="billSec('meisai')">📄 明細書</button>
       <button data-s="teikyo" onclick="billSec('teikyo')">📄 提供票</button>
       <button data-s="tokutei" onclick="billSec('tokutei')">⭐ 特定事業所加算</button>
+      <button data-s="kaigi" onclick="billSec('kaigi')">📚 研修・会議 <span class="chip y" id="kg-navchip" style="display:none"></span></button>
       <button data-s="diff" onclick="billSec('diff')">🔀 改定差分</button>
       <button data-s="data" onclick="billSec('data')">📤 請求データ</button>
     </div>
@@ -960,6 +961,7 @@
       <div id="tk-out" class="sheet" style="margin-top:14px"></div>
     </div>
     <div id="tk-print" class="sheet"></div>
+    <div id="kg-print" class="sheet"></div>
     <div data-sec="diff" class="card noprint">
       <div class="subttl">🔀 改定の新旧差分チェック</div>
       <p class="muted">同じ実績を別の改定版で計算し、差額を確認します。改定版を作ったら必ず前月実績で確認してください。</p>
@@ -979,6 +981,86 @@
         <button class="btn" onclick="alert('(検証版)本番では介護給付費明細書・請求書を自動作成し、電子請求受付システムへインターネット伝送します。')">📤 国保連へ伝送(本番機能)</button>
       </div>
     </div>
+    <div data-sec="kaigi" class="card noprint" style="display:none">
+      <div class="banner">📚 <b>会議・研修・委員会は「やったこと」ではなく「記録が残っていること」が問われます</b>。特定事業所加算の定期会議と個別研修計画、虐待防止・感染症対策・BCPの研修と訓練は、<b>議事録と出席者の記録</b>が実地指導で確認されます(虐待防止・BCPは未実施だと減算の対象です)。<br>🤖 <b>議題はAIが下書き</b>します ― ⚠️ヒヤリハット・事故、📣苦情、⭐未整備の要件から「今回話すべきこと」を拾います。</div>
+      <button class="btn" onclick="newKaigi()">＋ 開催を記録する</button>
+      <select id="kg-filter" onchange="renderKaigi()" style="margin-top:10px">
+        <option value="year">直近1年</option>
+        <option value="all">すべて</option>
+      </select>
+    </div>
+
+    <div data-sec="kaigi" class="card noprint" id="kg-form" style="display:none">
+      <div class="subttl" id="kg-form-title">開催の記録</div>
+      <label class="fld">種類</label>
+      <select id="kg-kind" onchange="renderKgKind()"></select>
+      <div id="kg-kind-note" style="margin:8px 0 0"></div>
+      <div class="grid2" style="margin-top:12px">
+        <div><label class="fld">開催日</label><input type="date" id="kg-date"></div>
+        <div><label class="fld">開催場所</label><input type="text" id="kg-place" placeholder="例: 事業所内・オンライン"></div>
+      </div>
+      <div class="grid2">
+        <div><label class="fld">開始</label><input type="time" id="kg-start"></div>
+        <div><label class="fld">終了</label><input type="time" id="kg-end"></div>
+      </div>
+      <label class="fld">表題</label>
+      <input type="text" id="kg-title" placeholder="例: 8月度 訪問介護員会議">
+      <label class="fld">進行・講師</label>
+      <select id="kg-host"></select>
+
+      <label class="fld">出席者 <span class="muted">※チェックした職員が出席、残りは欠席として記録されます</span></label>
+      <div id="kg-attend"></div>
+
+      <label class="fld">議題・内容</label>
+      <textarea id="kg-agenda" style="min-height:90px" placeholder="例) ・8月のヒヤリハットの共有と対策  ・苦情への対応の報告  ・次月の訪問体制"></textarea>
+      <label class="fld">議事録・決まったこと(🎤音声もOK)</label>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <textarea id="kg-minutes" style="flex:1;min-height:110px" placeholder="例) 浴室での転倒しかけの件を共有。入浴前にマットと床の水気を確認することを全員で確認した。"></textarea>
+        <button id="kg-mic" class="mic sm" onclick="toggleDict('kg-mic','kg-minutes','kg-hint')">🎤</button>
+      </div>
+      <div class="muted" id="kg-hint" style="margin:4px 0 0"></div>
+      <label class="fld">欠席者へのフォロー</label>
+      <textarea id="kg-followup" placeholder="例) 欠席した職員Cへは議事録を送付し、8/28に口頭で確認済み。"></textarea>
+      <div class="grid2">
+        <div><label class="fld">使用した資料</label><input type="text" id="kg-materials" placeholder="例: 事故報告書・厚労省の手引き"></div>
+        <div><label class="fld">次回の予定日</label><input type="date" id="kg-next"></div>
+      </div>
+
+      <div id="kg-ai-note" style="margin-top:12px"></div>
+      <button class="btn" id="kg-gen" style="margin-top:12px" onclick="genKaigi()">🤖 今回話すべき議題を下書きする</button>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" onclick="saveKaigi()">💾 記録を保存</button>
+        <button class="btn sec" onclick="hideKgForm()">キャンセル</button>
+      </div>
+    </div>
+
+    <div data-sec="kaigi" class="card noprint" style="display:none">
+      <div class="subttl">📋 実施状況(直近1年)</div>
+      <div id="kg-stat"></div>
+    </div>
+
+    <div data-sec="kaigi" class="card noprint" style="display:none">
+      <div class="subttl">開催の記録 <span class="chip g" id="kg-count"></span></div>
+      <div id="kg-list"></div>
+    </div>
+
+    <div data-sec="kaigi" class="card noprint" style="display:none">
+      <div class="subttl">🎓 訪問介護員ごとの個別研修計画</div>
+      <p class="muted">2024年度改定で、特定事業所加算には<b>訪問介護員ごとの個別研修計画</b>の作成と実施が必要になりました。職員ごとにテーマと予定月を決め、上で研修の開催を記録すると<b>受講済みが自動で付きます</b>(同じ日に出席していれば紐づきます)。</p>
+      <div class="grid2">
+        <div><label class="fld">対象年度</label>
+          <select id="kp-year" onchange="renderKenshuPlan()"></select></div>
+        <div><label class="fld">職員</label>
+          <select id="kp-staff" onchange="renderKenshuPlan()"></select></div>
+      </div>
+      <div id="kp-body" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn mini sec" onclick="addKpItem()">＋ 研修テーマを追加</button>
+        <button class="btn mini sec" onclick="kpTemplate()">📋 標準の研修項目を入れる</button>
+        <button class="btn mini sec" onclick="printKenshuPlan()">🖨 個別研修計画を印刷</button>
+      </div>
+    </div>
+
     <div data-sec="tokutei" class="card noprint">
       <div class="subttl">⭐ 特定事業所加算 要件チェック(2024年度改定対応)</div>
       <p class="muted">日々の報告記録と体制情報から、算定要件の充足状況を自動チェックします。会議・健診の記録もここに残せます。</p>
@@ -1446,7 +1528,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [], complaints: [], incidents: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [], complaints: [], incidents: [], kaigi: [], kenshuPlan: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -1513,7 +1595,7 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
         d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[]; d.keikaku=d.keikaku||[];
-        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[]; d.incidents=d.incidents||[];
+        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[]; d.incidents=d.incidents||[]; d.kaigi=d.kaigi||[]; d.kenshuPlan=d.kenshuPlan||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1612,6 +1694,9 @@ function renderHome(){
   const vw=vitalWatch();
   if(vw.length) alerts.push({ic:'🩺', t:`バイタルに気になる値がある方が ${vw.length} 名(直近3日)`,
     d:vw.slice(0,3).map(x=>`${x.name}(${x.what})`).join('、')+(vw.length>3?' ほか':'')+' ― かかりつけ医の指示や事業所の基準と照らして確認してください', go:'report'});
+  const gg=gimuGaps();
+  if(gg.length) alerts.push({ic:'📚', t:`研修・委員会の実施記録が不足 ${gg.length} 件`,
+    d:gg.map(g=>g.short).join('、')+' ― 記録がないと減算・指導の対象になります', go:'billing'});
   const incCity=(db.incidents||[]).filter(x=>x.lv==='jiko' && !x.tocity).length;
   if(incCity) alerts.push({ic:'🚨', t:`市町村へ未報告の事故が ${incCity} 件`, d:'事故発生時の市町村への報告は運営基準上の義務です。📋報告→⚠️ヒヤリハット・事故 で報告日を記録してください', go:'report'});
   const incPrev=(db.incidents||[]).filter(x=>!x.closed && !x.prevent).length;
@@ -1660,6 +1745,11 @@ function fillSelects(){
     if(k&&staff(k)) ks2.value=k; }
   const su=document.getElementById('sj-user'); if(su){ const k=su.value; su.innerHTML=opts; if(k) su.value=k; }
   ['sj-from','sj-staff'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const k=el.value;
+    el.innerHTML=(db.staff||[]).length
+      ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
+      : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
+    if(k&&staff(k)) el.value=k; });
+  ['kg-host','kp-staff'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const k=el.value;
     el.innerHTML=(db.staff||[]).length
       ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
       : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
@@ -1767,6 +1857,25 @@ const demoGenerators = {
       services: svc,
       ryui: (rules||[]).join(' / ') + (risk ? (rules||[]).length?' / 移動時のふらつきに注意し、手すり・声かけで転倒を予防する。':'移動時のふらつきに注意し、手すり・声かけで転倒を予防する。' : ''),
       note: `直近の報告${(reports||[]).length}件から、実際に行っている支援を抽出しました。(検証版のデモ生成です)`
+    };
+  },
+  kaigi({kindLabel, incidents, complaints, missing, lastMinutes}){
+    const A=[];
+    if((incidents||[]).length){
+      A.push(`・前回以降のヒヤリハット・事故の共有(${incidents.length}件)`);
+      const cats=[...new Set(incidents.map(x=>x.cat).filter(Boolean))];
+      if(cats.length) A.push(`　└ 特に多い種類: ${cats.slice(0,3).join('・')} ― 同じ場面が繰り返されていないか確認する`);
+      const noPrev=(incidents||[]).filter(x=>!x.prevent).length;
+      if(noPrev) A.push(`　└ 再発防止策が未記入の ${noPrev}件 について、その場にいた職員から状況を聞き取る`);
+    }
+    if((complaints||[]).length) A.push(`・苦情・相談への対応の報告(${complaints.length}件)と、同じ申し出が他の利用者から出ていないかの確認`);
+    (missing||[]).forEach(m=>A.push(`・${m}(特定事業所加算の要件が未整備です)`));
+    if(lastMinutes) A.push('・前回の決定事項が実行できているかの確認');
+    A.push('・次月の訪問体制と、代替訪問が必要になったときの連絡手順の確認');
+    A.push('・気になっている利用者の状態変化の共有(バイタルの推移・食事・睡眠)');
+    return {
+      agenda: A.slice(0,7).join('\n'),
+      note: `${kindLabel||'会議'}の議題を、直近のヒヤリハット${(incidents||[]).length}件・苦情${(complaints||[]).length}件と要件の充足状況から下書きしました。(検証版のデモ生成です)`
     };
   },
   jiko({userName, lv, cat, place, what, did, past}){
@@ -2612,6 +2721,53 @@ function seedDemoData(){
     db.shiji.push({id:s.id, date, userId:s.userId, planId:p?p.id:'',
       staffId:s.staffId, staffName:st?st.name:'', fromId:s.fromId, fromName:fr?fr.name:'',
       text:s.text, ack:s.ack?date:'', ackBy:s.ack?(st?st.name:''):'', reportId:r?r.id:''});
+  });
+
+  // --- 研修・会議・委員会 ---
+  //  直近のヒヤリハット(浴室での転倒しかけ)を会議で扱った、という流れにして
+  //  「記録 → 会議 → 再発防止」がつながって見えるようにする。
+  const allStaff=db.staff.map(s=>s.id);
+  [
+    {id:'demo-g1', ago:5, kind:'kaigi', title:'8月度 訪問介護員会議', start:'17:00', end:'18:00', host:st1,
+     place:'事業所内', attendees:allStaff, absent:[],
+     agenda:'・今月のヒヤリハットの共有と対策\n・苦情への対応の報告\n・次月の訪問体制の確認',
+     minutes:'浴室での転倒しかけの件を共有。入浴の前にマットの位置と床の水気を必ず確認することを全員で確認した。訪問時の注意にも追記する。\n訪問時間の遅れについてのお申し出は、訪問順の組み替えと事前連絡の徹底で対応することを確認。\n次月の体制は変更なし。',
+     followup:'', materials:'ヒヤリハット報告書・苦情受付記録', nextAgo:-25},
+    {id:'demo-g2', ago:40, kind:'gyakutai', title:'高齢者虐待防止委員会・研修', start:'17:00', end:'18:30', host:st1,
+     place:'事業所内', attendees:allStaff, absent:[],
+     agenda:'・虐待防止の指針の読み合わせ\n・不適切なケアの事例検討\n・相談窓口と通報の手順',
+     minutes:'指針を全員で読み合わせ、身体拘束にあたる声かけ(スピーチロック)について事例で確認した。困ったときは一人で抱えず、その日のうちにサービス提供責任者へ相談することを申し合わせた。',
+     followup:'', materials:'虐待防止の指針・厚労省の手引き', nextAgo:-140},
+    {id:'demo-g3', ago:75, kind:'bcp', title:'BCP(業務継続計画)研修・机上訓練', start:'17:00', end:'18:30', host:st1,
+     place:'事業所内', attendees:allStaff, absent:[],
+     agenda:'・BCPの読み合わせ\n・地震で訪問できなくなった場合の机上訓練\n・安否確認の連絡手順',
+     minutes:'震度5強を想定し、優先して訪問する利用者の順位づけを確認した。連絡がつかない場合はご家族・ケアマネジャーの順に確認することを再確認。連絡網の電話番号を最新に更新した。',
+     followup:'', materials:'業務継続計画・連絡網', nextAgo:-105},
+    {id:'demo-g4', ago:110, kind:'kansen', title:'感染症対策研修(手指衛生・嘔吐物処理)', start:'17:00', end:'18:00', host:st2,
+     place:'事業所内', attendees:[st2], absent:[st1],
+     agenda:'・手指衛生の手順\n・嘔吐物処理の実演\n・発生時の連絡手順',
+     minutes:'手指衛生の手順を実演で確認。嘔吐物処理キットの中身と使い方を全員で確認した。',
+     followup:'欠席した職員Aへは資料を渡し、後日1対1で実演を確認済み。', materials:'感染症対策マニュアル', nextAgo:-70}
+  ].forEach(g=>{
+    const h=db.staff.find(x=>x.id===g.host);
+    db.kaigi.push({
+      id:g.id, date:dayOf(g.ago), start:g.start, end:g.end, kind:g.kind, title:g.title,
+      place:g.place, hostId:g.host, hostName:h?h.name:'',
+      attendees:g.attendees, absent:g.absent,
+      agenda:g.agenda, minutes:g.minutes, followup:g.followup,
+      materials:g.materials, next:g.nextAgo==null?'':dayOf(g.nextAgo)
+    });
+  });
+
+  // --- 個別研修計画(今年度) ---
+  db.staff.forEach(s=>{
+    db.kenshuPlan.push({ id:'demo-kp-'+s.id, staffId:s.id, year:fiscalYear(fullDate()), items:[
+      {theme:'認知症の理解と対応', plan:'', done:''},
+      {theme:'高齢者虐待の防止・身体拘束の廃止', plan:'', done:dayOf(40)},
+      {theme:'感染症・食中毒の予防とまん延防止', plan:'', done:s.id===st2?dayOf(110):''},
+      {theme:'事故発生・再発防止(BCPを含む)', plan:'', done:dayOf(75)},
+      {theme:'看取りへの対応', plan:'', done:''}
+    ]});
   });
 
   // --- ヒヤリハット・事故 ---
@@ -3872,6 +4028,398 @@ function printIncident(id){
   setTimeout(()=>el.classList.remove('on'), 500);
 }
 
+
+/* ============================================================
+   研修・会議・委員会の記録
+   「やったこと」ではなく「記録が残っていること」が問われる領域。
+   特定事業所加算の定期会議・個別研修計画、虐待防止/感染症対策/BCPの
+   研修と訓練は、議事録と出席者の記録が実地指導で確認される。
+   マスタで減算をON/OFFするだけだと「やったことにする」運用になるので、
+   実際の開催記録から要件の充足を判定する。
+   ※回数・対象・様式は保険者によって異なるため、ここで出すのは目安。
+   ============================================================ */
+const KAIGI_KINDS=[
+  {k:'kaigi',    n:'定期会議(サービス提供責任者・訪問介護員)', every:35,
+   note:'特定事業所加算の体制要件です。<b>おおむね月1回以上</b>の開催と記録の保存が求められます。'},
+  {k:'kenshu',   n:'研修(個別研修計画に基づくもの)', every:0,
+   note:'特定事業所加算の体制要件です。<b>訪問介護員ごとの個別研修計画</b>に沿って実施し、下の🎓個別研修計画に受講済みが付きます。'},
+  {k:'gyakutai', n:'高齢者虐待防止委員会・研修', every:365, gimu:true,
+   note:'<b>委員会の開催・指針の整備・研修の実施・担当者の設置が義務</b>です。未実施は高齢者虐待防止措置未実施減算の対象になります。'},
+  {k:'kansen',   n:'感染症対策委員会・研修・訓練', every:365, gimu:true, times:2,
+   note:'<b>委員会・指針・研修・訓練が義務</b>です。研修と訓練はそれぞれ<b>年2回以上</b>が目安とされています(回数は保険者の手引きでご確認ください)。'},
+  {k:'bcp',      n:'BCP(業務継続計画)研修・訓練', every:365, gimu:true,
+   note:'<b>計画の策定・研修・訓練が義務</b>です。未策定は業務継続計画未策定減算の対象になります。研修と訓練は年1回以上が目安です。'},
+  {k:'kousoku',  n:'身体拘束等適正化の検討・研修', every:0,
+   note:'訪問介護では委員会の開催義務はありませんが、スピーチロックを含む適正化の検討を記録に残しておくと実地指導で説明しやすくなります。'},
+  {k:'other',    n:'その他(個人情報保護・接遇・安全運転 など)', every:0, note:''},
+];
+const KAIGI_LBL=Object.fromEntries(KAIGI_KINDS.map(x=>[x.k,x.n]));
+function kaigiDef(k){ return KAIGI_KINDS.find(x=>x.k===k)||KAIGI_KINDS[KAIGI_KINDS.length-1]; }
+
+let editingKaigi=null;
+
+function kaigiOf(kind, days){
+  const from=days?dateAgo(-days):'';
+  return (db.kaigi||[]).filter(g=>(!kind||g.kind===kind) && (!from||g.date>=from))
+    .sort((a,b)=>a.date<b.date?1:-1);
+}
+function lastKaigi(kind){ return kaigiOf(kind)[0]||null; }
+
+/* ---------- 特定事業所加算の会議要件 ---------- */
+function kaigiOk(){
+  const last=lastKaigi('kaigi');
+  if(last && daysSince(last.date)<=35) return true;
+  return daysSince((db.tokutei||{}).kaigiDate)<=35;   // 紙で運用している事業所のための手動記録
+}
+function kaigiNote(){
+  const last=lastKaigi('kaigi');
+  const n=kaigiOf('kaigi', 365).length;
+  if(last) return `最終開催 ${last.date}(${daysSince(last.date)}日前)／直近1年で ${n}回。議事録と出席者を記録済みです。`;
+  const t=(db.tokutei||{}).kaigiDate;
+  return t ? `📚研修・会議に議事録の記録がありません(手動記録の最終開催 ${t})。` : '開催の記録がありません。';
+}
+
+/* ---------- 個別研修計画 ---------- */
+function fiscalYear(d){ const y=+String(d).slice(0,4), m=+String(d).slice(5,7); return m<=3 ? y-1 : y; }
+function planOf(staffId, year){ return (db.kenshuPlan||[]).find(p=>p.staffId===staffId && p.year===year)||null; }
+function helperStaff(){ return (db.staff||[]).filter(s=>!/事務/.test(s.role||'')); }
+function kenshuPlanOk(){
+  const y=fiscalYear(fullDate());
+  const hs=helperStaff();
+  if(hs.length && hs.every(s=>{ const p=planOf(s.id,y); return p && (p.items||[]).length; })) return true;
+  return !!(db.tokutei||{}).kenshu;
+}
+function kenshuPlanNote(){
+  const y=fiscalYear(fullDate());
+  const hs=helperStaff();
+  if(!hs.length) return '職員が未登録です(⚙️設定→👥職員で登録してください)。';
+  const withPlan=hs.filter(s=>{ const p=planOf(s.id,y); return p && (p.items||[]).length; });
+  const done=hs.reduce((a,s)=>{ const p=planOf(s.id,y); return a+((p&&p.items||[]).filter(i=>i.done).length); },0);
+  const total=hs.reduce((a,s)=>{ const p=planOf(s.id,y); return a+((p&&p.items||[]).length); },0);
+  return `${y}年度: ${hs.length}名中 ${withPlan.length}名に計画あり／項目 ${total}件のうち受講済み ${done}件。`;
+}
+
+/* ---------- 義務づけられた研修・委員会の実施状況 ---------- */
+function gimuGaps(){
+  const out=[];
+  KAIGI_KINDS.filter(d=>d.gimu).forEach(d=>{
+    const done=kaigiOf(d.k, 365);
+    const need=d.times||1;
+    if(done.length>=need) return;
+    const last=done[0];
+    out.push({
+      k:d.k, short:d.n.replace(/[(（].*$/,''),
+      t:`${d.n.replace(/[(（].*$/,'')}の実施記録が不足`,
+      d:`直近1年で ${done.length}回(目安 ${need}回以上)${last?`。最終実施 ${last.date}`:'。実施の記録がありません'}`
+    });
+  });
+  return out;
+}
+
+/* ---------- 作成フォーム ---------- */
+function fillKgKinds(){
+  const sel=document.getElementById('kg-kind'); if(!sel||sel.options.length) return;
+  sel.innerHTML=KAIGI_KINDS.map(d=>`<option value="${d.k}">${esc(d.n)}</option>`).join('');
+}
+function renderKgKind(){
+  const sel=document.getElementById('kg-kind'); if(!sel) return;
+  fillKgKinds();
+  const d=kaigiDef(sel.value);
+  const el=document.getElementById('kg-kind-note');
+  if(el) el.innerHTML = d.note ? `<div class="banner">${d.note}</div>` : '';
+}
+function renderKgAttend(sel){
+  const el=document.getElementById('kg-attend'); if(!el) return;
+  const on=new Set(sel||[]);
+  el.innerHTML = (db.staff||[]).length
+    ? `<div class="row">${db.staff.map(s=>`<label class="ckl wrap"><input type="checkbox" data-kga="${s.id}" ${on.has(s.id)?'checked':''}>${esc(s.name)}${s.role?`<span class="muted">(${esc(s.role)})</span>`:''}</label>`).join('')}</div>`
+    : '<p class="muted">職員が未登録です。⚙️設定→👥職員で登録してください。</p>';
+}
+function readKgAttend(){
+  const on=[...document.querySelectorAll('#kg-attend input[data-kga]')].filter(e=>e.checked).map(e=>e.dataset.kga);
+  const all=(db.staff||[]).map(s=>s.id);
+  return {attendees:on, absent:all.filter(id=>!on.includes(id))};
+}
+function newKaigi(){
+  editingKaigi=null; fillKgKinds();
+  document.getElementById('kg-form-title').textContent='開催の記録';
+  document.getElementById('kg-form').style.display='';
+  document.getElementById('kg-date').value=fullDate();
+  document.getElementById('kg-start').value='17:00';
+  document.getElementById('kg-end').value='18:00';
+  document.getElementById('kg-kind').value='kaigi';
+  ['kg-title','kg-agenda','kg-minutes','kg-followup','kg-materials','kg-next'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.value='';
+  });
+  document.getElementById('kg-place').value='事業所内';
+  document.getElementById('kg-ai-note').innerHTML='';
+  renderKgKind();
+  renderKgAttend((db.staff||[]).map(s=>s.id));   // 既定は全員出席(欠席だけ外すほうが早い)
+  document.getElementById('kg-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function editKaigi(id){
+  const g=(db.kaigi||[]).find(x=>x.id===id); if(!g) return;
+  editingKaigi=id; fillKgKinds();
+  document.getElementById('kg-form-title').textContent='記録の修正';
+  document.getElementById('kg-form').style.display='';
+  const set=(k,v)=>{ const e=document.getElementById(k); if(e) e.value=v||''; };
+  set('kg-date',g.date); set('kg-start',g.start); set('kg-end',g.end);
+  set('kg-kind',g.kind); set('kg-title',g.title); set('kg-place',g.place);
+  set('kg-agenda',g.agenda); set('kg-minutes',g.minutes); set('kg-followup',g.followup);
+  set('kg-materials',g.materials); set('kg-next',g.next);
+  const h=document.getElementById('kg-host'); if(h && g.hostId && staff(g.hostId)) h.value=g.hostId;
+  document.getElementById('kg-ai-note').innerHTML='';
+  renderKgKind();
+  renderKgAttend(g.attendees||[]);
+  document.getElementById('kg-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function hideKgForm(){ document.getElementById('kg-form').style.display='none'; editingKaigi=null; }
+
+function saveKaigi(){
+  const minutes=document.getElementById('kg-minutes').value.trim();
+  if(!minutes){ alert('議事録(話したこと・決まったこと)を入力してください。ここが実地指導で確認される部分です。'); return; }
+  const val=id=>(document.getElementById(id)||{}).value||'';
+  const at=readKgAttend();
+  const hid=val('kg-host');
+  let g = editingKaigi ? (db.kaigi||[]).find(x=>x.id===editingKaigi) : null;
+  if(!g){ g={id:'kg'+Date.now()}; db.kaigi.push(g); }
+  const kind=val('kg-kind');
+  Object.assign(g, {
+    date: val('kg-date')||fullDate(), start: val('kg-start'), end: val('kg-end'),
+    kind, title: val('kg-title')||KAIGI_LBL[kind]||'',
+    place: val('kg-place'), hostId: hid, hostName:(staff(hid)||{}).name||'',
+    attendees: at.attendees, absent: at.absent,
+    agenda: val('kg-agenda'), minutes, followup: val('kg-followup'),
+    materials: val('kg-materials'), next: val('kg-next')
+  });
+  syncKenshuDone();
+  save(); hideKgForm(); renderKaigi(); renderKenshuPlan(); renderHome();
+  if(document.getElementById('tk-list')) renderTokutei();
+  alert('開催の記録を保存しました。');
+}
+function delKaigi(id){
+  const g=(db.kaigi||[]).find(x=>x.id===id); if(!g) return;
+  if(!confirm('この開催記録を削除します。加算・減算の根拠となる記録です。よろしいですか?')) return;
+  db.kaigi=db.kaigi.filter(x=>x.id!==id); save();
+  renderKaigi(); renderKenshuPlan(); renderHome();
+  if(document.getElementById('tk-list')) renderTokutei();
+}
+
+/* 研修を記録したら、同じ日に出席していた職員の個別研修計画に受講済みを立てる */
+function syncKenshuDone(){
+  (db.kenshuPlan||[]).forEach(p=>{
+    (p.items||[]).forEach(it=>{
+      if(it.done || !it.theme) return;   // テーマ未入力の行は突き合わせない
+      const hit=(db.kaigi||[]).find(g=>
+        (g.kind==='kenshu' || kaigiDef(g.kind).gimu || g.kind==='kousoku') &&
+        (g.attendees||[]).includes(p.staffId) &&
+        fiscalYear(g.date)===p.year &&
+        (simScore(it.theme||'', (g.title||'')+' '+(g.agenda||''))>0.10));   // simScore は文字列を受け取る
+      if(hit){ it.done=hit.date; it.kaigiId=hit.id; }
+    });
+  });
+}
+
+/* ---------- AI下書き(今回話すべき議題) ---------- */
+async function genKaigi(){
+  const kind=document.getElementById('kg-kind').value;
+  const last=lastKaigi(kind);
+  const from=last?last.date:dateAgo(-60);
+  const incidents=(db.incidents||[]).filter(x=>x.date>=from)
+    .map(x=>({date:x.date, lv:INC_LV_LBL[x.lv]||'', cat:INC_CAT_LBL[x.cat]||'', place:x.place,
+              what:x.what, prevent:x.prevent}));
+  const complaints=(db.complaints||[]).filter(c=>c.date>=from)
+    .map(c=>({date:c.date, type:KJ_TYPE_LBL[c.type]||'', text:c.text, action:c.action}));
+  const missing=tokuteiItems().filter(i=>!i.ok).map(i=>i.n);
+  await withLoading('kg-gen','直近の記録から議題を下書き中…', async()=>{
+    const out=await callAI('kaigi', {
+      kindLabel: KAIGI_LBL[kind]||'', kind,
+      since: from, incidents, complaints, missing,
+      lastMinutes: last?last.minutes:'',
+      staffCount:(db.staff||[]).length
+    });
+    const ta=document.getElementById('kg-agenda');
+    ta.value = ta.value.trim() ? ta.value.replace(/\s*$/,'')+'\n'+(out.agenda||'') : (out.agenda||'');
+    document.getElementById('kg-ai-note').innerHTML=
+      `<div class="banner">🤖 ${esc(out.note||'')}${aiFallback?' ※AIサーバに接続できなかったため、デモ生成です。':''}<br>
+       これは<b>議題の案</b>です。実際に話した内容は議事録の欄に、事実として書いてください。</div>`;
+  });
+}
+
+/* ---------- 一覧・実施状況 ---------- */
+function kgRow(g){
+  const d=kaigiDef(g.kind);
+  const at=(g.attendees||[]).map(id=>(staff(id)||{}).name).filter(Boolean);
+  const ab=(g.absent||[]).map(id=>(staff(id)||{}).name).filter(Boolean);
+  return `<div class="check-row"><div class="check-ic">${d.gimu?'🛡':(g.kind==='kenshu'?'🎓':'📚')}</div>
+    <div style="flex:1;min-width:0">
+      <div class="t">${esc(g.date)} ${esc(g.title||d.n)}</div>
+      <div style="margin:4px 0"><span class="chip g">${esc(d.n.replace(/[(（].*$/,''))}</span>
+        ${ab.length?`<span class="chip y">欠席 ${ab.length}名</span>`:'<span class="chip g">全員出席</span>'}
+        ${ab.length&&!g.followup?'<span class="chip r">欠席者のフォロー未記入</span>':''}</div>
+      <div class="d">${esc(g.start||'')}${g.end?'〜'+esc(g.end):''}${g.place?' ／ '+esc(g.place):''}${g.hostName?' ／ 進行 '+esc(g.hostName):''}</div>
+      <div class="d" style="margin-top:3px">出席: ${esc(at.join('、')||'―')}${ab.length?` ／ 欠席: ${esc(ab.join('、'))}`:''}</div>
+      ${g.agenda?`<div class="d" style="margin-top:5px;white-space:pre-wrap"><b>議題:</b> ${esc(g.agenda)}</div>`:''}
+      <div class="sjtx">${esc(g.minutes||'')}</div>
+      ${g.followup?`<div class="d" style="margin-top:5px"><b>欠席者へのフォロー:</b> ${esc(g.followup)}</div>`:''}
+      ${g.next?`<div class="d" style="margin-top:3px"><b>次回:</b> ${esc(g.next)}</div>`:''}
+      <div class="row" style="margin-top:8px">
+        <button class="btn mini sec" onclick="editKaigi('${g.id}')">✏️ 修正</button>
+        <button class="btn mini sec" onclick="printKaigi('${g.id}')">🖨 印刷</button>
+        <button class="btn mini sec" style="color:var(--danger)" onclick="delKaigi('${g.id}')">🗑 削除</button>
+      </div>
+    </div></div>`;
+}
+function renderKaigi(){
+  const list=document.getElementById('kg-list'); if(!list) return;
+  const f=(document.getElementById('kg-filter')||{}).value||'year';
+  const all=(db.kaigi||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  const xs = f==='year' ? all.filter(g=>g.date>=dateAgo(-365)) : all;
+  const cnt=document.getElementById('kg-count'); if(cnt) cnt.textContent=all.length+'件';
+  list.innerHTML = xs.length ? xs.map(kgRow).join('')
+    : '<p class="muted">まだ記録はありません。「＋ 開催を記録する」から残してください。</p>';
+
+  // subnav のバッジ ― 義務づけられた研修の不足があれば必ず目に入るようにする
+  const chip=document.getElementById('kg-navchip');
+  if(chip){
+    const gaps=gimuGaps().length;
+    chip.style.display = gaps ? '' : 'none';
+    chip.textContent = gaps ? String(gaps) : '';
+    chip.className='chip r';
+  }
+
+  const el=document.getElementById('kg-stat'); if(!el) return;
+  const rows=KAIGI_KINDS.filter(d=>d.k!=='other').map(d=>{
+    const done=kaigiOf(d.k, 365), last=done[0];
+    const need=d.gimu?(d.times||1):(d.k==='kaigi'?12:0);
+    const ok = d.k==='kaigi' ? kaigiOk() : (d.gimu ? done.length>=need : done.length>0);
+    return `<div class="check-row"><div class="check-ic">${ok?'✅':(d.gimu?'⚠️':'—')}</div>
+      <div style="flex:1;min-width:0"><div class="t">${esc(d.n)}${d.gimu?' <span class="chip y">義務</span>':''}</div>
+        <div class="d">直近1年で <b>${done.length}回</b>${need?`(目安 ${need}回以上)`:''}${last?` ／ 最終 ${esc(last.date)}`:' ／ 記録なし'}</div></div></div>`;
+  }).join('');
+  el.innerHTML = rows + `<p class="muted" style="margin-top:10px">※ 必要な回数・対象・様式は保険者によって異なります。目安として表示しています。実際の要件は指定権者の手引きでご確認ください。</p>`;
+}
+
+/* ---------- 個別研修計画 ---------- */
+const KP_TEMPLATE=[
+  '認知症の理解と対応','高齢者虐待の防止・身体拘束の廃止','感染症・食中毒の予防とまん延防止',
+  '事故発生・再発防止(BCPを含む)','個人情報の保護と守秘義務','接遇・利用者との関わり方',
+  '身体介護の技術(移乗・入浴・排泄)','看取りへの対応'
+];
+function kpYear(){ const e=document.getElementById('kp-year'); return e?+e.value:fiscalYear(fullDate()); }
+function kpStaff(){ const e=document.getElementById('kp-staff'); return e?e.value:''; }
+function fillKpYears(){
+  const e=document.getElementById('kp-year'); if(!e||e.options.length) return;
+  const y=fiscalYear(fullDate());
+  e.innerHTML=[y+1,y,y-1,y-2].map(v=>`<option value="${v}">${v}年度</option>`).join('');
+  e.value=y;
+}
+function curPlan(create){
+  const sid=kpStaff(), y=kpYear();
+  if(!sid) return null;
+  let p=planOf(sid,y);
+  if(!p && create){ p={id:'kp'+Date.now(), staffId:sid, year:y, items:[]}; db.kenshuPlan.push(p); }
+  return p;
+}
+function renderKenshuPlan(){
+  const el=document.getElementById('kp-body'); if(!el) return;
+  fillKpYears();
+  const sid=kpStaff();
+  if(!sid){ el.innerHTML='<p class="muted">職員が未登録です。⚙️設定→👥職員で登録してください。</p>'; return; }
+  const p=curPlan(false);
+  if(!p || !(p.items||[]).length){
+    el.innerHTML='<p class="muted">この年度の計画はまだありません。「＋ 研修テーマを追加」または「📋 標準の研修項目を入れる」から作成してください。</p>';
+    return;
+  }
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th style="text-align:left">研修テーマ</th><th style="width:110px">予定</th><th style="width:110px">受講日</th><th style="width:56px"></th></tr>
+    ${p.items.map((it,i)=>`<tr>
+      <td style="text-align:left"><input type="text" value="${esc(it.theme||'')}" onchange="kpSet(${i},'theme',this.value)" style="min-width:150px"></td>
+      <td><input type="month" value="${esc(it.plan||'')}" onchange="kpSet(${i},'plan',this.value)"></td>
+      <td><input type="date" value="${esc(it.done||'')}" onchange="kpSet(${i},'done',this.value)"></td>
+      <td><button class="btn mini sec" onclick="delKpItem(${i})">削除</button></td></tr>`).join('')}
+  </table></div>
+  <p class="muted" style="margin-top:8px">受講済み ${p.items.filter(i=>i.done).length} / ${p.items.length} 件。上の📚開催の記録で研修を登録すると、出席していた職員の該当テーマに受講日が自動で入ります。</p>`;
+}
+function kpSet(i, key, v){
+  const p=curPlan(true); if(!p) return;
+  p.items[i][key]=v; save(); renderKenshuPlan(); renderHome();
+  if(document.getElementById('tk-list')) renderTokutei();
+}
+function addKpItem(){
+  const p=curPlan(true);
+  if(!p){ alert('職員が未登録です。⚙️設定→👥職員で登録してください。'); return; }
+  p.items.push({theme:'', plan:'', done:''}); save(); renderKenshuPlan();
+}
+function delKpItem(i){
+  const p=curPlan(false); if(!p) return;
+  p.items.splice(i,1); save(); renderKenshuPlan(); renderHome();
+  if(document.getElementById('tk-list')) renderTokutei();
+}
+function kpTemplate(){
+  const p=curPlan(true);
+  if(!p){ alert('職員が未登録です。⚙️設定→👥職員で登録してください。'); return; }
+  KP_TEMPLATE.forEach(t=>{ if(!p.items.some(i=>i.theme===t)) p.items.push({theme:t, plan:'', done:''}); });
+  syncKenshuDone(); save(); renderKenshuPlan(); renderHome();
+  if(document.getElementById('tk-list')) renderTokutei();
+}
+
+/* ---------- 印刷 ---------- */
+function printKaigi(id){
+  const g=(db.kaigi||[]).find(x=>x.id===id); if(!g) return;
+  const o=db.office||{}, d=kaigiDef(g.kind);
+  const nm=ids=>(ids||[]).map(x=>(staff(x)||{}).name).filter(Boolean).join('、')||'―';
+  const row=(l,v)=>`<tr><th style="width:24%">${l}</th><td style="text-align:left;white-space:pre-wrap">${esc(v||'―')}</td></tr>`;
+  const el=document.getElementById('kg-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">${esc(g.kind==='kaigi'?'会議録':(g.kind==='kenshu'?'研修実施記録':d.n.replace(/[(（].*$/,'')+' 実施記録'))}</div>
+    <div class="shead">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+      <div><b>開催日時</b>${esc(g.date||'')} ${esc(g.start||'')}${g.end?'〜'+esc(g.end):''}</div>
+      <div><b>場所</b>${esc(g.place||'―')}</div>
+      <div><b>表題</b>${esc(g.title||d.n)}</div>
+      <div><b>進行・講師</b>${esc(g.hostName||'―')}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      ${row('種類', d.n)}
+      ${row('出席者('+(g.attendees||[]).length+'名)', nm(g.attendees))}
+      ${row('欠席者('+(g.absent||[]).length+'名)', nm(g.absent))}
+      ${row('議題・内容', g.agenda)}
+      ${row('議事録・決まったこと', g.minutes)}
+      ${row('欠席者へのフォロー', g.followup)}
+      ${row('使用した資料', g.materials)}
+      ${row('次回の予定', g.next)}
+    </table></div>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>管理者確認　　　　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+function printKenshuPlan(){
+  const p=curPlan(false);
+  if(!p || !(p.items||[]).length){ alert('この年度の計画がありません。先にテーマを追加してください。'); return; }
+  const s=staff(p.staffId)||{}, o=db.office||{};
+  const el=document.getElementById('kg-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">訪問介護員 個別研修計画</div>
+    <div class="shead">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>対象年度</b>${p.year}年度</div>
+      <div><b>対象職員</b>${esc(s.name||'')}</div>
+      <div><b>職種</b>${esc(s.role||'')}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th style="text-align:left">研修テーマ</th><th>実施予定</th><th>受講日</th></tr>
+      ${p.items.map(i=>`<tr><td style="text-align:left">${esc(i.theme||'')}</td><td>${esc(i.plan||'―')}</td><td>${esc(i.done||'―')}</td></tr>`).join('')}
+      <tr><th style="text-align:left">受講済み</th><td colspan="2">${p.items.filter(i=>i.done).length} / ${p.items.length} 件</td></tr>
+    </table></div>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>作成者(サービス提供責任者)　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
 /* ---------- 訪問時の注意(その家のルール)の報告画面表示 ---------- */
 const RULE_DEFS=[['key','🔑 鍵・入室'],['park','🅿 駐車・駐輪'],['pet','🐕 ペット'],['care','⚠️ 禁忌・注意'],['contact','📞 緊急連絡']];
 function renderVisitRules(){
@@ -4125,6 +4673,7 @@ function calcAllUsers(ym, ver){ return db.users.map(u=>calcUser(u, ym, ver)).fil
 function billYm(){ const el=document.getElementById('bill-month'); if(el&&!el.value) el.value=fullDate().slice(0,7); return el?el.value:fullDate().slice(0,7); }
 
 function renderBilling(){
+  renderKaigi(); renderKenshuPlan();
   const ym=billYm();
   const list=calcAllUsers(ym);
   const sum=k=>list.reduce((s,r)=>s+r[k], 0);
@@ -4239,6 +4788,7 @@ function renderBillCheck(ym, list){
     rows.push({ic:'⚠️', t:'特定事業所加算の体制要件が未充足', d:'マスタで算定ONにしていますが、下の要件チェックに未充足があります。'});
   if(rt('119101')) rows.push({ic:'⚠️', t:'高齢者虐待防止措置未実施減算が適用中', d:'措置を実施したら、⚙️設定のマスタで算定OFFにすると減算が解除されます。'});
   if(rt('119201')) rows.push({ic:'⚠️', t:'業務継続計画未策定減算が適用中', d:'BCPを策定したら、⚙️設定のマスタで算定OFFにすると減算が解除されます。'});
+  gimuGaps().forEach(g=>rows.push({ic:'⚠️', t:g.t, d:g.d+' ― 📚研修・会議タブで開催を記録すると解消されます。'}));
   if(!rows.length) rows.push({ic:'✅', t:'請求前チェックOK', d:'エラー・警告はありません。'});
   const badge=rows.some(r=>r.ic==='⛔')?'<span class="chip r">要対応</span>':rows.some(r=>r.ic==='⚠️')?'<span class="chip y">確認推奨</span>':'<span class="chip g">良好</span>';
   document.getElementById('bill-check').innerHTML=`<div style="margin-bottom:6px">${esc(ym)}分 ${badge}</div>`+
@@ -4458,6 +5008,8 @@ function renderBillPreview(ym){
 function billSec(s){
   document.querySelectorAll('#v-billing [data-sec]').forEach(el=>{ el.style.display = el.dataset.sec===s ? '' : 'none'; });
   document.querySelectorAll('#v-billing .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  // 記録の作成フォームは、タブを開いた時点では畳んでおく
+  if(s==='kaigi'){ const f=document.getElementById('kg-form'); if(f && !editingKaigi) f.style.display='none'; renderKaigi(); renderKenshuPlan(); }
 }
 function billSecCur(){ const b=document.querySelector('#v-billing .subnav button.on'); return b?b.dataset.s:'sum'; }
 
@@ -4468,13 +5020,14 @@ function renderTokutei(){
   const t=db.tokutei;
   const ym=fullDate().slice(0,7);
   const monthReports=db.reports.filter(r=>r.date.slice(0,7)===ym).length;
-  const kaigiOk=daysSince(t.kaigiDate)<=35;
   const kenshinOk=daysSince(t.kenshinDate)<=365;
   const items=[
-    {ok:t.kenshu, t:'訪問介護員ごとの個別研修計画', d:'2024年度改定で「個別」の研修計画作成が必須になりました。',
-     act:`<button class="btn mini ${t.kenshu?'':'sec'}" onclick="tkSet('kenshu',${!t.kenshu})">${t.kenshu?'✔ 整備済':'未整備 → タップで記録'}</button>`},
-    {ok:kaigiOk, t:'定期会議の開催(おおむね月1回以上)+記録', d:t.kaigiDate?`最終開催: ${t.kaigiDate}${kaigiOk?'(期限内)':'(⚠ 1ヶ月超過)'}。`:'開催記録がありません。',
-     act:`<button class="btn mini sec" onclick="tkSet('kaigiDate','${fullDate()}')">今日の開催を記録</button>`},
+    {ok:kenshuPlanOk(), t:'訪問介護員ごとの個別研修計画', d:kenshuPlanNote(),
+     act:`<button class="btn mini sec" onclick="billSec('kaigi')">🎓 個別研修計画を見る</button>
+          <button class="btn mini ${t.kenshu?'':'sec'}" onclick="tkSet('kenshu',${!t.kenshu})">${t.kenshu?'✔ 事業所外の書面でも整備済':'事業所外の書面で整備している'}</button>`},
+    {ok:kaigiOk(), t:'定期会議の開催(おおむね月1回以上)+記録', d:kaigiNote(),
+     act:`<button class="btn mini sec" onclick="billSec('kaigi')">📚 開催を記録する</button>
+          <button class="btn mini sec" onclick="tkSet('kaigiDate','${fullDate()}')">今日の開催だけ記録</button>`},
     {ok:shijiReqOk(ym), t:'文書での事前指示+サービス提供後の報告', d:shijiReqNote(ym)+`（提供後の報告: 今月${monthReports}件・📋報告タブから自動集計）`,
      act:`<button class="btn mini sec" onclick="go('plan');planSec('shiji')">📣 事前指示を見る・出す</button>
           <button class="btn mini ${t.shiji?'':'sec'}" onclick="tkSet('shiji',${!t.shiji})">${t.shiji?'✔ 事業所外の文書でも運用中':'事業所外の文書で運用している'}</button>`},
@@ -4881,8 +5434,8 @@ function tokuteiItems(){
   const ym=fullDate().slice(0,7);
   const monthReports=db.reports.filter(r=>r.date.slice(0,7)===ym).length;
   return [
-    {n:'訪問介護員ごとの個別研修計画の作成・実施', ok:!!t.kenshu, ref:'個別研修計画'},
-    {n:'定期的な会議の開催(おおむね月1回以上)と記録の保存', ok:daysSince(t.kaigiDate)<=35, note:t.kaigiDate?('最終開催 '+t.kaigiDate):'開催記録なし', ref:'会議'},
+    {n:'訪問介護員ごとの個別研修計画の作成・実施', ok:kenshuPlanOk(), note:kenshuPlanNote(), ref:'個別研修計画'},
+    {n:'定期的な会議の開催(おおむね月1回以上)と記録の保存', ok:kaigiOk(), note:kaigiNote(), ref:'会議'},
     {n:'文書等による事前指示とサービス提供後の報告', ok:shijiReqOk(ym), note:shijiReqNote(ym), ref:'事前指示 報告'},
     {n:'年1回以上の健康診断の実施(事業主負担)', ok:daysSince(t.kenshinDate)<=365, note:t.kenshinDate?('最終実施 '+t.kenshinDate):'実施記録なし', ref:'健康診断'},
     {n:'緊急時等の対応方針の利用者への明示', ok:!!t.kinkyu, ref:'緊急時 対応方針'}
