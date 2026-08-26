@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -158,7 +158,7 @@
   @media print{
     .tkgrid{font-size:8px}
     .tkgrid th,.tkgrid td{padding:1px 2px;border:1px solid #999}
-    #tk-print.on{page:land}
+    #tk-print.on,#sj-print.on{page:land}
   }
   @page land{size:A4 landscape;margin:8mm}
   .tblwrap{overflow-x:auto}
@@ -201,7 +201,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -234,6 +234,7 @@
     color:var(--brand-d);background:var(--brand-l);border:1px solid color-mix(in srgb, var(--brand) 22%, var(--line));border-radius:99px}
   .curuser.on{display:flex}
   .curuser .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sjtx{white-space:pre-wrap;margin-top:5px;color:var(--ink);font-size:13.5px;line-height:1.8}
   .netbar{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:9px 14px;font-size:12.5px;font-weight:700;text-align:center;display:none;line-height:1.5}
   .netbar.on{display:block}
   .netbar.off{background:#8a6410;color:#fff}
@@ -367,7 +368,12 @@
   <!-- ============ 報告 ============ -->
   <!-- ============ 訪問予定 ============ -->
   <section id="v-plan" class="view">
-    <h2 class="title">📅 訪問予定</h2>
+    <h2 class="title noprint">📅 訪問予定・事前指示</h2>
+    <div class="subnav noprint">
+      <button data-s="plan" class="on" onclick="planSec('plan')">📅 訪問予定</button>
+      <button data-s="shiji" onclick="planSec('shiji')">📣 事前指示</button>
+    </div>
+    <div data-plsec="plan">
     <div class="card">
       <div class="row" style="align-items:flex-end">
         <div style="flex:1;min-width:170px"><div class="subttl" style="margin-bottom:6px">この日の予定</div>
@@ -409,6 +415,68 @@
       </div>
     </details>
     <div class="card"><div class="subttl">登録済みの予定 <span class="chip g" id="plan-count"></span></div><div id="plan-list"></div></div>
+    </div><!-- /data-plsec=plan -->
+
+    <div data-plsec="shiji" style="display:none">
+      <div class="banner noprint">📣 <b>サービス提供責任者から訪問介護員への「文書等による事前指示」</b>を記録します。特定事業所加算の体制要件は<b>「事前指示」と「サービス提供後の報告」が対になっている</b>ため、ここで出した指示は📋報告の作成時に自動で突き合わされ、下の実施状況にそのまま残ります。<br>🤖 <b>利用者の状態・計画書の留意事項・直近の訪問報告からAIが下書き</b>します。内容は必ずサービス提供責任者が確認・修正してから出してください。</div>
+
+      <div class="card noprint">
+        <div class="row">
+          <button class="btn" onclick="newShiji()">＋ 事前指示を出す</button>
+          <button class="btn sec" onclick="printShiji()">🖨 今月の実施状況を印刷</button>
+        </div>
+      </div>
+
+      <div class="card noprint" id="sj-form" style="display:none">
+        <div class="subttl" id="sj-form-title">事前指示の作成</div>
+        <div class="grid2">
+          <div><label class="fld">対象日</label><input type="date" id="sj-date" onchange="renderSjPlanSel()"></div>
+          <div><label class="fld">利用者</label><select id="sj-user" onchange="renderSjPlanSel()"></select></div>
+        </div>
+        <label class="fld">対象の訪問(この日の予定から)</label>
+        <select id="sj-plan"></select>
+        <div class="grid2">
+          <div><label class="fld">指示を出す人(サービス提供責任者)</label><select id="sj-from"></select></div>
+          <div><label class="fld">指示を受ける人(訪問介護員)</label><select id="sj-staff"></select></div>
+        </div>
+        <label class="fld">指示の内容</label>
+        <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
+          <textarea id="sj-text" placeholder="例) ・浴室のマットが滑りやすいため、移動時は必ず声かけと手すりの使用を促してください。" style="flex:1;min-height:110px"></textarea>
+          <button id="sj-mic" class="mic sm" onclick="toggleDict('sj-mic','sj-text','sj-hint')">🎤</button>
+        </div>
+        <div class="muted" id="sj-hint" style="margin:4px 0 0"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn mini sec" onclick="sjTmpl('kansatsu')">👀 観察してほしい点</button>
+          <button class="btn mini sec" onclick="sjTmpl('anzen')">⚠️ 安全上の注意</button>
+          <button class="btn mini sec" onclick="sjTmpl('renraku')">📞 連絡してほしい場合</button>
+          <button class="btn mini sec" onclick="sjTmpl('henkou')">🔄 今回の変更点</button>
+        </div>
+        <div id="sj-ai-note" style="margin-top:12px"></div>
+        <button class="btn" id="sj-gen" style="margin-top:12px" onclick="genShiji()">🤖 状態と直近の報告から下書きを作る</button>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="saveShiji()">💾 指示を出す</button>
+          <button class="btn sec" onclick="hideSjForm()">キャンセル</button>
+        </div>
+      </div>
+
+      <div class="card noprint">
+        <div class="subttl">出した指示 <span class="chip g" id="sj-count"></span></div>
+        <div class="row" style="margin-bottom:10px">
+          <select id="sj-filter" onchange="renderShiji()" style="max-width:220px">
+            <option value="open">未確認・未報告のみ</option>
+            <option value="month">今月ぶん すべて</option>
+            <option value="all">すべて</option>
+          </select>
+        </div>
+        <div id="sj-list"></div>
+      </div>
+
+      <div class="card noprint">
+        <div class="subttl">📊 今月の実施状況(特定事業所加算の根拠)</div>
+        <div id="sj-stat"></div>
+      </div>
+      <div id="sj-print" class="sheet"></div>
+    </div>
   </section>
 
 
@@ -484,6 +552,7 @@
         <button class="btn mini sec" onclick="copyLastReport()">⚡ 前回の報告をコピー</button>
       </div>
       <div id="visit-rules"></div>
+      <div id="visit-shiji"></div>
       <details class="acc noprint">
         <summary>📚 この方の過去の報告を参照</summary>
         <div class="accbody" id="visit-refs"></div>
@@ -1178,7 +1247,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -1245,7 +1314,7 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
         d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[]; d.keikaku=d.keikaku||[];
-        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[];
+        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1278,7 +1347,7 @@ function go(t){
   applyCurUser();
   if(t==='home') renderHome();
   if(t==='chat') renderChat();
-  if(t==='plan') renderPlan();
+  if(t==='plan'){ renderPlan(); renderShiji(); }
   if(t==='keikaku') renderKeikaku();
   if(t==='report'){ renderReports(); renderVisitRefs(); renderVisitEditing(); markVisitDate(); }
   if(t==='trip'){ renderTrips(); renderTripRoute(); }
@@ -1337,6 +1406,10 @@ function renderHome(){
   if(keiMon) alerts.push({ic:'📈', t:`計画のモニタリングが3か月以上未実施 ${keiMon} 件`, d:'実施状況を評価し、必要なら計画を見直してください', go:'keikaku'});
   const drafts=db.reports.filter(r=>r.draft).length;
   if(drafts) alerts.push({ic:'📝', t:`未確定(下書き)の報告が ${drafts} 件`, d:'📋報告の履歴から内容を確認し「✅ 確定」を押してください。実績・請求には下書きも含まれます', go:'report'});
+  const sjOpen=(db.shiji||[]).filter(s=>!s.ack && s.date>=dateAgo(-7) ).length;
+  if(sjOpen) alerts.push({ic:'📣', t:`ヘルパーが未確認の事前指示が ${sjOpen} 件`, d:'📅予定タブ→📣事前指示 で内容を確認し「✅ 確認しました」を押してください', go:'plan'});
+  const sjUnrep=(db.shiji||[]).filter(s=>!s.reportId && s.date<fullDate() && s.date>=dateAgo(-14)).length;
+  if(sjUnrep) alerts.push({ic:'📋', t:`事前指示を出したのに報告が未作成 ${sjUnrep} 件`, d:'特定事業所加算は「事前指示」と「提供後の報告」が対で必要です', go:'plan'});
   const unusedMemos=(db.memos||[]).filter(m=>!m.used).length;
   if(unusedMemos) alerts.push({ic:'📝', t:`未反映のメモが ${unusedMemos} 件`, d:'✍️その場でメモから「📋報告へ送る」で下書きに使えます', go:'home'});
   const todayPlans=plansFor(today);
@@ -1377,6 +1450,12 @@ function fillSelects(){
       ? db.staff.map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
       : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
     if(k&&staff(k)) ks2.value=k; }
+  const su=document.getElementById('sj-user'); if(su){ const k=su.value; su.innerHTML=opts; if(k) su.value=k; }
+  ['sj-from','sj-staff'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const k=el.value;
+    el.innerHTML=(db.staff||[]).length
+      ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
+      : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
+    if(k&&staff(k)) el.value=k; });
   const hu=document.getElementById('hist-user'); if(hu){ const k=hu.value; hu.innerHTML='<option value="">利用者: すべて</option>'+opts; hu.value=k; }
   const hs=document.getElementById('hist-staff'); if(hs){ const k=hs.value;
     hs.innerHTML='<option value="">担当: すべて</option>'+(db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join(''); hs.value=k; }
@@ -1466,6 +1545,25 @@ const demoGenerators = {
       services: svc,
       ryui: (rules||[]).join(' / ') + (risk ? (rules||[]).length?' / 移動時のふらつきに注意し、手すり・声かけで転倒を予防する。':'移動時のふらつきに注意し、手すり・声かけで転倒を予防する。' : ''),
       note: `直近の報告${(reports||[]).length}件から、実際に行っている支援を抽出しました。(検証版のデモ生成です)`
+    };
+  },
+  shiji({userName, care, date, start, end, kubun, rules, reports, keikaku}){
+    const rs=(reports||[]).join(' ');
+    const has=re=>re.test(rs);
+    const L=[];
+    if(has(/ふらつ|転倒|滑|つまず/)) L.push('・直近の訪問で足元のふらつきがありました。移動のときは必ず声をかけ、手すりを持っていただいてから一歩ずつ進めてください。');
+    if(has(/痛|膝|腰/)) L.push('・痛みの訴えが続いています。立ち上がり・歩行の様子を見て、痛みの部位と程度を報告に書いてください。');
+    if(has(/むせ|きざみ|嚥下/)) L.push('・食事はきざみ食を継続します。むせ込みの有無を必ず確認し、あれば時刻と様子を残してください。');
+    if(has(/水分|暑|脱水/)) L.push('・水分摂取をこまめにお勧めし、どのくらい飲まれたかを報告に書いてください。');
+    if(has(/眠れ|夜間|目が覚め/)) L.push('・夜間の睡眠についてお話がありました。日中の眠気やお困りごとがないか聞き取ってください。');
+    if(has(/残薬|服薬/)) L.push('・服薬の状況(飲み忘れ・残薬)を確認し、気になる点はその場でご連絡ください。');
+    (rules||[]).forEach(r=>L.push('・'+r));
+    if(keikaku&&keikaku.ryui) L.push('・計画書の留意事項: '+keikaku.ryui);
+    if(!L.length) L.push('・変わりなくお過ごしですが、表情・食事・水分の様子はいつもどおり確認してください。');
+    L.push('・いつもと違う痛みの訴え・発熱・転倒やヒヤリとした場面があれば、その場で事業所へご連絡ください。');
+    return {
+      text: L.slice(0,6).join('\n'),
+      note: `${userName}(${care||'―'})の直近の報告${(reports||[]).length}件と登録内容から下書きしました。${start?`対象の訪問: ${date} ${start}〜${end} ${kubun||''}`:''}(検証版のデモ生成です)`
     };
   },
   chat({question, cases}){
@@ -1662,6 +1760,7 @@ function markVisitDate(){
   el.innerHTML = !n ? '<span class="chip g">今日の記録</span>'
     : n>0 ? `<span class="chip y">${n}日前の記録として保存します</span>`
           : `<span class="chip r">未来の日付です(${-n}日後)</span>`;
+  renderVisitShiji();
 }
 function initDateInputs(){
   ['visit-date','trip-date','mn-date'].forEach(id=>{ const e=document.getElementById(id); if(e&&!e.value) e.value=fullDate(); });
@@ -1700,6 +1799,7 @@ function upsertReport(docs, pend){
   Object.assign(r, f);
   if(curPlanId) r.planId=curPlanId;
   if(docs){ r.docs=docs; r.summary=docs.summary; r.pend=!!pend; }
+  linkShiji(r);
   save();
   return r;
 }
@@ -2214,6 +2314,30 @@ function seedDemoData(){
     {id:'demo-m3', userId:'u1', date:dayOf(11), azukari:5000, used:4120, receipt:true, memo:'週末分の食材まとめ買い'}
   );
 
+  // --- 事前指示(サ責 → 訪問介護員) ---
+  //  直近の報告に出てくる「ふらつき」「膝の痛み」を受けた指示にして、
+  //  指示 → 訪問 → 報告 のつながりがそのまま見えるようにする。
+  [
+    {id:'demo-s1', ago:0, userId:'u2', staffId:st2, fromId:st1,
+     text:'・前回の入浴時に浴室内で軽いふらつきがありました。移動は必ず声をかけ、手すりを持っていただいてから一歩ずつ進めてください。\n・浴室マットの位置を先に確認し、ずれていれば直してから入っていただいてください。\n・「膝が痛む」とのお話が続いています。歩き方・立ち上がりの様子を見て、痛みの訴えがあれば報告に残してください。\n・入浴を渋られる場合は無理に勧めず、清拭に切り替えて構いません。判断に迷ったらその場でご連絡ください。',
+     ack:'', reportId:''},
+    {id:'demo-s2', ago:1, userId:'u1', staffId:st2, fromId:st1,
+     text:'・冷蔵庫の牛乳が残り少ないとメモがありました。在庫を確認し、必要なら次回の買い物リストに入れてください。\n・暑い日が続いています。調理の合間にこまめに水分をお勧めし、摂取の様子を報告に書いてください。\n・味付けは薄味のご希望です。ご本人に確認しながら調整してください。',
+     ack:'ok', reportId:''},
+    {id:'demo-s3', ago:6, userId:'u3', staffId:st2, fromId:st1,
+     text:'・きざみ食を継続します。むせ込みの有無を必ず確認し、あれば時刻と様子を報告に残してください。\n・夜間に何度か目が覚めるとのお話がありました。日中の様子や、ご本人の困りごとがあれば聞き取ってください。\n・気づいたことはご家族への申し送りが必要か判断したいので、報告に具体的に書いてください。',
+     ack:'ok', reportId:''}
+  ].forEach(s=>{
+    const st=db.staff.find(x=>x.id===s.staffId), fr=db.staff.find(x=>x.id===s.fromId);
+    const date=dayOf(s.ago);
+    // 予定は曜日で決まり、デモを開いた日によってずれるので、その日に実在する予定から引く
+    const p=plansFor(date).find(x=>x.userId===s.userId);
+    const r=db.reports.find(x=>x.userId===s.userId && x.date===date);
+    db.shiji.push({id:s.id, date, userId:s.userId, planId:p?p.id:'',
+      staffId:s.staffId, staffName:st?st.name:'', fromId:s.fromId, fromName:fr?fr.name:'',
+      text:s.text, ack:s.ack?date:'', ackBy:s.ack?(st?st.name:''):'', reportId:r?r.id:''});
+  });
+
   // --- クイックメモ ---
   db.memos.push(
     {id:'demo-o1', userId:'u1', date:dayOf(0), time:'10:15', text:'冷蔵庫の牛乳が残り1本。次回の買い物で確認する。', used:false},
@@ -2405,7 +2529,7 @@ function renderMemos(){
    報告・買い物・LIFE・計画・提供票…とタブごとに選び直していたのをやめ、
    どこかで利用者を選んだら他のタブにも引き継ぐ。 */
 let curUid='';
-const USER_SELECTS=['visit-user','shop-user','money-user','life-user','kei-user','tk-user','kiroku-user','bill-user','ud-user'];
+const USER_SELECTS=['visit-user','shop-user','money-user','life-user','kei-user','tk-user','kiroku-user','bill-user','ud-user','sj-user'];
 const OPT_USER_SELECTS=['trip-user','memo-user'];   // 「選ばない」を許すもの
 function applyCurUser(ids){
   if(!curUid) return;
@@ -2439,6 +2563,7 @@ function redrawForUser(){
     if(cur==='shop'){ shopSel=[]; renderShop(); renderMoney(); }
     if(cur==='life') renderLife();
     if(cur==='keikaku') renderKeikaku();
+    if(cur==='plan') renderSjPlanSel();
     if(cur==='trip') renderTripRoute();
     if(cur==='billing') renderTeikyo();
   }catch(e){}
@@ -2580,6 +2705,280 @@ function startFromPlan(id){
   document.getElementById('visit-text').focus();
 }
 
+
+/* ============================================================
+   事前指示(サービス提供責任者 → 訪問介護員)
+   特定事業所加算の体制要件は「文書等による事前指示」と
+   「サービス提供後の報告」が対で求められる。紙やLINEでバラバラに
+   運用されがちなので、指示 → 訪問 → 報告 を1本の線でつないで
+   加算の根拠がそのまま記録として残るようにする。
+   ============================================================ */
+function planSec(s){
+  document.querySelectorAll('#v-plan [data-plsec]').forEach(el=>{ el.style.display = el.dataset.plsec===s ? '' : 'none'; });
+  document.querySelectorAll('#v-plan .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  if(s==='shiji') renderShiji();
+}
+function planSecCur(){ const b=document.querySelector('#v-plan .subnav button.on'); return b?b.dataset.s:'plan'; }
+
+let editingShiji=null;
+
+/* その報告(利用者・日付)に対応する事前指示。予定が特定できていればそれを優先する。 */
+function shijiFor(userId, dateStr, planId){
+  return (db.shiji||[]).filter(s=> s.userId===userId && s.date===dateStr &&
+    (!planId || !s.planId || s.planId===planId));
+}
+/* 報告を保存したときに、その日の指示へ「報告済み」の印をつける */
+function linkShiji(r){
+  if(!r || !r.userId || !r.date) return;
+  shijiFor(r.userId, r.date, r.planId).forEach(s=>{ if(!s.reportId) s.reportId=r.id; });
+}
+
+function shijiStats(ym){
+  const reps=db.reports.filter(r=>(r.date||'').slice(0,7)===ym);
+  const sj=(db.shiji||[]).filter(s=>(s.date||'').slice(0,7)===ym);
+  const covered=reps.filter(r=>sj.some(s=>s.userId===r.userId && s.date===r.date));
+  return {reports:reps.length, shiji:sj.length, covered:covered.length,
+          uncovered:reps.length-covered.length,
+          acked:sj.filter(s=>s.ack).length, reported:sj.filter(s=>s.reportId).length};
+}
+/* 要件の充足判定。アプリ内で指示が全訪問をカバーしていれば○。
+   紙・別システムで運用している事業所のために、⚙️の手動フラグでも○にする。 */
+function shijiReqOk(ym){
+  const st=shijiStats(ym);
+  if(st.reports>0 && st.shiji>0 && st.uncovered===0) return true;
+  return !!(db.tokutei||{}).shiji && st.reports>0;
+}
+function shijiReqNote(ym){
+  const st=shijiStats(ym);
+  if(!st.reports) return '今月の訪問報告がまだありません。';
+  if(st.shiji && st.uncovered===0) return `今月の訪問報告 ${st.reports}件すべてに事前指示があります(指示 ${st.shiji}件・うちヘルパー確認済み ${st.acked}件)。`;
+  if(st.shiji) return `今月の訪問報告 ${st.reports}件のうち ${st.uncovered}件に事前指示の記録がありません(指示 ${st.shiji}件)。`;
+  return `今月の訪問報告 ${st.reports}件に対し、アプリ内の事前指示は0件です。`;
+}
+
+/* ---------- 作成フォーム ---------- */
+function sjDefaultStaff(){
+  const ss=db.staff||[];
+  const sekinin=ss.find(s=>/サービス提供責任者|サ責|管理者/.test(s.role||''));
+  const helper=ss.find(s=>!/サービス提供責任者|サ責|管理者/.test(s.role||''));
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el&&v&&[...el.options].some(o=>o.value===v)) el.value=v; };
+  set('sj-from', (sekinin||ss[0]||{}).id);
+  set('sj-staff', (helper||ss[0]||{}).id);
+}
+function newShiji(){
+  editingShiji=null;
+  document.getElementById('sj-form-title').textContent='事前指示の作成';
+  document.getElementById('sj-form').style.display='';
+  document.getElementById('sj-date').value=fullDate();
+  if(curUid) document.getElementById('sj-user').value=curUid;
+  sjDefaultStaff();
+  document.getElementById('sj-text').value='';
+  document.getElementById('sj-ai-note').innerHTML='';
+  renderSjPlanSel();
+  document.getElementById('sj-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function editShiji(id){
+  const s=(db.shiji||[]).find(x=>x.id===id); if(!s) return;
+  editingShiji=id;
+  document.getElementById('sj-form-title').textContent='事前指示の修正';
+  document.getElementById('sj-form').style.display='';
+  document.getElementById('sj-date').value=s.date;
+  document.getElementById('sj-user').value=s.userId;
+  document.getElementById('sj-text').value=s.text||'';
+  document.getElementById('sj-ai-note').innerHTML='';
+  renderSjPlanSel();
+  document.getElementById('sj-plan').value=s.planId||'';
+  if(s.fromId && staff(s.fromId)) document.getElementById('sj-from').value=s.fromId;
+  if(s.staffId && staff(s.staffId)) document.getElementById('sj-staff').value=s.staffId;
+  document.getElementById('sj-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function hideSjForm(){ document.getElementById('sj-form').style.display='none'; editingShiji=null; }
+
+/* 対象日・利用者に合う訪問予定だけを選べるようにする(「どの訪問への指示か」を残す) */
+function renderSjPlanSel(){
+  const el=document.getElementById('sj-plan'); if(!el) return;
+  const d=document.getElementById('sj-date').value||fullDate();
+  const uid=document.getElementById('sj-user').value;
+  const ps=plansFor(d).filter(p=>p.userId===uid);
+  const edit=editingShiji ? (db.shiji||[]).find(x=>x.id===editingShiji) : null;
+  // 編集中の指示が指している予定は、その日の一覧に無くても残す(曜日変更・単発予定の削除で紐づけが消えないように)
+  if(edit && edit.planId && !ps.some(p=>p.id===edit.planId)){
+    const p=db.plans.find(x=>x.id===edit.planId); if(p) ps.push(p);
+  }
+  const keep=el.value;
+  el.innerHTML='<option value="">(訪問を特定しない ― この日ぜんぶ)</option>' +
+    ps.map(p=>`<option value="${p.id}">${esc(p.start)}〜${esc(p.end)} ${esc(KUBUN_LBL[p.kubun]||'')}</option>`).join('');
+  if(edit && edit.planId && [...el.options].some(o=>o.value===edit.planId)) el.value=edit.planId;
+  else if(keep && [...el.options].some(o=>o.value===keep)) el.value=keep;
+  else if(ps.length===1) el.value=ps[0].id;
+}
+
+const SJ_TMPL={
+  kansatsu:'・訪問中は次の点を意識して見てください: 表情・声のはり／食事と水分がとれているか／歩き方や立ち上がりの様子。気づいたことは報告にそのまま書いてください。',
+  anzen:'・移動のときは必ず声をかけ、手すりや支えを使っていただいてから動いてください。急がせないようにお願いします。',
+  renraku:'・次の場合はその場で事業所へご連絡ください: いつもと違う痛みの訴え／発熱やむくみ／転倒・ヒヤリとした場面／ご家族から相談があったとき。',
+  henkou:'・今回から変更になる点があります: '
+};
+function sjTmpl(k){
+  const ta=document.getElementById('sj-text');
+  ta.value=(ta.value.trim()? ta.value.replace(/\s*$/,'')+'\n' : '')+SJ_TMPL[k];
+  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+
+function saveShiji(){
+  const uid=document.getElementById('sj-user').value;
+  if(!uid){ alert('利用者を選択してください。'); return; }
+  const text=document.getElementById('sj-text').value.trim();
+  if(!text){ alert('指示の内容を入力してください。'); return; }
+  const fid=document.getElementById('sj-from').value||'';
+  const sid=document.getElementById('sj-staff').value||'';
+  let s = editingShiji ? (db.shiji||[]).find(x=>x.id===editingShiji) : null;
+  if(!s){ s={id:'sj'+Date.now(), ack:'', ackBy:'', reportId:''}; db.shiji.push(s); }
+  Object.assign(s, {
+    date:document.getElementById('sj-date').value||fullDate(), userId:uid,
+    planId:document.getElementById('sj-plan').value||'',
+    fromId:fid, fromName:(staff(fid)||{}).name||'',
+    staffId:sid, staffName:(staff(sid)||{}).name||'', text
+  });
+  // 内容を書き換えたら、受け手にもう一度読んでもらう
+  if(editingShiji){ s.ack=''; s.ackBy=''; }
+  // すでに同じ日の報告があれば、その場で紐づける
+  const r=db.reports.find(x=>x.userId===s.userId && x.date===s.date && (!s.planId || !x.planId || x.planId===s.planId));
+  s.reportId = r ? r.id : '';
+  save(); hideSjForm(); renderShiji(); renderHome();
+  if(document.getElementById('tk-list')) renderTokutei();
+  alert('事前指示を記録しました。訪問介護員は📋報告の画面で内容を確認できます。');
+}
+function ackShiji(id, by){
+  const s=(db.shiji||[]).find(x=>x.id===id); if(!s) return;
+  s.ack=fullDate(); s.ackBy=by||s.staffName||'';
+  save(); renderShiji(); renderVisitShiji(); renderHome();
+}
+function delShiji(id){
+  const s=(db.shiji||[]).find(x=>x.id===id); if(!s) return;
+  if(!confirm('この事前指示を削除します。加算の根拠となる記録です。よろしいですか?')) return;
+  db.shiji=db.shiji.filter(x=>x.id!==id); save();
+  renderShiji(); renderHome(); if(document.getElementById('tk-list')) renderTokutei();
+}
+
+/* ---------- AI下書き ---------- */
+async function genShiji(){
+  const u=user(document.getElementById('sj-user').value);
+  if(!u){ alert('利用者がいません。🏡利用者タブから追加してください。'); return; }
+  const d=document.getElementById('sj-date').value||fullDate();
+  const p=db.plans.find(x=>x.id===document.getElementById('sj-plan').value);
+  const k=latestKei(u.id);
+  const reports=db.reports.filter(r=>r.userId===u.id).sort((a,b)=>a.date<b.date?1:-1).slice(0,5)
+    .map(r=>`${r.date} ${(r.src&&r.src.text)||r.summary||''}`);
+  const rules=(u.rules?RULE_DEFS.filter(([key])=>u.rules[key]).map(([key,n])=>`${n} ${u.rules[key]}`):[]);
+  await withLoading('sj-gen','状態と直近の報告から下書き中…', async()=>{
+    const out=await callAI('shiji', {
+      userName:u.name, care:u.care||'', memo:u.memo||'', date:d,
+      start:p?p.start:'', end:p?p.end:'', kubun:p?(KUBUN_LBL[p.kubun]||''):'',
+      rules, reports,
+      keikaku: k ? {ryui:k.ryui||'', goalShort:k.goalShort||'', services:(k.services||[]).map(x=>x.content)} : null
+    });
+    const ta=document.getElementById('sj-text');
+    ta.value=(ta.value.trim()? ta.value.replace(/\s*$/,'')+'\n' : '')+(out.text||'');
+    document.getElementById('sj-ai-note').innerHTML=`<div class="banner">🤖 ${esc(out.note||'')}${aiFallback?' ※AIサーバに接続できなかったため、デモ生成です。':''}<br>内容は必ずサービス提供責任者が確認・修正してから出してください。</div>`;
+  });
+}
+
+/* ---------- 一覧・実施状況 ---------- */
+function sjRow(s){
+  const u=user(s.userId);
+  const p=db.plans.find(x=>x.id===s.planId);
+  const when=p?`${p.start}〜${p.end}`:'この日ぜんぶ';
+  const chips=[
+    s.ack ? `<span class="chip g">✅ 確認済み ${esc(s.ack)}${s.ackBy?' '+esc(s.ackBy):''}</span>`
+          : '<span class="chip y">未確認</span>',
+    s.reportId ? '<span class="chip g">報告済み</span>'
+      : (s.date < fullDate() ? '<span class="chip y">報告なし</span>' : '<span class="chip g">これから</span>')
+  ].join(' ');
+  return `<div class="check-row"><div class="check-ic">${s.ack&&s.reportId?'✅':'📣'}</div>
+    <div style="flex:1;min-width:0">
+      <div class="t">${esc(s.date)} ${esc(u?u.name:'(削除済み利用者)')} <span class="chip g">${esc(when)}</span> ${chips}</div>
+      <div class="sjtx">${esc(s.text||'')}</div>
+      <div class="d" style="margin-top:4px">${esc(s.fromName||'(指示者未設定)')} → ${esc(s.staffName||'(担当未設定)')}</div>
+      <div class="row" style="margin-top:8px">
+        ${s.ack?'':`<button class="btn mini" onclick="ackShiji('${s.id}')">✅ 確認しました</button>`}
+        <button class="btn mini sec" onclick="editShiji('${s.id}')">✏️ 修正</button>
+        <button class="btn mini sec" onclick="delShiji('${s.id}')">削除</button>
+      </div>
+    </div></div>`;
+}
+function renderShiji(){
+  const list=document.getElementById('sj-list'); if(!list) return;
+  const f=(document.getElementById('sj-filter')||{}).value||'open';
+  const ym=fullDate().slice(0,7);
+  let ss=(db.shiji||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  if(f==='open') ss=ss.filter(s=>!s.ack || (!s.reportId && s.date<=fullDate()));
+  else if(f==='month') ss=ss.filter(s=>(s.date||'').slice(0,7)===ym);
+  document.getElementById('sj-count').textContent=(db.shiji||[]).length+'件';
+  list.innerHTML = ss.length ? ss.map(sjRow).join('')
+    : (f==='open' ? '<p class="muted">未確認・未報告の指示はありません ✅</p>'
+                  : '<p class="muted">まだ事前指示はありません。「＋ 事前指示を出す」から記録してください。</p>');
+
+  const st=shijiStats(ym);
+  const ok=shijiReqOk(ym);
+  const bar=(n,d)=>`<div style="height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:6px">
+    <div style="height:100%;width:${d?Math.round(n/d*100):0}%;background:var(--brand)"></div></div>`;
+  const el=document.getElementById('sj-stat'); if(!el) return;
+  el.innerHTML =
+    `<div class="check-row"><div class="check-ic">${ok?'✅':'⚠️'}</div>
+      <div style="flex:1;min-width:0"><div class="t">文書等による事前指示とサービス提供後の報告</div>
+        <div class="d">${esc(shijiReqNote(ym))}</div></div></div>` +
+    `<div style="margin-top:12px"><b>今月の訪問報告 ${st.reports}件のうち、事前指示があるもの ${st.covered}件</b>${bar(st.covered, st.reports)}</div>` +
+    `<div style="margin-top:12px"><b>出した指示 ${st.shiji}件のうち、ヘルパーが確認済み ${st.acked}件</b>${bar(st.acked, st.shiji)}</div>` +
+    `<div style="margin-top:12px"><b>出した指示 ${st.shiji}件のうち、提供後の報告あり ${st.reported}件</b>${bar(st.reported, st.shiji)}</div>` +
+    `<p class="muted" style="margin-top:12px">※ 割合や様式の基準は保険者の手引きをご確認ください。ここに出しているのは、このアプリに入っている記録の集計です。</p>`;
+}
+
+/* ---------- 実地指導・届出用のA4(横) ---------- */
+function printShiji(){
+  const ym=fullDate().slice(0,7);
+  const st=shijiStats(ym);
+  const o=db.office||{};
+  const ss=(db.shiji||[]).filter(s=>(s.date||'').slice(0,7)===ym).sort((a,b)=>a.date<b.date?-1:1);
+  const rows=ss.map(s=>{
+    const u=user(s.userId); const p=db.plans.find(x=>x.id===s.planId);
+    return `<tr><td>${esc(s.date)}</td><td>${esc(p?p.start+'〜'+p.end:'―')}</td><td>${esc(u?u.name:'―')}</td>
+      <td>${esc(s.fromName||'―')}</td><td>${esc(s.staffName||'―')}</td>
+      <td style="text-align:left;white-space:pre-wrap">${esc(s.text||'')}</td>
+      <td>${s.ack?esc(s.ack):'未'}</td><td>${s.reportId?'○':'―'}</td></tr>`;
+  }).join('');
+  const el=document.getElementById('sj-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">事前指示・サービス提供後の報告 実施状況</div>
+    <div class="shead">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>対象月</b>${esc(ym.slice(0,4))}年${esc(ym.slice(5,7))}月</div>
+      <div><b>訪問報告</b>${st.reports}件(うち事前指示あり ${st.covered}件)</div>
+      <div><b>事前指示</b>${st.shiji}件(うち訪問介護員が確認済み ${st.acked}件)</div>
+    </div>
+    <div class="tblwrap" style="margin-top:10px"><table class="tbl">
+      <tr><th>対象日</th><th>時間</th><th>利用者</th><th>指示者</th><th>訪問介護員</th><th style="min-width:240px">指示の内容</th><th>確認</th><th>報告</th></tr>
+      ${rows || '<tr><td colspan="8">この月の事前指示はありません。</td></tr>'}
+    </table></div>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>確認者(サービス提供責任者)　　　　　　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
+/* ---------- 📋報告の画面に、その日の指示を出す ---------- */
+function renderVisitShiji(){
+  const el=document.getElementById('visit-shiji'); if(!el) return;
+  const uid=(document.getElementById('visit-user')||{}).value;
+  const d=(document.getElementById('visit-date')||{}).value||fullDate();
+  const ss=shijiFor(uid, d, curPlanId);
+  el.innerHTML = ss.length ? ss.map(s=>`<div class="banner" style="margin:8px 0 2px">
+    📣 <b>${esc(s.fromName||'サービス提供責任者')}からの事前指示</b>${s.ack?` <span class="chip g">確認済み</span>`:''}
+    <div style="white-space:pre-wrap;margin-top:6px">${esc(s.text||'')}</div>
+    ${s.ack?'':`<button class="btn mini" style="margin-top:8px" onclick="ackShiji('${s.id}')">✅ 確認しました</button>`}
+  </div>`).join('') : '';
+}
+
 /* ---------- 訪問時の注意(その家のルール)の報告画面表示 ---------- */
 const RULE_DEFS=[['key','🔑 鍵・入室'],['park','🅿 駐車・駐輪'],['pet','🐕 ペット'],['care','⚠️ 禁忌・注意'],['contact','📞 緊急連絡']];
 function renderVisitRules(){
@@ -2589,6 +2988,7 @@ function renderVisitRules(){
   el.innerHTML = rs.length
     ? `<div class="banner" style="margin:8px 0 2px">🏠 <b>訪問時の注意</b>: ${rs.map(([k,n])=>`${n} ${esc(u.rules[k])}`).join(' ／ ')}</div>`
     : '';
+  renderVisitShiji();
 }
 
 /* ---------- 買い物の金銭記録 ---------- */
@@ -3181,8 +3581,9 @@ function renderTokutei(){
      act:`<button class="btn mini ${t.kenshu?'':'sec'}" onclick="tkSet('kenshu',${!t.kenshu})">${t.kenshu?'✔ 整備済':'未整備 → タップで記録'}</button>`},
     {ok:kaigiOk, t:'定期会議の開催(おおむね月1回以上)+記録', d:t.kaigiDate?`最終開催: ${t.kaigiDate}${kaigiOk?'(期限内)':'(⚠ 1ヶ月超過)'}。`:'開催記録がありません。',
      act:`<button class="btn mini sec" onclick="tkSet('kaigiDate','${fullDate()}')">今日の開催を記録</button>`},
-    {ok:t.shiji&&monthReports>0, t:'文書での事前指示+サービス提供後の報告', d:`事前指示の運用: ${t.shiji?'あり':'なし'} / 提供後の報告: 今月${monthReports}件(📋報告タブから自動集計)`,
-     act:`<button class="btn mini ${t.shiji?'':'sec'}" onclick="tkSet('shiji',${!t.shiji})">${t.shiji?'✔ 事前指示 運用中':'事前指示 未運用'}</button>`},
+    {ok:shijiReqOk(ym), t:'文書での事前指示+サービス提供後の報告', d:shijiReqNote(ym)+`（提供後の報告: 今月${monthReports}件・📋報告タブから自動集計）`,
+     act:`<button class="btn mini sec" onclick="go('plan');planSec('shiji')">📣 事前指示を見る・出す</button>
+          <button class="btn mini ${t.shiji?'':'sec'}" onclick="tkSet('shiji',${!t.shiji})">${t.shiji?'✔ 事業所外の文書でも運用中':'事業所外の文書で運用している'}</button>`},
     {ok:kenshinOk, t:'健康診断の定期実施(年1回以上・事業主負担)', d:t.kenshinDate?`最終実施: ${t.kenshinDate}${kenshinOk?'(期限内)':'(⚠ 1年超過)'}`:'実施記録がありません。',
      act:`<input type="date" value="${t.kenshinDate||''}" onchange="tkSet('kenshinDate',this.value)" style="max-width:180px">`},
     {ok:t.kinkyu, t:'緊急時等の対応方針の明示', d:'緊急時の対応方法を利用者に文書で明示していること。',
@@ -3588,7 +3989,7 @@ function tokuteiItems(){
   return [
     {n:'訪問介護員ごとの個別研修計画の作成・実施', ok:!!t.kenshu, ref:'個別研修計画'},
     {n:'定期的な会議の開催(おおむね月1回以上)と記録の保存', ok:daysSince(t.kaigiDate)<=35, note:t.kaigiDate?('最終開催 '+t.kaigiDate):'開催記録なし', ref:'会議'},
-    {n:'文書等による事前指示とサービス提供後の報告', ok:!!t.shiji&&monthReports>0, note:'今月の報告 '+monthReports+'件', ref:'事前指示 報告'},
+    {n:'文書等による事前指示とサービス提供後の報告', ok:shijiReqOk(ym), note:shijiReqNote(ym), ref:'事前指示 報告'},
     {n:'年1回以上の健康診断の実施(事業主負担)', ok:daysSince(t.kenshinDate)<=365, note:t.kenshinDate?('最終実施 '+t.kenshinDate):'実施記録なし', ref:'健康診断'},
     {n:'緊急時等の対応方針の利用者への明示', ok:!!t.kinkyu, ref:'緊急時 対応方針'}
   ];
