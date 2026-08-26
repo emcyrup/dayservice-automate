@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print,#sj-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print,#kj-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -201,7 +201,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -234,6 +234,14 @@
     color:var(--brand-d);background:var(--brand-l);border:1px solid color-mix(in srgb, var(--brand) 22%, var(--line));border-radius:99px}
   .curuser.on{display:flex}
   .curuser .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px}
+  .vgrid label{display:block;font-size:11.5px;font-weight:700;color:var(--sub);margin-bottom:3px}
+  .vgrid input{width:100%}
+  .vtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .vtbl th,.vtbl td{padding:5px 7px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}
+  .vtbl th{color:var(--sub);font-weight:700;font-size:11.5px;text-align:right}
+  .vtbl th:first-child,.vtbl td:first-child{text-align:left}
+  .vtbl td.hi{color:var(--danger);font-weight:800}
   .sjtx{white-space:pre-wrap;margin-top:5px;color:var(--ink);font-size:13.5px;line-height:1.8}
   .netbar{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:9px 14px;font-size:12.5px;font-weight:700;text-align:center;display:none;line-height:1.5}
   .netbar.on{display:block}
@@ -593,6 +601,23 @@
       </div>
       <label class="fld">担当スタッフ　<span class="muted">※⚙️設定→👥職員で追加できます</span></label>
       <select id="visit-staff"></select>
+      <details class="acc noprint" id="visit-vital-acc">
+        <summary>🩺 バイタル <span id="visit-vital-chip" class="chip g">未入力</span></summary>
+        <div class="accbody">
+          <p class="muted">身体介護では毎回測る項目です。<b>数値で残すと推移が見られる</b>ので、「3日続けて37度台」のような変化に気づけます。測っていない項目は空のままで構いません。</p>
+          <div id="visit-vital-last"></div>
+          <div class="vgrid" style="margin-top:10px">
+            <div><label for="vt-temp">体温(℃)</label><input type="number" id="vt-temp" inputmode="decimal" step="0.1" min="30" max="43" placeholder="36.5" oninput="renderVitalNote()"></div>
+            <div><label for="vt-bpH">血圧 上</label><input type="number" id="vt-bpH" inputmode="numeric" step="1" min="50" max="260" placeholder="120" oninput="renderVitalNote()"></div>
+            <div><label for="vt-bpL">血圧 下</label><input type="number" id="vt-bpL" inputmode="numeric" step="1" min="30" max="180" placeholder="78" oninput="renderVitalNote()"></div>
+            <div><label for="vt-pulse">脈拍(回/分)</label><input type="number" id="vt-pulse" inputmode="numeric" step="1" min="20" max="200" placeholder="72" oninput="renderVitalNote()"></div>
+            <div><label for="vt-spo2">SpO2(%)</label><input type="number" id="vt-spo2" inputmode="numeric" step="1" min="50" max="100" placeholder="97" oninput="renderVitalNote()"></div>
+            <div><label for="vt-weight">体重(kg)</label><input type="number" id="vt-weight" inputmode="decimal" step="0.1" min="20" max="200" placeholder="48.5" oninput="renderVitalNote()"></div>
+          </div>
+          <div id="visit-vital-note" style="margin-top:10px"></div>
+          <button class="btn mini sec" style="margin-top:10px" onclick="clearVital()">入力をクリア</button>
+        </div>
+      </details>
       <label class="fld">うち生活援助の時間(分)　<span class="muted">※「身体介護＋生活援助」のときのみ</span></label>
       <input type="number" id="visit-smin" placeholder="例: 30">
       <div class="row" style="margin-top:8px">
@@ -1106,13 +1131,15 @@
       </div>
     </div>
     <div class="card"><div class="subttl">🏠 訪問時の注意(その家のルール)</div><div id="ud-rules"></div></div>
+    <div class="card"><div class="subttl">🩺 バイタルの推移</div><div id="ud-vital"></div></div>
     <div class="card"><div class="subttl">直近の報告</div><div id="ud-reports"></div></div>
     <div class="card"><div class="subttl">いつもの品</div><div id="ud-items"></div></div>
   </section>
 
   <!-- ============ 設定(検証用) ============ -->
   <section id="v-setting" class="view">
-    <h2 class="title">⚙️ 設定(検証用)</h2>
+    <div id="kj-print" class="sheet"></div>
+    <h2 class="title noprint">⚙️ 設定(検証用)</h2>
     <div class="banner">🧪 検証中は実名を入力せず、仮名でお試しください。</div>
     <details class="acc solo" open>
       <summary>🏢 事業所情報(請求データに使用)</summary>
@@ -1175,6 +1202,66 @@
           </select></div>
       </div>
       <button class="btn" style="margin-top:12px" onclick="addStaff()">＋ 職員を追加</button>
+      </div>
+    </details>
+    <details class="acc solo" id="kj-acc">
+      <summary>📣 苦情・相談の受付記録 <span class="chip g" id="kj-chip">0件</span></summary>
+      <div class="accbody">
+      <p class="muted"><b>苦情処理体制の整備と記録は運営基準上の義務</b>で、実地指導で必ず確認されます。受付から対応・報告・完了までを1件ずつ残し、A4で出せるようにしています。「苦情に至らない相談・要望」も同じ様式で残せます。</p>
+      <div class="row">
+        <button class="btn" onclick="newComplaint()">＋ 受付を記録する</button>
+        <select id="kj-filter" onchange="renderComplaints()" style="max-width:190px">
+          <option value="open">未完了のみ</option>
+          <option value="all">すべて</option>
+        </select>
+      </div>
+
+      <div id="kj-form" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <div class="subttl" id="kj-form-title">受付の記録</div>
+        <div class="grid2">
+          <div><label class="fld">受付日</label><input type="date" id="kj-date"></div>
+          <div><label class="fld">受付方法</label>
+            <select id="kj-ch"><option>電話</option><option>来訪</option><option>訪問時の口頭</option><option>手紙・書面</option><option>メール</option><option>その他</option></select></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld">区分</label>
+            <select id="kj-type"><option value="kujo">苦情</option><option value="soudan">相談・要望</option></select></div>
+          <div><label class="fld">受け付けた職員</label><select id="kj-staff"></select></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld">申し出た方</label>
+            <select id="kj-from"><option>ご本人</option><option>ご家族</option><option>ケアマネジャー</option><option>他事業所</option><option>行政・地域包括</option><option>その他</option></select></div>
+          <div><label class="fld">お名前(仮名で可)</label><input type="text" id="kj-fromname" placeholder="例: 長男さま"></div>
+        </div>
+        <label class="fld">対象の利用者</label>
+        <select id="kj-user"></select>
+        <label class="fld">申し出の内容(🎤音声もOK)</label>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="kj-text" style="flex:1;min-height:90px" placeholder="例) 訪問の時間が予定より30分遅れることが続いている、と長男さまからお電話。"></textarea>
+          <button id="kj-mic" class="mic sm" onclick="toggleDict('kj-mic','kj-text','kj-hint')">🎤</button>
+        </div>
+        <div class="muted" id="kj-hint" style="margin:4px 0 0"></div>
+        <label class="fld">確認した事実・原因</label>
+        <textarea id="kj-cause" placeholder="例) 前の訪問先での対応が延び、移動を含めて遅れが出ていた。"></textarea>
+        <label class="fld">対応・改善した内容</label>
+        <textarea id="kj-action" placeholder="例) 訪問順を組み替え、遅れる場合は必ず事前に電話を入れることをヘルパーに周知。"></textarea>
+        <label class="fld">申し出た方への回答</label>
+        <textarea id="kj-reply" placeholder="例) 上記をお伝えし、ご了承いただいた。"></textarea>
+        <div class="grid2">
+          <div><label class="fld">回答した日</label><input type="date" id="kj-replydate"></div>
+          <div><label class="fld">完了した日</label><input type="date" id="kj-closed"></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label class="ckl wrap"><input type="checkbox" id="kj-tocity">市町村・国保連へ報告した</label>
+          <label class="ckl wrap"><input type="checkbox" id="kj-share">職員へ共有・再発防止を周知した</label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="saveComplaint()">💾 記録を保存</button>
+          <button class="btn sec" onclick="hideKjForm()">キャンセル</button>
+        </div>
+      </div>
+
+      <div id="kj-list" style="margin-top:14px"></div>
       </div>
     </details>
     <details class="acc solo">
@@ -1247,7 +1334,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [], complaints: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -1314,7 +1401,7 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
         d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[]; d.keikaku=d.keikaku||[];
-        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[];
+        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1358,7 +1445,7 @@ function go(t){
   if(t==='scan') renderScan();
   if(t==='shinsei') renderShinsei();
   if(t==='users') renderUsers();
-  if(t==='setting'){ renderOffice(); renderMaster(); renderLimits(); }
+  if(t==='setting'){ renderOffice(); renderMaster(); renderLimits(); renderComplaints(); }
 }
 
 function renderHome(){
@@ -1410,6 +1497,11 @@ function renderHome(){
   if(sjOpen) alerts.push({ic:'📣', t:`ヘルパーが未確認の事前指示が ${sjOpen} 件`, d:'📅予定タブ→📣事前指示 で内容を確認し「✅ 確認しました」を押してください', go:'plan'});
   const sjUnrep=(db.shiji||[]).filter(s=>!s.reportId && s.date<fullDate() && s.date>=dateAgo(-14)).length;
   if(sjUnrep) alerts.push({ic:'📋', t:`事前指示を出したのに報告が未作成 ${sjUnrep} 件`, d:'特定事業所加算は「事前指示」と「提供後の報告」が対で必要です', go:'plan'});
+  const vw=vitalWatch();
+  if(vw.length) alerts.push({ic:'🩺', t:`バイタルに気になる値がある方が ${vw.length} 名(直近3日)`,
+    d:vw.slice(0,3).map(x=>`${x.name}(${x.what})`).join('、')+(vw.length>3?' ほか':'')+' ― かかりつけ医の指示や事業所の基準と照らして確認してください', go:'report'});
+  const kjOpen=(db.complaints||[]).filter(c=>!c.closed).length;
+  if(kjOpen) alerts.push({ic:'📣', t:`対応が完了していない苦情・相談が ${kjOpen} 件`, d:'⚙️設定→📣苦情・相談の受付記録 で対応内容と回答を記録してください(運営基準上の義務です)', go:'setting'});
   const unusedMemos=(db.memos||[]).filter(m=>!m.used).length;
   if(unusedMemos) alerts.push({ic:'📝', t:`未反映のメモが ${unusedMemos} 件`, d:'✍️その場でメモから「📋報告へ送る」で下書きに使えます', go:'home'});
   const todayPlans=plansFor(today);
@@ -1456,6 +1548,13 @@ function fillSelects(){
       ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
       : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
     if(k&&staff(k)) el.value=k; });
+  const kju=document.getElementById('kj-user'); if(kju){ const k=kju.value; kju.innerHTML='<option value="">(特定の利用者に関するものではない)</option>'+opts; kju.value=k; }
+  const kjs=document.getElementById('kj-staff');
+  if(kjs){ const k=kjs.value;
+    kjs.innerHTML=(db.staff||[]).length
+      ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
+      : '<option value="">(職員未登録 ― 上の👥職員で追加)</option>';
+    if(k&&staff(k)) kjs.value=k; }
   const hu=document.getElementById('hist-user'); if(hu){ const k=hu.value; hu.innerHTML='<option value="">利用者: すべて</option>'+opts; hu.value=k; }
   const hs=document.getElementById('hist-staff'); if(hs){ const k=hs.value;
     hs.innerHTML='<option value="">担当: すべて</option>'+(db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join(''); hs.value=k; }
@@ -1593,8 +1692,9 @@ const demoGenerators = {
     return {answer:a, sources:(cases||[]).slice(0,2).map(c=>c.title),
             followups:['この内容を届出書類に反映できますか?','根拠となる通知はどこで確認できますか?']};
   },
-  visit({userName, text, cond, start, end, staff, date}){
+  visit({userName, text, cond, start, end, staff, date, vital}){
     const t = text.trim() || '生活援助を実施。';
+    const vl = vitalLine(vital), vf = vitalFlags(vital);
     const good = /(元気|食欲|笑|安定|良好)/.test(t);
     const flag = /(転倒|発熱|痛|むくみ|残薬|受診|変化|食欲な)/.test(t);
     const formal = [
@@ -1602,7 +1702,8 @@ const demoGenerators = {
       `【日時】${date||fullDate()} ${start}〜${end}`,
       `【支援内容】${t}`,
       `【ご本人の様子】${good?'体調は安定しており、食欲・表情ともに良好でした。':'表情・体調に大きな変化は見られませんでした。'}`,
-      `【特記事項】${flag?'気になる点があるため、上記の内容の確認・共有をお願いします。':'特になし。'}`,
+      ...(vl?[`【バイタル】${vl}`]:[]),
+      `【特記事項】${vf.length?vf.map(f=>f.t).join(' ')+' 確認と共有をお願いします。':(flag?'気になる点があるため、上記の内容の確認・共有をお願いします。':'特になし。')}`,
       `【担当】${staff||'(未入力)'}`,
       `【支援者の体調】${cond}`
     ].join('\n');
@@ -1610,10 +1711,11 @@ const demoGenerators = {
       `・時間: ${start}〜${end}`,
       `・支援内容: ${t}`,
       `・様子: ${good?'安定/食欲・表情良好':'変化なし'}`,
-      `・特記: ${flag?'あり(本文参照)':'なし'}`,
+      ...(vl?[`・バイタル: ${vl}`]:[]),
+      `・特記: ${(vf.length||flag)?'あり(本文参照)':'なし'}`,
       `・支援者体調: ${cond}`
     ].join('\n');
-    const summary = `${userName}宅で${start}から支援を実施。${t.slice(0,42)}${t.length>42?'…':''} 体調・様子は${good?'良好':'安定'}です。${flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。'}`;
+    const summary = `${userName}宅で${start}から支援を実施。${t.slice(0,42)}${t.length>42?'…':''} ${vl?`バイタルは${vl}。`:''}体調・様子は${good?'良好':'安定'}です。${vf.length?'※'+vf.map(f=>f.t).join(' ')+' ご確認ください。':(flag?'※気になる点あり、報告書をご確認ください。':'特記事項はありません。')}`;
     return { formal, app, summary };
   },
   ocr({kind, users}){
@@ -1788,6 +1890,7 @@ function readVisitForm(){
     futari: document.getElementById('visit-futari').checked,
     kinkyu: document.getElementById('visit-kinkyu').checked,
     src: {text:document.getElementById('visit-text').value, cond:document.getElementById('visit-cond').value},
+    vital: readVital(),
     staffId: sid, staffName: (staff(sid)||{}).name||''
   };
 }
@@ -1817,7 +1920,9 @@ async function genVisit(){
     cond: document.getElementById('visit-cond').value,
     start: document.getElementById('visit-start').value,
     end: document.getElementById('visit-end').value,
-    staff: st ? st.name : ''
+    staff: st ? st.name : '',
+    vital: readVital(),
+    vitalPrev: (function(){ const p=lastVital(u.id, visitDate()); return p ? {date:p.date, vital:p.vital} : null; })()
   };
   await withLoading('visit-gen','AIが3つの報告を作成中…', async()=>{
     const out = await callAI('visit', payload);
@@ -1869,6 +1974,7 @@ function updateReport(){
 function newReport(){
   editingReport=null; curPlanId='';
   ['visit-text','visit-smin'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  clearVital();
   ['visit-futari','visit-kinkyu'].forEach(id=>{ const e=document.getElementById(id); if(e) e.checked=false; });
   document.getElementById('visit-out').innerHTML='';
   setVisitDate(0); renderVisitEditing();
@@ -1890,6 +1996,7 @@ function editReport(id){
   document.getElementById('visit-kinkyu').checked=!!r.kinkyu;
   if(r.staffId&&staff(r.staffId)) document.getElementById('visit-staff').value=r.staffId;
   document.getElementById('visit-text').value=(r.src&&r.src.text)||'';
+  setVital(r.vital);
   markVisitDate(); renderVisitRefs(); renderVisitEditing(); renderVisitOut(r);
   window.scrollTo(0,0);
 }
@@ -1923,6 +2030,7 @@ function printReport(id){
       <tr><th style="width:34%">正式報告書</th><td style="text-align:left;white-space:pre-wrap">${esc(d.formal||r.summary||'')}</td></tr>
       <tr><th>サービス提供責任者向け要約</th><td style="text-align:left;white-space:pre-wrap">${esc(d.summary||r.summary||'')}</td></tr>
       <tr><th>ヘルパーの入力(原文)</th><td style="text-align:left;white-space:pre-wrap">${esc((r.src&&r.src.text)||'')}</td></tr>
+      ${vitalLine(r.vital)?`<tr><th>バイタル</th><td style="text-align:left">${esc(vitalLine(r.vital))}</td></tr>`:''}
     </table></div>
     <div class="sfoot"><span>提供時間: ${r.mins||0}分</span><span>確認印: 　　　　</span></div>`;
   el.classList.add('on');
@@ -1972,7 +2080,7 @@ function renderReports(){
         <span><b>${esc(r.date||'')}</b>・${esc((user(r.userId)||{}).name||'(削除済み利用者)')}${r.staffName?`<span class="muted"> ／ ${esc(r.staffName)}</span>`:''}</span>
         <span>${r.draft?'<span class="chip y">下書き</span> ':''}${r.pend?'<span class="chip y">⏳再生成待ち</span>':'<span class="chip g">3形態</span>'}</span>
       </div>
-      <div class="muted" style="font-size:12px;margin-top:3px">${esc(r.start||'')}〜${esc(r.end||'')}・${esc(KUBUN_LBL[r.kubun]||'')}</div>
+      <div class="muted" style="font-size:12px;margin-top:3px">${esc(r.start||'')}〜${esc(r.end||'')}・${esc(KUBUN_LBL[r.kubun]||'')}${vitalLine(r.vital)?`　🩺 ${esc(vitalLine(r.vital))}`:''}${vitalFlags(r.vital).length?' <span class="chip y">要確認</span>':''}</div>
       <div class="body">${body}
         <div class="row" style="margin-top:10px">
           <button class="btn mini sec" onclick="editReport('${r.id}')">✏️ 編集</button>
@@ -2108,13 +2216,15 @@ function applyScan(){
     if(v.kubun) document.getElementById('visit-kubun').value=v.kubun;
     let txt=v.text||'';
     if(kind==='vital'){
-      const b=[]; if(v.temp) b.push('体温'+v.temp+'℃'); if(v.bpH&&v.bpL) b.push('血圧'+v.bpH+'/'+v.bpL);
-      if(v.pulse) b.push('脈拍'+v.pulse); if(v.spo2) b.push('SpO2 '+v.spo2+'%');
-      txt=(b.join('、')+(txt?'。'+txt:'')).trim();
+      // 数値はバイタル欄へそのまま入れる(自由文に流し込むだけだと推移が見られないため)
+      setVital({temp:v.temp, bpH:v.bpH, bpL:v.bpL, pulse:v.pulse, spo2:v.spo2, weight:v.weight});
+      const acc=document.getElementById('visit-vital-acc'); if(acc) acc.open=true;
     }
     if(/^\d{4}-\d{2}-\d{2}$/.test(v.date||'')){ document.getElementById('visit-date').value=v.date; markVisitDate(); }
-    const ta=document.getElementById('visit-text');
-    ta.value = ta.value ? ta.value+'\n'+txt : txt;
+    if(txt){
+      const ta=document.getElementById('visit-text');
+      ta.value = ta.value ? ta.value+'\n'+txt : txt;
+    }
     done.push('📋報告');
   }
   if(on('trip')){
@@ -2277,16 +2387,28 @@ function seedDemoData(){
     [11,'u1', st1, '09:00','10:00','seikatsu', '調理と洗濯。ご本人の希望で味噌汁を薄味に調整しました。', 60],
     [13,'u2', st2, '11:00','11:45','shintai', '入浴介助。義歯の汚れが気になったため、洗浄をお手伝いしました。', 45],
   ];
+  // バイタルは身体介護のある回に持たせる。u2は微熱と血圧の上昇が続く流れにして、
+  // 「推移で気づく」という使い方がデモでそのまま見えるようにする。
+  const VT={
+    '0-u2':{temp:37.6, bpH:148, bpL:88, pulse:84, spo2:96},
+    '1-u3':{temp:36.4, bpH:126, bpL:74, pulse:70, spo2:98},
+    '3-u2':{temp:37.2, bpH:142, bpL:86, pulse:78, spo2:97},
+    '6-u3':{temp:36.6, bpH:130, bpL:78, pulse:72, spo2:97, weight:52.1},
+    '7-u2':{temp:36.8, bpH:134, bpL:80, pulse:74, spo2:98, weight:48.5},
+    '10-u3':{temp:36.5, bpH:128, bpL:76, pulse:68, spo2:98},
+    '13-u2':{temp:36.6, bpH:130, bpL:78, pulse:72, spo2:98, weight:48.9},
+  };
   R.forEach(([ago, uid, sid, start, end, kubun, text, mins], i)=>{
     const u=db.users.find(x=>x.id===uid); if(!u) return;
     const s=db.staff.find(x=>x.id===sid);
+    const vital=VT[ago+'-'+uid]||null;
     // デモも本番と同じ3形態を持たせる(履歴からそのまま印刷・コピーできる状態にする)
-    const g=demoGenerators.visit({userName:u.name, text, cond:'良好', start, end, staff:s?s.name:'', date:dayOf(ago)});
+    const g=demoGenerators.visit({userName:u.name, text, cond:'良好', start, end, staff:s?s.name:'', date:dayOf(ago), vital});
     db.reports.push({
       id:'demo-r'+i, userId:uid, date:dayOf(ago), start, end, mins, kubun,
       smins:0, futari:false, kinkyu:false, draft:false,
       staffId:sid, staffName:s?s.name:'',
-      src:{text, cond:'良好'},
+      src:{text, cond:'良好'}, vital,
       docs:{formal:g.formal, app:g.app, summary:g.summary},
       summary:g.summary
     });
@@ -2336,6 +2458,29 @@ function seedDemoData(){
     db.shiji.push({id:s.id, date, userId:s.userId, planId:p?p.id:'',
       staffId:s.staffId, staffName:st?st.name:'', fromId:s.fromId, fromName:fr?fr.name:'',
       text:s.text, ack:s.ack?date:'', ackBy:s.ack?(st?st.name:''):'', reportId:r?r.id:''});
+  });
+
+  // --- 苦情・相談の受付記録 ---
+  [
+    {id:'demo-c1', ago:9, type:'kujo', ch:'電話', from:'ご家族', fromName:'長男さま', userId:'u1', staffId:st1,
+     text:'訪問の時間が予定より30分ほど遅れることが続いている、とご連絡をいただきました。遅れるなら先に一報がほしい、とのお申し出です。',
+     cause:'前の訪問先での対応が延び、移動を含めて遅れが出ていました。遅れる際の連絡ルールが徹底されていませんでした。',
+     action:'訪問順を組み替えて余裕を持たせ、10分以上遅れる見込みのときは必ず事前にお電話を入れることを全ヘルパーに周知しました。',
+     reply:'上記の対応をお伝えし、ご了承いただきました。改善の状況は1か月後に改めてご確認いただくことにしています。',
+     replyAgo:8, closedAgo:8, tocity:false, share:true},
+    {id:'demo-c2', ago:2, type:'soudan', ch:'訪問時の口頭', from:'ご本人', fromName:'', userId:'u3', staffId:st2,
+     text:'掃除のときに仏壇まわりは触らないでほしい、というご要望をいただきました。',
+     cause:'ご本人の大切にされている場所で、これまで支援の範囲として共有できていませんでした。',
+     action:'', reply:'', replyAgo:null, closedAgo:null, tocity:false, share:false}
+  ].forEach(c=>{
+    const s=db.staff.find(x=>x.id===c.staffId);
+    db.complaints.push({
+      id:c.id, date:dayOf(c.ago), type:c.type, ch:c.ch, from:c.from, fromName:c.fromName,
+      userId:c.userId, staffId:c.staffId, staffName:s?s.name:'',
+      text:c.text, cause:c.cause, action:c.action, reply:c.reply,
+      replyDate:c.replyAgo==null?'':dayOf(c.replyAgo), closed:c.closedAgo==null?'':dayOf(c.closedAgo),
+      tocity:c.tocity, tocityDate:'', share:c.share
+    });
   });
 
   // --- クイックメモ ---
@@ -2979,6 +3124,297 @@ function renderVisitShiji(){
   </div>`).join('') : '';
 }
 
+
+/* ============================================================
+   バイタル(体温・血圧・脈拍・SpO2・体重)
+   訪問介護記録票にはバイタル欄があり、身体介護では毎回測る。
+   自由文に流し込むだけだと推移が見られないので、数値のまま持つ。
+   ここで出す「目安」は受診の判断ではなく、確認・共有のきっかけ。
+   実際の基準は主治医の指示や事業所の取り決めが優先される。
+   ============================================================ */
+const VITAL_DEFS=[
+  {k:'temp',  n:'体温',    u:'℃'},
+  {k:'bpH',   n:'血圧(上)', u:''},
+  {k:'bpL',   n:'血圧(下)', u:''},
+  {k:'pulse', n:'脈拍',    u:''},
+  {k:'spo2',  n:'SpO2',   u:'%'},
+  {k:'weight',n:'体重',    u:'kg'},
+];
+function readVital(){
+  const v={}; let any=false;
+  VITAL_DEFS.forEach(({k})=>{
+    const el=document.getElementById('vt-'+k); if(!el) return;
+    const s=(el.value||'').trim();
+    if(s!=='' && isFinite(+s)){ v[k]=+s; any=true; }
+  });
+  return any ? v : null;
+}
+function setVital(v){
+  VITAL_DEFS.forEach(({k})=>{
+    const el=document.getElementById('vt-'+k); if(!el) return;
+    const x=v?v[k]:undefined;
+    el.value=(x===undefined||x===null||x==='')?'':x;
+  });
+  renderVitalNote();
+}
+function clearVital(){ setVital(null); }
+function hasVital(v){ return !!(v && VITAL_DEFS.some(({k})=>v[k]!==undefined&&v[k]!==null&&v[k]!=='')); }
+
+/* 一行表示: 36.4℃ / 132-78 / 脈72 / SpO2 97% / 48.5kg */
+function vitalLine(v){
+  if(!hasVital(v)) return '';
+  const p=[];
+  if(v.temp!=null) p.push(v.temp+'℃');
+  if(v.bpH!=null||v.bpL!=null) p.push('血圧'+(v.bpH!=null?v.bpH:'―')+'-'+(v.bpL!=null?v.bpL:'―'));
+  if(v.pulse!=null) p.push('脈'+v.pulse);
+  if(v.spo2!=null) p.push('SpO2 '+v.spo2+'%');
+  if(v.weight!=null) p.push(v.weight+'kg');
+  return p.join(' / ');
+}
+
+/* 目安を外れた値。医学的な判断はせず「確認してほしい」までにとどめる。 */
+function vitalFlags(v){
+  if(!hasVital(v)) return [];
+  const f=[], add=(k,t)=>f.push({k,t});
+  if(v.temp!=null){
+    if(v.temp>=38.0) add('temp','発熱(38.0℃以上)');
+    else if(v.temp>=37.5) add('temp','発熱の目安(37.5℃以上)');
+    else if(v.temp<35.0) add('temp','低体温の目安(35.0℃未満)');
+  }
+  if(v.bpH!=null||v.bpL!=null){
+    if((v.bpH!=null&&v.bpH>=180)||(v.bpL!=null&&v.bpL>=110)) add('bp','血圧が高い(180/110以上)');
+    else if((v.bpH!=null&&v.bpH>=140)||(v.bpL!=null&&v.bpL>=90)) add('bp','血圧が高めの目安(140/90以上)');
+    else if(v.bpH!=null&&v.bpH<90) add('bp','血圧が低め(上90未満)');
+  }
+  if(v.pulse!=null){
+    if(v.pulse>=100) add('pulse','脈が速め(100以上)');
+    else if(v.pulse<=50) add('pulse','脈が遅め(50以下)');
+  }
+  if(v.spo2!=null){
+    if(v.spo2<=90) add('spo2','SpO2が低い(90%以下)');
+    else if(v.spo2<=93) add('spo2','SpO2が低めの目安(93%以下)');
+  }
+  return f;
+}
+
+/* その利用者の、指定日より前でいちばん新しいバイタル付きの報告 */
+function lastVital(uid, beforeDate){
+  return db.reports
+    .filter(r=>r.userId===uid && hasVital(r.vital) && (!beforeDate || r.date<beforeDate))
+    .sort((a,b)=>a.date<b.date?1:-1)[0] || null;
+}
+function vitalsOf(uid, n){
+  return db.reports.filter(r=>r.userId===uid && hasVital(r.vital))
+    .sort((a,b)=>a.date<b.date?1:-1).slice(0, n||8);
+}
+
+/* 入力中の案内 ― 目安を外れた値と、前回からの変化 */
+function renderVitalNote(){
+  const chip=document.getElementById('visit-vital-chip');
+  const note=document.getElementById('visit-vital-note');
+  const lastEl=document.getElementById('visit-vital-last');
+  if(!chip||!note) return;
+  const v=readVital();
+  const line=vitalLine(v), flags=vitalFlags(v);
+  chip.textContent = line || '未入力';
+  chip.className = flags.length ? 'chip y' : 'chip g';
+  note.innerHTML = flags.length
+    ? `<div class="banner">🩺 <b>${flags.map(f=>esc(f.t)).join(' ／ ')}</b><br>一般的な目安を外れています。<b>かかりつけ医の指示や事業所の取り決め</b>と照らして確認し、必要ならサービス提供責任者へ共有してください。(このアプリは受診の要否を判断するものではありません)</div>`
+    : (line ? '<p class="muted">目安の範囲内です。</p>' : '');
+  if(lastEl){
+    const uid=(document.getElementById('visit-user')||{}).value;
+    const p=uid?lastVital(uid, visitDate()):null;
+    lastEl.innerHTML = p
+      ? `<div class="check-row"><div class="check-ic">📈</div><div style="flex:1;min-width:0">
+          <div class="t">前回(${esc(p.date)})のバイタル</div>
+          <div class="d">${esc(vitalLine(p.vital))}${v?'　→　今回 '+esc(line||'未入力'):''}</div>
+          <div style="margin-top:6px"><button class="btn mini sec" onclick="copyLastVital()">⤵ 前回の値を入れる</button></div>
+        </div></div>`
+      : '<p class="muted">この方のバイタル記録はまだありません。</p>';
+  }
+}
+function copyLastVital(){
+  const uid=(document.getElementById('visit-user')||{}).value;
+  const p=uid?lastVital(uid, visitDate()):null;
+  if(!p){ alert('この方の過去のバイタル記録がありません。'); return; }
+  setVital(p.vital);
+}
+
+/* 利用者詳細の推移表(目安を外れた値は色を変える) */
+function vitalTrendHtml(uid, n){
+  const rs=vitalsOf(uid, n);
+  if(!rs.length) return '<p class="muted">まだバイタルの記録がありません。📋報告の「🩺 バイタル」に数値を入れると、ここに推移が出ます。</p>';
+  const head=VITAL_DEFS.map(d=>`<th>${d.n}${d.u?`<span class="muted">(${d.u})</span>`:''}</th>`).join('');
+  const rows=rs.map(r=>{
+    const fk=new Set(vitalFlags(r.vital).map(f=>f.k));
+    const cell=d=>{
+      const x=r.vital[d.k];
+      const hi=fk.has(d.k) || (fk.has('bp') && (d.k==='bpH'||d.k==='bpL'));
+      return `<td class="${hi?'hi':''}">${x==null?'―':x}</td>`;
+    };
+    return `<tr><td>${esc(r.date)}</td>${VITAL_DEFS.map(cell).join('')}</tr>`;
+  }).join('');
+  const warn=rs.filter(r=>vitalFlags(r.vital).length).length;
+  return `<div class="tblwrap"><table class="vtbl"><tr><th>日付</th>${head}</tr>${rows}</table></div>`
+    + `<p class="muted" style="margin-top:8px">直近${rs.length}件${warn?` ／ うち ${warn}件は目安を外れた値があります(赤字)`:''}。目安は一般的なもので、実際の基準は主治医の指示や事業所の取り決めが優先されます。</p>`;
+}
+
+/* ダッシュボードの⚠️要対応 ― 直近3日で目安を外れた値がある方 */
+function vitalWatch(){
+  const from=dateAgo(-3);
+  const by={};
+  db.reports.filter(r=>r.date>=from && hasVital(r.vital)).forEach(r=>{
+    const fs=vitalFlags(r.vital); if(!fs.length) return;
+    const u=user(r.userId); if(!u) return;
+    if(!by[u.id]) by[u.id]={name:u.name, what:[]};
+    fs.forEach(f=>{ if(!by[u.id].what.includes(f.t)) by[u.id].what.push(f.t); });
+  });
+  return Object.values(by).map(x=>({name:x.name, what:x.what.join('・')}));
+}
+
+
+/* ============================================================
+   苦情・相談の受付記録
+   苦情処理体制の整備と記録は運営基準上の義務。実地指導の定番でもある。
+   受付 → 事実確認 → 対応 → 回答 → 完了 を1件ずつ残し、A4で出せるようにする。
+   「苦情に至らない相談・要望」も同じ様式で残せるようにしてある
+   (現場では区別がつかないまま流れてしまうことが多いため)。
+   ============================================================ */
+let editingKj=null;
+const KJ_TYPE_LBL={kujo:'苦情', soudan:'相談・要望'};
+
+function kjStatus(c){
+  if(c.closed) return {t:'完了', cls:'g', ic:'✅'};
+  if(c.action||c.reply) return {t:'対応中', cls:'y', ic:'🔄'};
+  return {t:'未対応', cls:'r', ic:'⚠️'};
+}
+function newComplaint(){
+  editingKj=null;
+  document.getElementById('kj-form-title').textContent='受付の記録';
+  document.getElementById('kj-form').style.display='';
+  document.getElementById('kj-date').value=fullDate();
+  ['kj-text','kj-cause','kj-action','kj-reply','kj-fromname','kj-replydate','kj-closed'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.value='';
+  });
+  ['kj-tocity','kj-share'].forEach(id=>{ const e=document.getElementById(id); if(e) e.checked=false; });
+  document.getElementById('kj-type').value='kujo';
+  if(curUid) document.getElementById('kj-user').value=curUid;
+  document.getElementById('kj-form').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function editComplaint(id){
+  const c=(db.complaints||[]).find(x=>x.id===id); if(!c) return;
+  editingKj=id;
+  document.getElementById('kj-form-title').textContent='記録の修正';
+  document.getElementById('kj-form').style.display='';
+  const set=(id2,v)=>{ const e=document.getElementById(id2); if(e) e.value=v||''; };
+  set('kj-date', c.date); set('kj-ch', c.ch); set('kj-type', c.type||'kujo');
+  set('kj-from', c.from); set('kj-fromname', c.fromName);
+  set('kj-text', c.text); set('kj-cause', c.cause); set('kj-action', c.action);
+  set('kj-reply', c.reply); set('kj-replydate', c.replyDate); set('kj-closed', c.closed);
+  const us=document.getElementById('kj-user'); if(us) us.value=c.userId||'';
+  const ss=document.getElementById('kj-staff'); if(ss && c.staffId && staff(c.staffId)) ss.value=c.staffId;
+  document.getElementById('kj-tocity').checked=!!c.tocity;
+  document.getElementById('kj-share').checked=!!c.share;
+  document.getElementById('kj-form').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function hideKjForm(){ document.getElementById('kj-form').style.display='none'; editingKj=null; }
+
+function saveComplaint(){
+  const text=document.getElementById('kj-text').value.trim();
+  if(!text){ alert('申し出の内容を入力してください。'); return; }
+  const sid=document.getElementById('kj-staff').value||'';
+  let c = editingKj ? (db.complaints||[]).find(x=>x.id===editingKj) : null;
+  if(!c){ c={id:'kj'+Date.now()}; db.complaints.push(c); }
+  const val=id=>(document.getElementById(id)||{}).value||'';
+  Object.assign(c, {
+    date: val('kj-date')||fullDate(), ch: val('kj-ch'), type: val('kj-type'),
+    from: val('kj-from'), fromName: val('kj-fromname'), userId: val('kj-user'),
+    staffId: sid, staffName: (staff(sid)||{}).name||'',
+    text, cause: val('kj-cause'), action: val('kj-action'), reply: val('kj-reply'),
+    replyDate: val('kj-replydate'), closed: val('kj-closed'),
+    tocity: document.getElementById('kj-tocity').checked,
+    tocityDate: c.tocityDate||'',
+    share: document.getElementById('kj-share').checked
+  });
+  if(c.tocity && !c.tocityDate) c.tocityDate=fullDate();
+  if(!c.tocity) c.tocityDate='';
+  save(); hideKjForm(); renderComplaints(); renderHome();
+  alert('受付記録を保存しました。');
+}
+function closeComplaint(id){
+  const c=(db.complaints||[]).find(x=>x.id===id); if(!c) return;
+  if(!c.action){ if(!confirm('対応した内容がまだ空欄です。このまま完了にしますか?')) return; }
+  c.closed=fullDate(); save(); renderComplaints(); renderHome();
+}
+function delComplaint(id){
+  const c=(db.complaints||[]).find(x=>x.id===id); if(!c) return;
+  if(!confirm('この受付記録を削除します。実地指導で確認される記録です。よろしいですか?')) return;
+  db.complaints=db.complaints.filter(x=>x.id!==id); save(); renderComplaints(); renderHome();
+}
+
+function renderComplaints(){
+  const el=document.getElementById('kj-list'); if(!el) return;
+  const all=(db.complaints||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  const chip=document.getElementById('kj-chip');
+  const open=all.filter(c=>!c.closed).length;
+  if(chip){ chip.textContent = all.length ? `${all.length}件${open?` ／ 未完了 ${open}`:''}` : '0件';
+            chip.className = open ? 'chip y' : 'chip g'; }
+  const f=(document.getElementById('kj-filter')||{}).value||'open';
+  const list = f==='open' ? all.filter(c=>!c.closed) : all;
+  el.innerHTML = list.length ? list.map(c=>{
+    const st=kjStatus(c), u=user(c.userId);
+    return `<div class="check-row"><div class="check-ic">${st.ic}</div>
+      <div style="flex:1;min-width:0">
+        <div class="t">${esc(c.date)} ${esc(KJ_TYPE_LBL[c.type]||'苦情')} <span class="chip ${st.cls}">${st.t}</span>
+          ${c.tocity?'<span class="chip g">市町村へ報告済み</span>':''}${c.share?'<span class="chip g">職員へ共有済み</span>':''}</div>
+        <div class="d" style="margin-top:3px">${esc(c.from||'')}${c.fromName?'・'+esc(c.fromName):''}${u?` ／ ${esc(u.name)}に関するもの`:''} ／ ${esc(c.ch||'')}受付${c.staffName?' ／ 受付者 '+esc(c.staffName):''}</div>
+        <div class="sjtx">${esc(c.text||'')}</div>
+        ${c.action?`<div class="d" style="margin-top:5px"><b>対応:</b> ${esc(c.action)}</div>`:''}
+        ${c.reply?`<div class="d" style="margin-top:3px"><b>回答:</b> ${esc(c.reply)}${c.replyDate?`(${esc(c.replyDate)})`:''}</div>`:''}
+        <div class="row" style="margin-top:8px">
+          ${c.closed?'':`<button class="btn mini" onclick="closeComplaint('${c.id}')">✅ 完了にする</button>`}
+          <button class="btn mini sec" onclick="editComplaint('${c.id}')">✏️ 修正</button>
+          <button class="btn mini sec" onclick="printComplaint('${c.id}')">🖨 印刷</button>
+          <button class="btn mini sec" style="color:var(--danger)" onclick="delComplaint('${c.id}')">🗑 削除</button>
+        </div>
+      </div></div>`;
+  }).join('')
+    : (f==='open' ? '<p class="muted">未完了の苦情・相談はありません ✅</p>'
+                  : '<p class="muted">まだ受付記録はありません。「＋ 受付を記録する」から残してください。</p>');
+}
+
+/* 実地指導でそのまま出せる1件ぶんのA4 */
+function printComplaint(id){
+  const c=(db.complaints||[]).find(x=>x.id===id); if(!c) return;
+  const u=user(c.userId), o=db.office||{};
+  const row=(l,v)=>`<tr><th style="width:26%">${l}</th><td style="text-align:left;white-space:pre-wrap">${esc(v||'―')}</td></tr>`;
+  const el=document.getElementById('kj-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">${esc(KJ_TYPE_LBL[c.type]||'苦情')}受付・対応記録票</div>
+    <div class="shead">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+      <div><b>受付日</b>${esc(c.date||'')}</div>
+      <div><b>受付方法</b>${esc(c.ch||'')}</div>
+      <div><b>受付者</b>${esc(c.staffName||'―')}</div>
+      <div><b>対象の利用者</b>${esc(u?u.name+' 様':'―')}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      ${row('申し出た方', (c.from||'')+(c.fromName?'　'+c.fromName:''))}
+      ${row('申し出の内容', c.text)}
+      ${row('確認した事実・原因', c.cause)}
+      ${row('対応・改善した内容', c.action)}
+      ${row('申し出た方への回答', (c.reply||'')+(c.replyDate?`\n(回答日 ${c.replyDate})`:''))}
+      ${row('市町村・国保連への報告', c.tocity?('報告済み'+(c.tocityDate?`(${c.tocityDate})`:'')):'―')}
+      ${row('職員への共有・再発防止', c.share?'周知済み':'―')}
+      ${row('完了日', c.closed)}
+    </table></div>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>管理者確認　　　　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
 /* ---------- 訪問時の注意(その家のルール)の報告画面表示 ---------- */
 const RULE_DEFS=[['key','🔑 鍵・入室'],['park','🅿 駐車・駐輪'],['pet','🐕 ペット'],['care','⚠️ 禁忌・注意'],['contact','📞 緊急連絡']];
 function renderVisitRules(){
@@ -3032,6 +3468,7 @@ function renderMoney(){
 /* ---------- 過去の報告の参照・引用 ---------- */
 function renderVisitRefs(){
   renderVisitRules();
+  renderVitalNote();
   const el=document.getElementById('visit-refs'); if(!el) return;
   const uid=document.getElementById('visit-user').value;
   const rs=db.reports.filter(r=>r.userId===uid).slice(-5).reverse();
@@ -4871,6 +5308,7 @@ function showUser(id){
   const rr=u.rules||{};
   const rrows=RULE_DEFS.filter(([k])=>rr[k]).map(([k,n])=>`<div class="check-row"><div class="check-ic">${n.slice(0,2)}</div><div style="flex:1;min-width:0"><div class="t">${esc(n.slice(3))}</div><div class="d">${esc(rr[k])}</div></div></div>`).join('');
   document.getElementById('ud-rules').innerHTML = rrows || '<p class="muted">未登録です。代替訪問に備えて、利用者の「編集」から鍵・駐車・禁忌などを登録してください。</p>';
+  document.getElementById('ud-vital').innerHTML = vitalTrendHtml(id, 8);
   const reps=db.reports.filter(r=>r.userId===id).slice(-5).reverse();
   document.getElementById('ud-reports').innerHTML = reps.length ? reps.map(r=>`
     <div class="rec-item" onclick="this.classList.toggle('open')">
