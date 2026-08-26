@@ -121,6 +121,18 @@ function caseBlock(p) {
   }
   return (p.cases || []).map(caseLine).join('\n');
 }
+/* バイタルの一行表記。アプリ側の表示と揃える(報告書に転記しやすくするため) */
+function vitalLine(v) {
+  if (!v) return '';
+  const p = [];
+  if (v.temp != null) p.push(`${v.temp}℃`);
+  if (v.bpH != null || v.bpL != null) p.push(`血圧${v.bpH ?? '―'}-${v.bpL ?? '―'}`);
+  if (v.pulse != null) p.push(`脈${v.pulse}`);
+  if (v.spo2 != null) p.push(`SpO2 ${v.spo2}%`);
+  if (v.weight != null) p.push(`${v.weight}kg`);
+  return p.join(' / ');
+}
+
 const ADOPT_RULE = [
   '--- 参照した事例の使い方 ---',
   '・「採用された実績文例」は、この事業所が実際に提出して通った文章です。見出しの立て方・記載の粒度・語彙をできるだけ踏襲し、事業所固有の情報だけを差し替えてください。',
@@ -133,6 +145,13 @@ function userPrompt(kind, p) {
     '訪問介護の報告を3形態で作成してください。',
     `利用者: ${p.userName}`, `日時: ${p.date || ''} ${p.start}〜${p.end}`,
     `ヘルパーのメモ: ${p.text}`, `担当スタッフ: ${p.staff || '(未入力)'}`, `支援者の体調: ${p.cond}`,
+    ...(p.vital ? [
+      `測定したバイタル: ${vitalLine(p.vital)}`,
+      ...(p.vitalPrev ? [`前回(${p.vitalPrev.date})のバイタル: ${vitalLine(p.vitalPrev.vital)}`] : []),
+      'バイタルは正式報告書に【バイタル】として測定値をそのまま記載してください。',
+      '前回と比べて目立つ変化(発熱・血圧の上昇・SpO2の低下など)があれば、特記事項に「確認・共有をお願いします」の形で書いてください。',
+      '受診の要否や病名の判断はせず、観察された事実と、確認や共有の依頼にとどめてください。',
+    ] : []),
   ].join('\n');
   if (kind === 'life') return [
     `利用者「${p.name}」の直近の訪問報告から、LIFE(科学的介護)評価で確認すべき点を下書きしてください。`,
