@@ -188,9 +188,11 @@
   .scanprev img{display:block;width:100%;max-height:420px;object-fit:contain}
   .scanprev .cap{font-size:12px;color:var(--sub);padding:8px 12px;border-top:1px solid var(--line)}
   .drop{border:2px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;color:var(--sub);font-size:13.5px}
-  .ckl{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:9px 13px;cursor:pointer;white-space:nowrap;flex:0 0 auto;max-width:100%}
+  /* 手袋をした手でも押せるよう、ラベル全体を44px以上のタップ領域にする */
+  .ckl{display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:11px 14px;min-height:44px;cursor:pointer;white-space:nowrap;flex:0 0 auto;max-width:100%;-webkit-tap-highlight-color:transparent}
+  .ckl:has(input:checked){background:var(--brand-l);border-color:var(--brand)}
   .ckl.wrap{white-space:normal;flex:1 1 100%;min-width:0;align-items:flex-start;line-height:1.5}
-  .ckl input{accent-color:var(--brand);width:16px;height:16px}
+  .ckl input{accent-color:var(--brand);width:21px;height:21px;flex:0 0 auto}
   .sheet{font-size:12px}
   .sheet .shead{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin-bottom:10px}
   .sheet .shead div{border-bottom:1px solid var(--line);padding:4px 2px}
@@ -228,6 +230,10 @@
   .check-row .t,.sug-row .t{font-weight:700;font-size:14px}
   .check-row .d,.sug-row .d{font-size:12.5px;color:var(--sub);line-height:1.55}
   .foot{text-align:center;font-size:11px;color:var(--sub);opacity:.65;padding:8px 0 4px}
+  .curuser{display:none;align-items:center;gap:9px;margin:0 0 14px;padding:8px 14px;font-size:12.5px;font-weight:700;
+    color:var(--brand-d);background:var(--brand-l);border:1px solid color-mix(in srgb, var(--brand) 22%, var(--line));border-radius:99px}
+  .curuser.on{display:flex}
+  .curuser .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .netbar{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:9px 14px;font-size:12.5px;font-weight:700;text-align:center;display:none;line-height:1.5}
   .netbar.on{display:block}
   .netbar.off{background:#8a6410;color:#fff}
@@ -290,6 +296,7 @@
 </div>
 
 <main>
+  <div id="curuser" class="curuser noprint"></div>
   <!-- ============ ホーム(ダッシュボード) ============ -->
   <section id="v-home" class="view on">
     <div class="banner" style="background:var(--brand-l);border-color:var(--line);color:var(--brand-d)">🧪 検証版: 実名は入力せず、仮名(例: Aさん)でお試しください。データはこの端末のブラウザ内にのみ保存されます(⚙️設定からバックアップできます)。</div>
@@ -599,7 +606,7 @@
   <section id="v-trip" class="view">
     <h2 class="title">🚗 移動記録</h2>
     <div class="card">
-      <p class="muted">メーター値を入れるだけで走行距離を自動計算。買い物支援で移動が増えても1件ずつサッと記録できます。</p>
+      <p class="muted">自動車はメーター値から走行距離を自動計算。<b>自転車・徒歩・公共交通機関</b>のときは距離を直接入力でき、公共交通機関では<b>交通費(実費)</b>も記録できます。</p>
       <label class="fld">🎤 音声でまとめて入力(数字で「開始12345 終了12352 15分 買い物」)</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="text" id="trip-speech" placeholder="マイクを押して話すと下の欄に自動反映">
@@ -613,17 +620,33 @@
         <button class="btn mini sec" onclick="setDateInput('trip-date',-1)">昨日</button>
       </div>
       <div class="grid2">
-        <div><label class="fld">開始メーター(km)</label><input type="number" id="trip-start" placeholder="12345.0"></div>
-        <div><label class="fld">終了メーター(km)</label><input type="number" id="trip-end" placeholder="12349.2"></div>
+        <div><label class="fld">移動手段</label>
+          <select id="trip-mode" onchange="tripModeChanged()">
+            <option value="car">🚗 自動車(メーターで計算)</option>
+            <option value="bike">🚲 自転車・原付</option>
+            <option value="walk">🚶 徒歩</option>
+            <option value="train">🚃 公共交通機関</option>
+          </select></div>
+        <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
+      </div>
+      <div id="trip-meter">
+        <div class="grid2">
+          <div><label class="fld">開始メーター(km)</label><input type="number" id="trip-start" placeholder="12345.0"></div>
+          <div><label class="fld">終了メーター(km)</label><input type="number" id="trip-end" placeholder="12349.2"></div>
+        </div>
+      </div>
+      <div id="trip-direct" style="display:none">
+        <label class="fld">距離(km)　<span class="muted">※おおよそで構いません</span></label>
+        <input type="number" id="trip-dist" step="0.1" placeholder="例: 3.5">
       </div>
       <div class="grid2">
         <div><label class="fld">所要時間(分)</label><input type="number" id="trip-min" placeholder="15"></div>
-        <div><label class="fld">目的</label><select id="trip-why"><option>訪問</option><option>買い物支援</option><option>通院同行</option><option>その他</option></select></div>
+        <div id="trip-fare-wrap" style="display:none"><label class="fld">交通費(円・実費)</label><input type="number" id="trip-fare" placeholder="例: 420"></div>
       </div>
       <label class="fld">利用者(任意)　<span class="muted">※選ぶと前回の距離・所要時間を呼び出せます</span></label>
       <select id="trip-user" onchange="renderTripRoute()"></select>
       <div id="trip-route"></div>
-      <button class="btn" onclick="saveTrip()" style="margin-top:12px">💾 記録する(距離を自動計算)</button>
+      <button class="btn" id="trip-save" onclick="saveTrip()" style="margin-top:12px">💾 記録する(距離を自動計算)</button>
     </div>
     <h2 class="title">🗂 移動の履歴</h2>
     <div id="trip-list"></div>
@@ -1252,6 +1275,7 @@ function switchView(t, navKey){
 }
 function go(t){
   switchView(t);
+  applyCurUser();
   if(t==='home') renderHome();
   if(t==='chat') renderChat();
   if(t==='plan') renderPlan();
@@ -2377,7 +2401,65 @@ function renderMemos(){
     : '<p class="muted">まだメモはありません。気づいたことをその場で残しておくと、報告作成が楽になります。</p>';
 }
 
+/* ---------- 対応中の利用者(タブをまたいで引き継ぐ) ----------
+   報告・買い物・LIFE・計画・提供票…とタブごとに選び直していたのをやめ、
+   どこかで利用者を選んだら他のタブにも引き継ぐ。 */
+let curUid='';
+const USER_SELECTS=['visit-user','shop-user','money-user','life-user','kei-user','tk-user','kiroku-user','bill-user','ud-user'];
+const OPT_USER_SELECTS=['trip-user','memo-user'];   // 「選ばない」を許すもの
+function applyCurUser(ids){
+  if(!curUid) return;
+  (ids||USER_SELECTS.concat(OPT_USER_SELECTS)).forEach(id=>{
+    const el=document.getElementById(id); if(!el) return;
+    if([...el.options].some(o=>o.value===curUid)) el.value=curUid;
+  });
+}
+function renderCurUser(){
+  const el=document.getElementById('curuser'); if(!el) return;
+  const u=curUid?user(curUid):null;
+  el.classList.toggle('on', !!u);
+  el.innerHTML = u
+    ? `<span>👤</span><span class="nm">${esc(u.name)} の記録中 ― タブを移っても引き継ぎます</span>
+       <button class="btn mini sec" onclick="clearCurUser()">解除</button>`
+    : '';
+}
+function setCurUser(id, redraw){
+  if(!id) return;
+  curUid=id;
+  applyCurUser();
+  renderCurUser();
+  if(redraw!==false) redrawForUser();
+}
+function clearCurUser(){ curUid=''; renderCurUser(); }
+function redrawForUser(){
+  const t=(document.querySelector('nav.topnav button.on')||{}).dataset;
+  const cur=t?t.t:'';
+  try{
+    if(cur==='report'){ renderVisitRefs(); renderVisitRules && renderVisitRules(); }
+    if(cur==='shop'){ shopSel=[]; renderShop(); renderMoney(); }
+    if(cur==='life') renderLife();
+    if(cur==='keikaku') renderKeikaku();
+    if(cur==='trip') renderTripRoute();
+    if(cur==='billing') renderTeikyo();
+  }catch(e){}
+}
+document.addEventListener('change', e=>{
+  const id=e.target && e.target.id;
+  if(!id) return;
+  if(USER_SELECTS.includes(id)) setCurUser(e.target.value);
+  else if(OPT_USER_SELECTS.includes(id) && e.target.value) setCurUser(e.target.value);
+});
+
 /* ---------- 移動の定型ルート ---------- */
+function tripModeChanged(){
+  const m=(document.getElementById('trip-mode')||{}).value||'car';
+  const meter=m==='car';
+  const el=id=>document.getElementById(id);
+  if(el('trip-meter'))  el('trip-meter').style.display  = meter ? '' : 'none';
+  if(el('trip-direct')) el('trip-direct').style.display = meter ? 'none' : '';
+  if(el('trip-fare-wrap')) el('trip-fare-wrap').style.display = (m==='train') ? '' : 'none';
+  if(el('trip-save')) el('trip-save').textContent = meter ? '💾 記録する(距離を自動計算)' : '💾 記録する';
+}
 function lastTripFor(uid){
   return db.trips.filter(t=>t.userId===uid).slice(-1)[0];
 }
@@ -2397,11 +2479,18 @@ function applyTripRoute(){
   const uid=document.getElementById('trip-user').value;
   const t=lastTripFor(uid);
   if(!t){ alert('前回の記録がありません。'); return; }
-  const s=parseFloat(document.getElementById('trip-start').value);
-  if(isNaN(s)){ alert('先に開始メーターを入力してください。前回の距離を足して終了メーターを計算します。'); return; }
-  document.getElementById('trip-end').value=(s+parseFloat(t.dist)).toFixed(1);
+  if(t.mode){ document.getElementById('trip-mode').value=t.mode; tripModeChanged(); }
+  const mode=document.getElementById('trip-mode').value;
+  if(mode==='car'){
+    const s=parseFloat(document.getElementById('trip-start').value);
+    if(isNaN(s)){ alert('先に開始メーターを入力してください。前回の距離を足して終了メーターを計算します。'); return; }
+    document.getElementById('trip-end').value=(s+parseFloat(t.dist)).toFixed(1);
+  }else{
+    document.getElementById('trip-dist').value=t.dist;
+  }
   if(t.min&&t.min!=='-') document.getElementById('trip-min').value=t.min;
   if(t.why) document.getElementById('trip-why').value=t.why;
+  if(t.fare) document.getElementById('trip-fare').value=t.fare;
 }
 
 /* ---------- 訪問予定 ---------- */
@@ -2569,25 +2658,44 @@ function quoteVisitRef(id){
 
 /* ---------- 移動 ---------- */
 function saveTrip(){
-  const s=parseFloat(document.getElementById('trip-start').value);
-  const e=parseFloat(document.getElementById('trip-end').value);
-  const m=document.getElementById('trip-min').value;
-  const why=document.getElementById('trip-why').value;
-  if(isNaN(s)||isNaN(e)||e<s){ alert('メーター値を確認してください(終了≧開始)。'); return; }
-  db.trips.push({date:(document.getElementById('trip-date')||{}).value||fullDate(), why, dist:(e-s).toFixed(1), min:m||'-',
-    userId:document.getElementById('trip-user').value||''});
+  const v=id=>document.getElementById(id).value;
+  const mode=v('trip-mode')||'car';
+  let dist;
+  if(mode==='car'){
+    const s=parseFloat(v('trip-start')), e=parseFloat(v('trip-end'));
+    if(isNaN(s)||isNaN(e)||e<s){ alert('メーター値を確認してください(終了≧開始)。'); return; }
+    dist=(e-s).toFixed(1);
+  }else{
+    const d=parseFloat(v('trip-dist'));
+    if(isNaN(d)||d<0){ alert('距離(km)を入力してください。おおよそで構いません。'); return; }
+    dist=d.toFixed(1);
+  }
+  const fare=mode==='train' ? (+v('trip-fare')||0) : 0;
+  db.trips.push({date:v('trip-date')||fullDate(), why:v('trip-why'), dist, min:v('trip-min')||'-',
+    mode, fare, userId:v('trip-user')||''});
   save();
-  ['trip-start','trip-end','trip-min','trip-speech'].forEach(i=>document.getElementById(i).value='');
+  ['trip-start','trip-end','trip-dist','trip-min','trip-fare','trip-speech'].forEach(i=>{ const el=document.getElementById(i); if(el) el.value=''; });
   document.getElementById('t-hint').textContent='';
   renderTrips(); renderTripRoute(); renderHome();
 }
 let tripHistN=5;
+const TRIP_MODE_LBL={car:'🚗 自動車', bike:'🚲 自転車・原付', walk:'🚶 徒歩', train:'🚃 公共交通機関'};
 function renderTrips(){
   const l=document.getElementById('trip-list');
   if(!db.trips.length){ l.innerHTML='<p class="muted">まだ記録はありません。</p>'; return; }
+  const ym=fullDate().slice(0,7);
+  const mt=db.trips.filter(t=>(t.date||'').slice(0,7)===ym);
+  const km=mt.reduce((a,t)=>a+(parseFloat(t.dist)||0),0);
+  const fare=mt.reduce((a,t)=>a+(+t.fare||0),0);
   const all=db.trips.slice().reverse();
-  l.innerHTML = all.slice(0,tripHistN).map(t=>`
-    <div class="rec-item"><div class="h"><span>${t.date}・${esc(t.why)}${t.userId&&user(t.userId)?`<span class="muted"> ／ ${esc(user(t.userId).name)}</span>`:''}</span><span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分</span></div></div>`).join('')
+  l.innerHTML = `<div class="check-row"><div class="check-ic">📆</div><div style="flex:1;min-width:0">
+      <div class="t">${esc(ym.replace('-','年'))}月の合計</div>
+      <div class="d">${mt.length}件 / ${km.toFixed(1)}km${fare?` / 交通費 ${yen(fare)}円`:''}</div></div></div>`
+    + all.slice(0,tripHistN).map(t=>`
+    <div class="rec-item"><div class="h">
+      <span>${t.date}・${esc(t.why)}${t.userId&&user(t.userId)?`<span class="muted"> ／ ${esc(user(t.userId).name)}</span>`:''}</span>
+      <span>${t.mode&&t.mode!=='car'?`<span class="chip">${esc(TRIP_MODE_LBL[t.mode]||'')}</span> `:''}<span class="chip g">${esc(t.dist)}km / ${esc(String(t.min))}分${t.fare?` / ${yen(t.fare)}円`:''}</span></span>
+    </div></div>`).join('')
     + (all.length>tripHistN?`<button class="btn sec" style="width:100%" onclick="tripHistN+=10;renderTrips()">▾ さらに表示(残り ${all.length-tripHistN} 件)</button>`:'');
 }
 
@@ -4219,7 +4327,6 @@ function renderShop(){
     : '';
   renderShopList();
 }
-document.addEventListener('change', e=>{ if(e.target.id==='shop-user'){ shopSel=[]; renderShop(); } });
 function addShop(item){ if(!shopSel.includes(item)) shopSel.push(item); renderShopList(); }
 function renderShopList(){
   document.getElementById('shop-list').innerHTML = shopSel.length
@@ -4374,8 +4481,8 @@ function showUser(id){
     : '<p class="muted">まだ登録がありません。</p>';
   switchView('udetail','users');
 }
-function goReportFor(id){ go('report'); if(id) document.getElementById('visit-user').value=id; }
-function goShopFor(id){ if(id){ document.getElementById('shop-user').value=id; shopSel=[]; } go('shop'); }
+function goReportFor(id){ if(id) setCurUser(id, false); go('report'); if(id) document.getElementById('visit-user').value=id; renderVisitRefs(); }
+function goShopFor(id){ if(id){ setCurUser(id, false); document.getElementById('shop-user').value=id; shopSel=[]; } go('shop'); }
 
 /* ---------- ページ上部へ ---------- */
 window.addEventListener('scroll', ()=>{ document.getElementById('totop').classList.toggle('on', window.scrollY>300); }, {passive:true});
@@ -4408,6 +4515,8 @@ seedDemoData();
 fillSelects();
 buildTimeSels();
 initDateInputs();
+tripModeChanged();
+renderCurUser();
 initSpeech();
 buildLifeForm();
 renderHome();
