@@ -5,7 +5,7 @@
  * APIキーはこのサーバの環境変数にのみ置き、フロントエンドには一切出さない。
  *
  *   POST /ai      {app, kind, payload} → {ok:true, data}
- *                 kind: visit / life / keikaku / shiji / jiko / shinsei / shogu / ocr / chat
+ *                 kind: visit / life / keikaku / shiji / jiko / kaigi / shinsei / shogu / ocr / chat
  *   GET  /health  接続テスト用
  *   GET/POST/DELETE /cases  事業所共有の事例ライブラリ(Firestore。未設定時は無効と応答)
  *
@@ -62,6 +62,10 @@ const KeikakuOut = z.object({
   })).describe('サービス内容。渡された訪問予定と報告の実績にもとづく'),
   ryui: z.string().describe('留意事項。転倒歴・禁忌・アレルギー・その家のルール・緊急連絡など、渡された情報に含まれるもののみ'),
   note: z.string().describe('この下書きの根拠と、サービス提供責任者が本人・家族に確認すべき点を2〜3文で'),
+});
+const KaigiOut = z.object({
+  agenda: z.string().describe('その会議・研修で扱うべき議題。「・」の箇条書きで4〜7行。直近のヒヤリハット・事故・苦情・未整備の要件から、実際に話す必要があることだけを挙げる'),
+  note: z.string().describe('何を材料に下書きしたかを1〜2文で'),
 });
 const JikoOut = z.object({
   why: z.string().describe('なぜ起きたかの要因。「・」の箇条書きで2〜3行。人のせいにせず、環境・手順・情報共有の観点から、記載内容から読み取れる範囲だけを書く'),
@@ -157,6 +161,24 @@ function userPrompt(kind, p) {
       '前回と比べて目立つ変化(発熱・血圧の上昇・SpO2の低下など)があれば、特記事項に「確認・共有をお願いします」の形で書いてください。',
       '受診の要否や病名の判断はせず、観察された事実と、確認や共有の依頼にとどめてください。',
     ] : []),
+  ].join('\n');
+  if (kind === 'kaigi') return [
+    `訪問介護事業所の「${p.kindLabel || '会議'}」で扱うべき議題を下書きしてください。`,
+    `職員数: ${p.staffCount || 0}名 / 前回開催以降(${p.since || ''})の記録は次のとおりです。`,
+    ...((p.incidents || []).length ? [
+      `--- ヒヤリハット・事故(${p.incidents.length}件) ---`,
+      ...p.incidents.map((x) => `[${x.date} ${x.lv} ${x.cat} ${x.place || ''}] ${x.what || ''}${x.prevent ? `\n  対策: ${x.prevent}` : '\n  ※再発防止策が未記入'}`),
+    ] : ['この期間のヒヤリハット・事故の記録はありません。']),
+    ...((p.complaints || []).length ? [
+      `--- 苦情・相談(${p.complaints.length}件) ---`,
+      ...p.complaints.map((c) => `[${c.date} ${c.type}] ${c.text || ''}${c.action ? `\n  対応: ${c.action}` : '\n  ※対応が未記入'}`),
+    ] : []),
+    ...((p.missing || []).length ? ['--- 特定事業所加算で未整備の要件 ---', ...p.missing.map((m) => `・${m}`)] : []),
+    ...(p.lastMinutes ? ['--- 前回の議事録 ---', p.lastMinutes] : []),
+    '同じ種類・同じ場所の事象が繰り返されている場合は、それを最初の議題にしてください。',
+    '再発防止策や対応が未記入のものは「その場にいた職員から状況を聞き取る」形の議題にしてください。',
+    '入力にない事実を足さず、記録から読み取れることだけを議題にしてください。',
+    '議題であって議事録ではありません。決まったことを書かないでください。',
   ].join('\n');
   if (kind === 'jiko') return [
     `訪問介護で起きた${p.lv === 'jiko' ? '事故' : 'ヒヤリハット(事故には至らなかった事象)'}について、要因と再発防止策を下書きしてください。`,
@@ -260,6 +282,7 @@ function outputFormat(kind, p) {
   if (kind === 'keikaku') return zodOutputFormat(KeikakuOut);
   if (kind === 'shiji') return zodOutputFormat(ShijiOut);
   if (kind === 'jiko') return zodOutputFormat(JikoOut);
+  if (kind === 'kaigi') return zodOutputFormat(KaigiOut);
   if (kind === 'ocr') {
     const fields = ScanFields[p.kind] || ScanFields.memo;
     return zodOutputFormat(z.object({ note: z.string(), fields }));
