@@ -5,7 +5,7 @@
  * APIキーはこのサーバの環境変数にのみ置き、フロントエンドには一切出さない。
  *
  *   POST /ai      {app, kind, payload} → {ok:true, data}
- *                 kind: visit / life / keikaku / shinsei / shogu / ocr / chat
+ *                 kind: visit / life / keikaku / shiji / shinsei / shogu / ocr / chat
  *   GET  /health  接続テスト用
  *   GET/POST/DELETE /cases  事業所共有の事例ライブラリ(Firestore。未設定時は無効と応答)
  *
@@ -62,6 +62,10 @@ const KeikakuOut = z.object({
   })).describe('サービス内容。渡された訪問予定と報告の実績にもとづく'),
   ryui: z.string().describe('留意事項。転倒歴・禁忌・アレルギー・その家のルール・緊急連絡など、渡された情報に含まれるもののみ'),
   note: z.string().describe('この下書きの根拠と、サービス提供責任者が本人・家族に確認すべき点を2〜3文で'),
+});
+const ShijiOut = z.object({
+  text: z.string().describe('訪問介護員へのその日の事前指示。現場でそのまま読める「・」の箇条書きで3〜6行。利用者の状態・今回特に注意してほしい点・してほしい観察や声かけを具体的に書く'),
+  note: z.string().describe('サービス提供責任者が確認・補足すべき点を1〜2文で'),
 });
 const ShinseiOut = z.object({
   note: z.string().describe('生成物の取り扱い注意(必ず確認・修正のうえ提出、様式は自治体ごとに異なる等)'),
@@ -184,6 +188,20 @@ function userPrompt(kind, p) {
     '・目標はケアプランの目標と矛盾しないようにしてください。',
     '・医療的な判断・診断は行わず、気になる兆候は「確認・共有を推奨」の形で留意事項に書いてください。',
   ].filter(Boolean).join('\n');
+  if (kind === 'shiji') return [
+    'サービス提供責任者から訪問介護員へ、この訪問の前に伝える「事前指示」を下書きしてください。',
+    `利用者: ${p.userName}(${p.care || '要介護度未登録'})${p.note ? ` / ${p.note}` : ''}`,
+    `今回の訪問: ${p.date || ''} ${p.start || ''}〜${p.end || ''} ${p.kubun || ''}`,
+    '--- 訪問時の注意(その家のルール) ---',
+    ...((p.rules || []).length ? (p.rules || []).map(x => `・${x}`) : ['(登録なし)']),
+    '--- 訪問介護計画書の留意事項・目標 ---',
+    p.keikaku || '(計画書は未作成)',
+    '--- 直近の訪問報告 ---',
+    ...((p.reports || []).length ? (p.reports || []).map((t, i) => `${i + 1}. ${t}`) : ['(記録なし)']),
+    '・直近の報告に出ている変化(ふらつき・むせ・食欲・睡眠など)があれば、観察してほしい点として必ず入れてください。',
+    '・入力にない事実を足さないでください。医療的な判断・指示は書かず、「確認・共有をお願いします」の形にしてください。',
+    '・その家のルール(鍵・駐車・ペット・緊急連絡)のうち、今回の訪問に関係するものだけを簡潔に添えてください。',
+  ].join('\n');
   if (kind === 'ocr') return [
     `添付の手書き帳票(${p.kind})を読み取り、項目に振り分けてください。`,
     `利用者名は次の登録名から最も近いものを選ぶ: ${(p.users || []).join('、') || '(登録なし)'}`,
@@ -200,6 +218,7 @@ function outputFormat(kind, p) {
   if (kind === 'shogu') return zodOutputFormat(ShoguOut);
   if (kind === 'chat') return zodOutputFormat(ChatOut);
   if (kind === 'keikaku') return zodOutputFormat(KeikakuOut);
+  if (kind === 'shiji') return zodOutputFormat(ShijiOut);
   if (kind === 'ocr') {
     const fields = ScanFields[p.kind] || ScanFields.memo;
     return zodOutputFormat(z.object({ note: z.string(), fields }));
