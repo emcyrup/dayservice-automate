@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print,#sj-print,#kj-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -201,7 +201,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -551,7 +551,12 @@
   </section>
 
   <section id="v-report" class="view">
-    <h2 class="title noprint">📋 報告をまとめて生成</h2>
+    <h2 class="title noprint">📋 報告</h2>
+    <div class="subnav noprint">
+      <button data-s="visit" class="on" onclick="repSec('visit')">📋 訪問報告</button>
+      <button data-s="inc" onclick="repSec('inc')">⚠️ ヒヤリハット・事故 <span class="chip y" id="inc-navchip" style="display:none"></span></button>
+    </div>
+    <div data-rpsec="visit">
     <div class="card noprint">
       <p class="muted">支援内容・様子を一度話す/書くだけで、<b>①正式報告書 ②記録アプリ入力用(ケアピア等) ③サ責向け要約</b>を同時に作ります。</p>
       <label class="fld">利用者</label>
@@ -649,7 +654,114 @@
       </div>
     </div>
     <div id="visit-history" class="noprint"></div>
+    </div><!-- /data-rpsec=visit -->
+
+    <div data-rpsec="inc" style="display:none">
+      <div class="banner noprint">⚠️ <b>事故が起きたときの市町村への報告は運営基準上の義務</b>です。ヒヤリハット(事故には至らなかった「ひやり」「はっと」)を集めて共有することが、事故を防ぐいちばんの近道です。<br>📝 <b>✍️その場でメモから1タップで起こせます</b> ― 「転倒しかけた」「薬が残っていた」はその場で残さないと消えてしまいます。🤖 <b>要因と再発防止策はAIが下書き</b>します(過去の同じ種類の記録も踏まえます)。</div>
+
+      <div class="card noprint">
+        <button class="btn" onclick="newIncident()">＋ ヒヤリハット・事故を記録する</button>
+        <select id="inc-filter" onchange="renderIncidents()" style="margin-top:10px">
+          <option value="open">未完了のみ</option>
+          <option value="month">今月ぶん すべて</option>
+          <option value="all">すべて</option>
+        </select>
+      </div>
+
+      <div class="card noprint" id="inc-form" style="display:none">
+        <div class="subttl" id="inc-form-title">ヒヤリハット・事故の記録</div>
+        <div class="grid2">
+          <div><label class="fld">区分</label>
+            <select id="inc-lv" onchange="renderIncLv()">
+              <option value="hiyari">ヒヤリハット(事故には至らなかった)</option>
+              <option value="jiko">事故(実際に起きてしまった)</option>
+            </select></div>
+          <div><label class="fld">種類</label>
+            <select id="inc-cat">
+              <option value="tento">転倒・転落・ずり落ち</option>
+              <option value="goen">誤嚥・むせ込み・窒息</option>
+              <option value="fukuyaku">服薬(飲み忘れ・誤薬・残薬)</option>
+              <option value="kizu">傷・あざ・皮膚トラブル</option>
+              <option value="netsu">体調の急変(発熱・意識・呼吸)</option>
+              <option value="kinsen">金銭・預り金・物品</option>
+              <option value="settai">機器・住環境(ベッド・手すり・段差)</option>
+              <option value="other">その他</option>
+            </select></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld">発生日</label><input type="date" id="inc-date"></div>
+          <div><label class="fld">発生時刻</label><input type="time" id="inc-time"></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld">利用者</label><select id="inc-user"></select></div>
+          <div><label class="fld">発見・対応した職員</label><select id="inc-staff"></select></div>
+        </div>
+        <label class="fld">場所</label>
+        <select id="inc-place">
+          <option>居室</option><option>浴室・脱衣所</option><option>トイレ</option><option>台所</option>
+          <option>廊下・階段</option><option>玄関・上がりかまち</option><option>屋外・移動中</option><option>その他</option>
+        </select>
+        <label class="fld">何が起きたか(🎤音声もOK)</label>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="inc-what" style="flex:1;min-height:90px" placeholder="例) 浴室から出るときに足を滑らせ、手すりをつかんで持ちこたえた。転倒には至らなかった。"></textarea>
+          <button id="inc-mic" class="mic sm" onclick="toggleDict('inc-mic','inc-what','inc-hint')">🎤</button>
+        </div>
+        <div class="muted" id="inc-hint" style="margin:4px 0 0"></div>
+        <label class="fld">その場でどうしたか</label>
+        <textarea id="inc-did" placeholder="例) 声をかけて椅子に座っていただき、痛みや打ち身がないか確認。事業所へ電話で報告した。"></textarea>
+
+        <div id="inc-jiko" style="display:none">
+          <div class="subttl" style="margin-top:16px">けが・受診の状況</div>
+          <label class="fld">けがの程度</label>
+          <select id="inc-injury">
+            <option value="none">けがなし</option>
+            <option value="light">軽微(受診なし)</option>
+            <option value="hospital">受診した</option>
+            <option value="admit">入院した</option>
+          </select>
+          <label class="fld">受診先・診断・処置</label>
+          <textarea id="inc-hospital" placeholder="例) ◯◯整形外科を受診。右手首の打撲、湿布と経過観察の指示。"></textarea>
+        </div>
+
+        <div class="subttl" style="margin-top:16px">報告</div>
+        <div class="grid2">
+          <div><label class="fld">ご家族へ報告した日</label><input type="date" id="inc-tofamily"></div>
+          <div><label class="fld">ケアマネジャーへ報告した日</label><input type="date" id="inc-tocm"></div>
+        </div>
+        <label class="fld">市町村へ報告した日 <span class="muted" id="inc-city-note"></span></label>
+        <input type="date" id="inc-tocity">
+
+        <div class="subttl" style="margin-top:16px">要因と再発防止</div>
+        <label class="fld">なぜ起きたか(要因)</label>
+        <textarea id="inc-why" placeholder="例) 浴室マットがずれており、床が濡れたままだった。"></textarea>
+        <label class="fld">再発防止のために変えること</label>
+        <textarea id="inc-prevent" placeholder="例) 入浴前にマットの位置と床の水気を必ず確認する。訪問時の注意に追記して全員へ周知する。"></textarea>
+        <div class="row" style="margin-top:10px">
+          <label class="ckl wrap"><input type="checkbox" id="inc-shared">職員へ共有・会議で検討した</label>
+        </div>
+
+        <div id="inc-ai-note" style="margin-top:12px"></div>
+        <button class="btn" id="inc-gen" style="margin-top:12px" onclick="genIncident()">🤖 要因と再発防止策の下書きを作る</button>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="saveIncident()">💾 記録を保存</button>
+          <button class="btn sec" onclick="hideIncForm()">キャンセル</button>
+        </div>
+      </div>
+
+      <div class="card noprint">
+        <div class="subttl">記録 <span class="chip g" id="inc-count"></span></div>
+        <div id="inc-list"></div>
+      </div>
+
+      <div class="card noprint">
+        <div class="subttl">📊 今月の発生状況(事故防止の検討材料)</div>
+        <div id="inc-stat"></div>
+      </div>
+    </div>
+
+    <!-- 印刷面はサブセクションの外(切り替えの display:none に巻き込まれないように) -->
     <div id="report-print" class="sheet"></div>
+    <div id="inc-print" class="sheet"></div>
   </section>
 
   <!-- ============ 帳票スキャン ============ -->
@@ -1334,7 +1446,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [], complaints: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [], complaints: [], incidents: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -1401,7 +1513,7 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
         d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[]; d.keikaku=d.keikaku||[];
-        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[];
+        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[]; d.incidents=d.incidents||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1436,7 +1548,7 @@ function go(t){
   if(t==='chat') renderChat();
   if(t==='plan'){ renderPlan(); renderShiji(); }
   if(t==='keikaku') renderKeikaku();
-  if(t==='report'){ renderReports(); renderVisitRefs(); renderVisitEditing(); markVisitDate(); }
+  if(t==='report'){ renderReports(); renderVisitRefs(); renderVisitEditing(); markVisitDate(); renderIncidents(); }
   if(t==='trip'){ renderTrips(); renderTripRoute(); }
   if(t==='shop'){ renderShop(); renderMoney(); }
   if(t==='setting') renderStaff();
@@ -1500,6 +1612,10 @@ function renderHome(){
   const vw=vitalWatch();
   if(vw.length) alerts.push({ic:'🩺', t:`バイタルに気になる値がある方が ${vw.length} 名(直近3日)`,
     d:vw.slice(0,3).map(x=>`${x.name}(${x.what})`).join('、')+(vw.length>3?' ほか':'')+' ― かかりつけ医の指示や事業所の基準と照らして確認してください', go:'report'});
+  const incCity=(db.incidents||[]).filter(x=>x.lv==='jiko' && !x.tocity).length;
+  if(incCity) alerts.push({ic:'🚨', t:`市町村へ未報告の事故が ${incCity} 件`, d:'事故発生時の市町村への報告は運営基準上の義務です。📋報告→⚠️ヒヤリハット・事故 で報告日を記録してください', go:'report'});
+  const incPrev=(db.incidents||[]).filter(x=>!x.closed && !x.prevent).length;
+  if(incPrev) alerts.push({ic:'⚠️', t:`再発防止策が未記入の記録が ${incPrev} 件`, d:'要因と「次から変えること」を書くと、そのまま事故防止委員会の材料になります(🤖AI下書きもできます)', go:'report'});
   const kjOpen=(db.complaints||[]).filter(c=>!c.closed).length;
   if(kjOpen) alerts.push({ic:'📣', t:`対応が完了していない苦情・相談が ${kjOpen} 件`, d:'⚙️設定→📣苦情・相談の受付記録 で対応内容と回答を記録してください(運営基準上の義務です)', go:'setting'});
   const unusedMemos=(db.memos||[]).filter(m=>!m.used).length;
@@ -1548,6 +1664,13 @@ function fillSelects(){
       ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
       : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
     if(k&&staff(k)) el.value=k; });
+  const iu=document.getElementById('inc-user'); if(iu){ const k=iu.value; iu.innerHTML='<option value="">(特定の利用者に関するものではない)</option>'+opts; iu.value=k; }
+  const ist=document.getElementById('inc-staff');
+  if(ist){ const k=ist.value;
+    ist.innerHTML=(db.staff||[]).length
+      ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
+      : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
+    if(k&&staff(k)) ist.value=k; }
   const kju=document.getElementById('kj-user'); if(kju){ const k=kju.value; kju.innerHTML='<option value="">(特定の利用者に関するものではない)</option>'+opts; kju.value=k; }
   const kjs=document.getElementById('kj-staff');
   if(kjs){ const k=kjs.value;
@@ -1644,6 +1767,37 @@ const demoGenerators = {
       services: svc,
       ryui: (rules||[]).join(' / ') + (risk ? (rules||[]).length?' / 移動時のふらつきに注意し、手すり・声かけで転倒を予防する。':'移動時のふらつきに注意し、手すり・声かけで転倒を予防する。' : ''),
       note: `直近の報告${(reports||[]).length}件から、実際に行っている支援を抽出しました。(検証版のデモ生成です)`
+    };
+  },
+  jiko({userName, lv, cat, place, what, did, past}){
+    const t=(what||'')+' '+(did||'');
+    const has=re=>re.test(t);
+    const W=[], P=[];
+    if(cat==='tento'||has(/滑|転|つまず|ふらつ/)){
+      W.push('床が濡れていた・敷物がずれていたなど、足元の状態が整っていなかった可能性があります。');
+      W.push('移動の前に声かけと支えの確認ができていなかった可能性があります。');
+      P.push('移動の前に足元(水気・敷物・段差)を確認してから動いていただく。');
+      P.push('立ち上がりと方向転換のときは必ず声をかけ、手すりや支えを使っていただいてから一歩ずつ進める。');
+    }
+    if(cat==='fukuyaku'||has(/薬|服薬|残薬|飲み忘/)){
+      W.push('服薬のタイミングと、誰が確認するかの取り決めが共有されていなかった可能性があります。');
+      P.push('訪問のたびに服薬の有無を目で確認し、残っていた場合はその場で事業所とご家族へ連絡する。');
+      P.push('薬の置き場所と当日分の分け方を、ご家族・ケアマネジャーと相談して決める。');
+    }
+    if(cat==='goen'||has(/むせ|誤嚥|詰ま/)){
+      W.push('食事の形態・姿勢・一口量が、その日の状態に合っていなかった可能性があります。');
+      P.push('食事の前に姿勢を整え、一口量を少なくして様子を見ながらお出しする。');
+      P.push('むせ込みがあった時刻と様子を必ず報告に残し、続くようなら主治医・ケアマネジャーへ共有する。');
+    }
+    if(!W.length){
+      W.push('その場の状況(時間帯・人手・環境)が、いつもと違っていた可能性があります。');
+      P.push('同じ場面で何を変えれば防げたかを、次の会議で職員間で出し合う。');
+    }
+    P.push('この記録を職員へ共有し、同じ場面が他の利用者でも起きていないか確認する。');
+    return {
+      why: W.slice(0,3).map(x=>'・'+x).join('\n'),
+      prevent: P.slice(0,4).map(x=>'・'+x).join('\n'),
+      note: `${userName||'利用者'}の${lv==='jiko'?'事故':'ヒヤリハット'}(${place||'―'})について、記載内容${past&&past.length?`と同じ種類の過去の記録${past.length}件`:''}から下書きしました。(検証版のデモ生成です)`
     };
   },
   shiji({userName, care, date, start, end, kubun, rules, reports, keikaku}){
@@ -1983,7 +2137,7 @@ function newReport(){
 function editReport(id){
   const r=db.reports.find(x=>x.id===id); if(!r) return;
   editingReport=id; curPlanId=r.planId||'';
-  switchView('report');
+  switchView('report'); repSec('visit');
   const us=document.getElementById('visit-user');
   if(user(r.userId)) us.value=r.userId;
   document.getElementById('visit-date').value=r.date||fullDate();
@@ -2247,7 +2401,7 @@ function applyScan(){
   save(); renderScanHist();
   const first=done[0];
   alert(done.join('・')+'に反映しました。内容を確認して保存してください。');
-  if(first.includes('報告')) go('report');
+  if(first.includes('報告')){ go('report'); repSec('visit'); }
   else if(first.includes('移動')) go('trip');
   else if(first.includes('LIFE')) go('life');
 }
@@ -2460,6 +2614,34 @@ function seedDemoData(){
       text:s.text, ack:s.ack?date:'', ackBy:s.ack?(st?st.name:''):'', reportId:r?r.id:''});
   });
 
+  // --- ヒヤリハット・事故 ---
+  //  直近の報告(浴室で足を滑らせかけた/薬の残り)と噛み合わせて、
+  //  「報告 → ヒヤリハット → 再発防止」の流れがそのまま見えるようにする。
+  [
+    {id:'demo-i1', ago:7, time:'11:20', lv:'hiyari', cat:'tento', userId:'u2', staffId:st1, place:'浴室・脱衣所',
+     what:'入浴介助中、浴室から出るときに足を滑らせました。とっさに手すりをつかまれ、転倒には至っていません。',
+     did:'声をかけて椅子に座っていただき、痛みや打ち身がないか確認しました。事業所へ電話で報告しています。',
+     why:'浴室マットがずれており、洗い場の床が濡れたままでした。',
+     prevent:'入浴の前にマットの位置と床の水気を必ず確認します。訪問時の注意に追記し、全ヘルパーへ周知しました。',
+     injury:'none', hospital:'', toFamilyAgo:7, toCmAgo:7, toCityAgo:null, shared:true, closedAgo:6},
+    {id:'demo-i2', ago:1, time:'09:40', lv:'hiyari', cat:'fukuyaku', userId:'u1', staffId:st2, place:'台所',
+     what:'朝の分の薬が食卓に残っていました。飲み忘れと思われます。ご本人は「飲んだつもりだった」とのお話でした。',
+     did:'その場では服薬をお勧めせず、ご家族に電話で確認したうえで指示を仰ぎました。',
+     why:'', prevent:'',
+     injury:'none', hospital:'', toFamilyAgo:1, toCmAgo:null, toCityAgo:null, shared:false, closedAgo:null}
+  ].forEach(x=>{
+    const s=db.staff.find(y=>y.id===x.staffId);
+    const dOf=a=>a==null?'':dayOf(a);
+    db.incidents.push({
+      id:x.id, date:dayOf(x.ago), time:x.time, lv:x.lv, cat:x.cat, userId:x.userId,
+      staffId:x.staffId, staffName:s?s.name:'', place:x.place,
+      what:x.what, did:x.did, why:x.why, prevent:x.prevent,
+      injury:x.injury, hospital:x.hospital,
+      tofamily:dOf(x.toFamilyAgo), tocm:dOf(x.toCmAgo), tocity:dOf(x.toCityAgo),
+      shared:x.shared, memoId:'', closed:dOf(x.closedAgo)
+    });
+  });
+
   // --- 苦情・相談の受付記録 ---
   [
     {id:'demo-c1', ago:9, type:'kujo', ch:'電話', from:'ご家族', fromName:'長男さま', userId:'u1', staffId:st1,
@@ -2632,7 +2814,7 @@ function delMemo(id){
 function memoToReport(id){
   const m=(db.memos||[]).find(x=>x.id===id); if(!m) return;
   const fresh = !editingReport;
-  go('report');
+  go('report'); repSec('visit');
   if(fresh && m.date){ const de=document.getElementById('visit-date'); if(de){ de.value=m.date; markVisitDate(); } }
   if(m.userId && user(m.userId)){
     document.getElementById('visit-user').value=m.userId;
@@ -2662,6 +2844,7 @@ function renderMemos(){
         <div class="row" style="margin-top:6px">
           <button class="btn mini sec" onclick="memoToReport('${m.id}')">📋 報告へ送る</button>
           <button class="btn mini sec" onclick="memoToShop('${m.id}')">🛒 買い物へ</button>
+          <button class="btn mini sec" onclick="memoToIncident('${m.id}')">⚠️ ヒヤリハットに</button>
           <button class="btn mini sec" onclick="delMemo('${m.id}')">削除</button>
         </div>
       </div></div>`;
@@ -2675,7 +2858,7 @@ function renderMemos(){
    どこかで利用者を選んだら他のタブにも引き継ぐ。 */
 let curUid='';
 const USER_SELECTS=['visit-user','shop-user','money-user','life-user','kei-user','tk-user','kiroku-user','bill-user','ud-user','sj-user'];
-const OPT_USER_SELECTS=['trip-user','memo-user'];   // 「選ばない」を許すもの
+const OPT_USER_SELECTS=['trip-user','memo-user','inc-user','kj-user'];   // 「選ばない」を許すもの
 function applyCurUser(ids){
   if(!curUid) return;
   (ids||USER_SELECTS.concat(OPT_USER_SELECTS)).forEach(id=>{
@@ -2839,7 +3022,7 @@ function startFromPlan(id){
   const p=db.plans.find(x=>x.id===id); if(!p) return;
   const dateStr=(document.getElementById('pl-date')||{}).value||fullDate();
   newReport();                       // 前の編集状態を持ち越さない
-  go('report');
+  go('report'); repSec('visit');
   curPlanId=p.id;                    // この予定に対する報告として記録する
   document.getElementById('visit-user').value=p.userId;
   document.getElementById('visit-date').value=dateStr; markVisitDate();
@@ -3408,6 +3591,280 @@ function printComplaint(id){
       ${row('市町村・国保連への報告', c.tocity?('報告済み'+(c.tocityDate?`(${c.tocityDate})`:'')):'―')}
       ${row('職員への共有・再発防止', c.share?'周知済み':'―')}
       ${row('完了日', c.closed)}
+    </table></div>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>管理者確認　　　　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
+
+/* ============================================================
+   ヒヤリハット・事故報告
+   事故発生時の市町村への報告は運営基準上の義務。ヒヤリハットの収集と
+   共有は事故防止の基本だが、「転倒しかけた」「薬が残っていた」は
+   その場で残さないと消えてしまう。✍️その場でメモから1タップで
+   起こせるようにし、要因と再発防止策はAIが下書きする。
+   ============================================================ */
+function repSec(s){
+  document.querySelectorAll('#v-report [data-rpsec]').forEach(el=>{ el.style.display = el.dataset.rpsec===s ? '' : 'none'; });
+  document.querySelectorAll('#v-report .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  if(s==='inc') renderIncidents();
+}
+function repSecCur(){ const b=document.querySelector('#v-report .subnav button.on'); return b?b.dataset.s:'visit'; }
+
+let editingInc=null, incFromMemoId='';
+const INC_LV_LBL={hiyari:'ヒヤリハット', jiko:'事故'};
+const INC_CAT_LBL={tento:'転倒・転落', goen:'誤嚥・むせ込み', fukuyaku:'服薬', kizu:'傷・あざ',
+                   netsu:'体調の急変', kinsen:'金銭・物品', settai:'機器・住環境', other:'その他'};
+const INC_INJ_LBL={none:'けがなし', light:'軽微(受診なし)', hospital:'受診した', admit:'入院した'};
+
+/* 事故で「受診・入院」なら市町村への報告が要る、という前提で未報告を拾う。
+   報告の要否・様式は保険者によって異なるため、判定は断定せず注意書きを添える。 */
+function incNeedsCity(x){ return x.lv==='jiko'; }
+function incStatus(x){
+  if(x.closed) return {t:'完了', cls:'g', ic:'✅'};
+  if(x.prevent) return {t:'対応中', cls:'y', ic:'🔄'};
+  return {t:'要因・防止策 未記入', cls:'r', ic:'⚠️'};
+}
+
+function renderIncLv(){
+  const lv=(document.getElementById('inc-lv')||{}).value;
+  const box=document.getElementById('inc-jiko'); if(box) box.style.display = lv==='jiko' ? '' : 'none';
+  const note=document.getElementById('inc-city-note');
+  if(note) note.textContent = lv==='jiko'
+    ? '※事故の市町村への報告は運営基準上の義務です(対象範囲・様式・期限は保険者の定めをご確認ください)'
+    : '※ヒヤリハットは通常、市町村への報告対象ではありません';
+}
+
+function newIncident(){
+  editingInc=null; incFromMemoId='';
+  document.getElementById('inc-form-title').textContent='ヒヤリハット・事故の記録';
+  document.getElementById('inc-form').style.display='';
+  document.getElementById('inc-date').value=fullDate();
+  document.getElementById('inc-time').value=new Date().toTimeString().slice(0,5);
+  document.getElementById('inc-lv').value='hiyari';
+  ['inc-what','inc-did','inc-why','inc-prevent','inc-hospital','inc-tofamily','inc-tocm','inc-tocity'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.value='';
+  });
+  document.getElementById('inc-injury').value='none';
+  document.getElementById('inc-shared').checked=false;
+  document.getElementById('inc-ai-note').innerHTML='';
+  if(curUid) document.getElementById('inc-user').value=curUid;
+  renderIncLv();
+  document.getElementById('inc-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function editIncident(id){
+  const x=(db.incidents||[]).find(y=>y.id===id); if(!x) return;
+  editingInc=id;
+  document.getElementById('inc-form-title').textContent='記録の修正';
+  document.getElementById('inc-form').style.display='';
+  const set=(k,v)=>{ const e=document.getElementById(k); if(e) e.value=v||''; };
+  set('inc-date',x.date); set('inc-time',x.time); set('inc-lv',x.lv||'hiyari'); set('inc-cat',x.cat||'other');
+  set('inc-place',x.place); set('inc-what',x.what); set('inc-did',x.did);
+  set('inc-why',x.why); set('inc-prevent',x.prevent);
+  set('inc-injury',x.injury||'none'); set('inc-hospital',x.hospital);
+  set('inc-tofamily',x.tofamily); set('inc-tocm',x.tocm); set('inc-tocity',x.tocity);
+  const us=document.getElementById('inc-user'); if(us) us.value=x.userId||'';
+  const ss=document.getElementById('inc-staff'); if(ss && x.staffId && staff(x.staffId)) ss.value=x.staffId;
+  document.getElementById('inc-shared').checked=!!x.shared;
+  document.getElementById('inc-ai-note').innerHTML='';
+  renderIncLv();
+  document.getElementById('inc-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function hideIncForm(){ document.getElementById('inc-form').style.display='none'; editingInc=null; }
+
+function saveIncident(){
+  const what=document.getElementById('inc-what').value.trim();
+  if(!what){ alert('何が起きたかを入力してください(🎤で音声入力もできます)。'); return; }
+  const val=id=>(document.getElementById(id)||{}).value||'';
+  const sid=val('inc-staff');
+  let x = editingInc ? (db.incidents||[]).find(y=>y.id===editingInc) : null;
+  if(!x){ x={id:'in'+Date.now(), memoId:incFromMemoId, closed:''}; db.incidents.push(x); incFromMemoId=''; }
+  Object.assign(x, {
+    date: val('inc-date')||fullDate(), time: val('inc-time'),
+    lv: val('inc-lv'), cat: val('inc-cat'), place: val('inc-place'),
+    userId: val('inc-user'), staffId: sid, staffName: (staff(sid)||{}).name||'',
+    what, did: val('inc-did'), why: val('inc-why'), prevent: val('inc-prevent'),
+    injury: val('inc-lv')==='jiko' ? val('inc-injury') : 'none',
+    hospital: val('inc-lv')==='jiko' ? val('inc-hospital') : '',
+    tofamily: val('inc-tofamily'), tocm: val('inc-tocm'), tocity: val('inc-tocity'),
+    shared: document.getElementById('inc-shared').checked
+  });
+  save(); hideIncForm(); renderIncidents(); renderHome();
+  alert('記録を保存しました。' + (x.lv==='jiko' && !x.tocity
+    ? '\n\n事故の市町村への報告は運営基準上の義務です。報告したら日付を記録してください。' : ''));
+}
+function closeIncident(id){
+  const x=(db.incidents||[]).find(y=>y.id===id); if(!x) return;
+  if(!x.prevent){ if(!confirm('再発防止策がまだ空欄です。このまま完了にしますか?')) return; }
+  if(x.lv==='jiko' && !x.tocity){ if(!confirm('市町村への報告日が未記入です。このまま完了にしますか?')) return; }
+  x.closed=fullDate(); save(); renderIncidents(); renderHome();
+}
+function delIncident(id){
+  const x=(db.incidents||[]).find(y=>y.id===id); if(!x) return;
+  if(!confirm('この記録を削除します。実地指導で確認される記録です。よろしいですか?')) return;
+  db.incidents=db.incidents.filter(y=>y.id!==id); save(); renderIncidents(); renderHome();
+}
+
+/* ✍️その場でメモから1タップで起こす */
+function memoToIncident(id){
+  const m=(db.memos||[]).find(x=>x.id===id); if(!m) return;
+  go('report'); repSec('inc');
+  newIncident();
+  if(m.date) document.getElementById('inc-date').value=m.date;
+  if(m.time) document.getElementById('inc-time').value=m.time;
+  if(m.userId && user(m.userId)) document.getElementById('inc-user').value=m.userId;
+  document.getElementById('inc-what').value=m.text||'';
+  // メモの文面から種類を推し当てる(外れても選び直せる)
+  const t=m.text||'';
+  const guess = /転|滑|つまず|ふらつ|落ち/.test(t) ? 'tento'
+              : /薬|服薬|残薬/.test(t) ? 'fukuyaku'
+              : /むせ|誤嚥|詰ま/.test(t) ? 'goen'
+              : /傷|あざ|内出血|皮膚/.test(t) ? 'kizu'
+              : /熱|意識|呼吸|血圧/.test(t) ? 'netsu'
+              : /金銭|預り|お金|財布/.test(t) ? 'kinsen'
+              : /手すり|段差|ベッド|マット/.test(t) ? 'settai' : 'other';
+  document.getElementById('inc-cat').value=guess;
+  incFromMemoId=m.id;               // 保存時にこの記録へ紐づける
+  m.used=true; save(); renderMemos();
+}
+
+/* ---------- AI下書き(要因と再発防止策) ---------- */
+async function genIncident(){
+  const what=document.getElementById('inc-what').value.trim();
+  if(!what){ alert('先に「何が起きたか」を入力してください。'); return; }
+  const u=user(document.getElementById('inc-user').value);
+  const cat=document.getElementById('inc-cat').value;
+  // 同じ種類の過去の記録を材料にする(その事業所で実際に効いた対策が拾える)
+  const past=(db.incidents||[]).filter(x=>x.cat===cat && x.id!==editingInc && (x.why||x.prevent))
+    .sort((a,b)=>a.date<b.date?1:-1).slice(0,4)
+    .map(x=>({date:x.date, place:x.place, what:x.what, why:x.why, prevent:x.prevent}));
+  await withLoading('inc-gen','要因と再発防止策を下書き中…', async()=>{
+    const out=await callAI('jiko', {
+      userName: u?u.name:'', care:(u&&u.care)||'',
+      lv: document.getElementById('inc-lv').value,
+      cat: INC_CAT_LBL[cat]||'', place: document.getElementById('inc-place').value,
+      what, did: document.getElementById('inc-did').value,
+      injury: INC_INJ_LBL[document.getElementById('inc-injury').value]||'',
+      rules: u&&u.rules ? RULE_DEFS.filter(([k])=>u.rules[k]).map(([k,n])=>`${n} ${u.rules[k]}`) : [],
+      past
+    });
+    const put=(id,v)=>{ const e=document.getElementById(id); if(!e||!v) return;
+      e.value = e.value.trim() ? e.value.replace(/\s*$/,'')+'\n'+v : v; };
+    put('inc-why', out.why); put('inc-prevent', out.prevent);
+    document.getElementById('inc-ai-note').innerHTML=
+      `<div class="banner">🤖 ${esc(out.note||'')}${aiFallback?' ※AIサーバに接続できなかったため、デモ生成です。':''}<br>
+       ここは<b>職員が実際に見た事実</b>で書き換えてください。AIの下書きは「観点の抜けを防ぐためのたたき台」です。</div>`;
+  });
+}
+
+/* ---------- 一覧・集計 ---------- */
+function incRow(x){
+  const u=user(x.userId), st=incStatus(x);
+  const chips=[
+    `<span class="chip ${x.lv==='jiko'?'r':'y'}">${INC_LV_LBL[x.lv]||''}</span>`,
+    `<span class="chip g">${esc(INC_CAT_LBL[x.cat]||'')}</span>`,
+    `<span class="chip ${st.cls}">${st.t}</span>`,
+    x.lv==='jiko' ? (x.tocity ? `<span class="chip g">市町村へ報告 ${esc(x.tocity)}</span>` : '<span class="chip r">市町村へ未報告</span>') : '',
+    x.shared ? '<span class="chip g">職員へ共有済み</span>' : ''
+  ].filter(Boolean).join(' ');
+  return `<div class="check-row"><div class="check-ic">${st.ic}</div>
+    <div style="flex:1;min-width:0">
+      <div class="t">${esc(x.date)} ${esc(x.time||'')} ${esc(u?u.name:'(利用者の特定なし)')}</div>
+      <div style="margin:4px 0">${chips}</div>
+      <div class="d">${esc(x.place||'')}${x.staffName?' ／ '+esc(x.staffName):''}${x.lv==='jiko'?' ／ '+esc(INC_INJ_LBL[x.injury]||''):''}</div>
+      <div class="sjtx">${esc(x.what||'')}</div>
+      ${x.did?`<div class="d" style="margin-top:5px"><b>その場の対応:</b> ${esc(x.did)}</div>`:''}
+      ${x.why?`<div class="d" style="margin-top:3px;white-space:pre-wrap"><b>要因:</b> ${esc(x.why)}</div>`:''}
+      ${x.prevent?`<div class="d" style="margin-top:3px;white-space:pre-wrap"><b>再発防止:</b> ${esc(x.prevent)}</div>`:''}
+      <div class="row" style="margin-top:8px">
+        ${x.closed?'':`<button class="btn mini" onclick="closeIncident('${x.id}')">✅ 完了にする</button>`}
+        <button class="btn mini sec" onclick="editIncident('${x.id}')">✏️ 修正</button>
+        <button class="btn mini sec" onclick="printIncident('${x.id}')">🖨 印刷</button>
+        <button class="btn mini sec" style="color:var(--danger)" onclick="delIncident('${x.id}')">🗑 削除</button>
+      </div>
+    </div></div>`;
+}
+function incStats(ym){
+  const xs=(db.incidents||[]).filter(x=>(x.date||'').slice(0,7)===ym);
+  const byCat={}, byPlace={};
+  xs.forEach(x=>{
+    const c=INC_CAT_LBL[x.cat]||'その他'; byCat[c]=(byCat[c]||0)+1;
+    const p=x.place||'その他'; byPlace[p]=(byPlace[p]||0)+1;
+  });
+  return {total:xs.length, hiyari:xs.filter(x=>x.lv==='hiyari').length, jiko:xs.filter(x=>x.lv==='jiko').length,
+          noPrevent:xs.filter(x=>!x.prevent).length, shared:xs.filter(x=>x.shared).length,
+          byCat, byPlace};
+}
+function renderIncidents(){
+  const list=document.getElementById('inc-list'); if(!list) return;
+  const all=(db.incidents||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  const ym=fullDate().slice(0,7);
+  const f=(document.getElementById('inc-filter')||{}).value||'open';
+  let xs=all;
+  if(f==='open') xs=all.filter(x=>!x.closed);
+  else if(f==='month') xs=all.filter(x=>(x.date||'').slice(0,7)===ym);
+  document.getElementById('inc-count').textContent=all.length+'件';
+  list.innerHTML = xs.length ? xs.map(incRow).join('')
+    : (f==='open' ? '<p class="muted">未完了の記録はありません ✅</p>'
+                  : '<p class="muted">まだ記録はありません。「＋ ヒヤリハット・事故を記録する」、または📊ダッシュボードのメモから起こせます。</p>');
+
+  // ナビのバッジ ― 市町村へ未報告の事故があれば必ず目に入るようにする
+  const chip=document.getElementById('inc-navchip');
+  if(chip){
+    const urgent=all.filter(x=>x.lv==='jiko'&&!x.tocity).length;
+    const open=all.filter(x=>!x.closed).length;
+    chip.style.display = (urgent||open) ? '' : 'none';
+    chip.textContent = urgent ? `未報告 ${urgent}` : (open?String(open):'');
+    chip.className = urgent ? 'chip r' : 'chip y';
+  }
+
+  const st=incStats(ym);
+  const el=document.getElementById('inc-stat'); if(!el) return;
+  const bars=(o)=>{
+    const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]);
+    if(!ks.length) return '<p class="muted">この月の記録はありません。</p>';
+    const mx=Math.max(...ks.map(k=>o[k]));
+    return ks.map(k=>`<div style="margin-top:7px"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span>${esc(k)}</span><b>${o[k]}件</b></div>
+      <div style="height:7px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:3px">
+        <div style="height:100%;width:${Math.round(o[k]/mx*100)}%;background:var(--brand)"></div></div></div>`).join('');
+  };
+  el.innerHTML =
+    `<div class="check-row"><div class="check-ic">${st.noPrevent?'⚠️':'✅'}</div>
+      <div style="flex:1;min-width:0"><div class="t">今月 ${st.total}件(ヒヤリハット ${st.hiyari} ／ 事故 ${st.jiko})</div>
+        <div class="d">${st.noPrevent?`うち ${st.noPrevent}件は再発防止策が未記入です。`:'すべてに再発防止策が記入されています。'} 職員へ共有済み ${st.shared}件。</div></div></div>`
+    + `<div style="margin-top:14px"><b>種類ごと</b>${bars(st.byCat)}</div>`
+    + `<div style="margin-top:16px"><b>場所ごと</b>${bars(st.byPlace)}</div>`
+    + `<p class="muted" style="margin-top:12px">同じ種類・同じ場所が続いているときは、そこに原因が残っています。事故防止の検討(会議)の材料にしてください。</p>`;
+}
+
+/* ---------- 実地指導・市町村提出に使うA4 ---------- */
+function printIncident(id){
+  const x=(db.incidents||[]).find(y=>y.id===id); if(!x) return;
+  const u=user(x.userId), o=db.office||{};
+  const row=(l,v)=>`<tr><th style="width:26%">${l}</th><td style="text-align:left;white-space:pre-wrap">${esc(v||'―')}</td></tr>`;
+  const el=document.getElementById('inc-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">${esc(INC_LV_LBL[x.lv]||'')}報告書</div>
+    <div class="shead">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+      <div><b>発生日時</b>${esc(x.date||'')} ${esc(x.time||'')}</div>
+      <div><b>場所</b>${esc(x.place||'')}</div>
+      <div><b>利用者</b>${esc(u?u.name+' 様':'―')}${u&&u.care?`(${esc(u.care)})`:''}</div>
+      <div><b>発見・対応した職員</b>${esc(x.staffName||'―')}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      ${row('種類', INC_CAT_LBL[x.cat]||'')}
+      ${row('何が起きたか', x.what)}
+      ${row('その場でどうしたか', x.did)}
+      ${x.lv==='jiko' ? row('けが・受診の状況', (INC_INJ_LBL[x.injury]||'')+(x.hospital?`\n${x.hospital}`:'')) : ''}
+      ${row('なぜ起きたか(要因)', x.why)}
+      ${row('再発防止のために変えること', x.prevent)}
+      ${row('報告', [x.tofamily?`ご家族 ${x.tofamily}`:'', x.tocm?`ケアマネジャー ${x.tocm}`:'', x.tocity?`市町村 ${x.tocity}`:''].filter(Boolean).join(' ／ '))}
+      ${row('職員への共有・検討', x.shared?'共有済み':'―')}
+      ${row('完了日', x.closed)}
     </table></div>
     <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>管理者確認　　　　　　　　　　印</div></div>`;
   el.classList.add('on');
@@ -5320,7 +5777,7 @@ function showUser(id){
     : '<p class="muted">まだ登録がありません。</p>';
   switchView('udetail','users');
 }
-function goReportFor(id){ if(id) setCurUser(id, false); go('report'); if(id) document.getElementById('visit-user').value=id; renderVisitRefs(); }
+function goReportFor(id){ if(id) setCurUser(id, false); go('report'); repSec('visit'); if(id) document.getElementById('visit-user').value=id; renderVisitRefs(); }
 function goShopFor(id){ if(id){ setCurUser(id, false); document.getElementById('shop-user').value=id; shopSel=[]; } go('shop'); }
 
 /* ---------- ページ上部へ ---------- */

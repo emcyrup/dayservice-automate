@@ -5,7 +5,7 @@
  * APIキーはこのサーバの環境変数にのみ置き、フロントエンドには一切出さない。
  *
  *   POST /ai      {app, kind, payload} → {ok:true, data}
- *                 kind: visit / life / keikaku / shiji / shinsei / shogu / ocr / chat
+ *                 kind: visit / life / keikaku / shiji / jiko / shinsei / shogu / ocr / chat
  *   GET  /health  接続テスト用
  *   GET/POST/DELETE /cases  事業所共有の事例ライブラリ(Firestore。未設定時は無効と応答)
  *
@@ -62,6 +62,11 @@ const KeikakuOut = z.object({
   })).describe('サービス内容。渡された訪問予定と報告の実績にもとづく'),
   ryui: z.string().describe('留意事項。転倒歴・禁忌・アレルギー・その家のルール・緊急連絡など、渡された情報に含まれるもののみ'),
   note: z.string().describe('この下書きの根拠と、サービス提供責任者が本人・家族に確認すべき点を2〜3文で'),
+});
+const JikoOut = z.object({
+  why: z.string().describe('なぜ起きたかの要因。「・」の箇条書きで2〜3行。人のせいにせず、環境・手順・情報共有の観点から、記載内容から読み取れる範囲だけを書く'),
+  prevent: z.string().describe('再発防止のために次から変えること。「・」の箇条書きで2〜4行。現場でその場で実行できる具体的な行動にする'),
+  note: z.string().describe('サービス提供責任者が確認・補足すべき点を1〜2文で'),
 });
 const ShijiOut = z.object({
   text: z.string().describe('訪問介護員へのその日の事前指示。現場でそのまま読める「・」の箇条書きで3〜6行。利用者の状態・今回特に注意してほしい点・してほしい観察や声かけを具体的に書く'),
@@ -153,6 +158,22 @@ function userPrompt(kind, p) {
       '受診の要否や病名の判断はせず、観察された事実と、確認や共有の依頼にとどめてください。',
     ] : []),
   ].join('\n');
+  if (kind === 'jiko') return [
+    `訪問介護で起きた${p.lv === 'jiko' ? '事故' : 'ヒヤリハット(事故には至らなかった事象)'}について、要因と再発防止策を下書きしてください。`,
+    `利用者: ${p.userName || '(特定なし)'}${p.care ? ` / ${p.care}` : ''}`,
+    `種類: ${p.cat || ''} / 場所: ${p.place || ''}${p.lv === 'jiko' ? ` / けが: ${p.injury || ''}` : ''}`,
+    `何が起きたか: ${p.what}`,
+    `その場でどうしたか: ${p.did || '(未記入)'}`,
+    ...((p.rules || []).length ? ['この家の訪問時の注意:', ...p.rules.map((r) => `・${r}`)] : []),
+    ...((p.past || []).length ? [
+      '--- 同じ種類の過去の記録(この事業所で実際に立てた対策。有効だったものは踏襲する) ---',
+      ...p.past.map((x) => `[${x.date} ${x.place || ''}] 事象: ${x.what || ''}\n  要因: ${x.why || '(なし)'}\n  対策: ${x.prevent || '(なし)'}`),
+    ] : []),
+    '要因は職員個人の不注意に帰さず、環境・手順・情報共有の観点で書いてください。',
+    '再発防止策は、訪問中にその場で実行できる具体的な行動にしてください(「注意する」「気をつける」で終わらせない)。',
+    '記載内容から読み取れないことは推測で書かず、確認が必要な点は note に回してください。',
+    '医学的な診断や受診の要否の判断はしないでください。',
+  ].join('\n');
   if (kind === 'life') return [
     `利用者「${p.name}」の直近の訪問報告から、LIFE(科学的介護)評価で確認すべき点を下書きしてください。`,
     '口腔項目(oral)は、報告文に明確な根拠がある項目だけを含めてください。',
@@ -238,6 +259,7 @@ function outputFormat(kind, p) {
   if (kind === 'chat') return zodOutputFormat(ChatOut);
   if (kind === 'keikaku') return zodOutputFormat(KeikakuOut);
   if (kind === 'shiji') return zodOutputFormat(ShijiOut);
+  if (kind === 'jiko') return zodOutputFormat(JikoOut);
   if (kind === 'ocr') {
     const fields = ScanFields[p.kind] || ScanFields.memo;
     return zodOutputFormat(z.object({ note: z.string(), fields }));
