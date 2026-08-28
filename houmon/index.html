@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print,#pl-print,#as-print,#ky-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print,#pl-print,#as-print,#ky-print,#ts-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -158,9 +158,12 @@
   @media print{
     .tkgrid{font-size:8px}
     .tkgrid th,.tkgrid td{padding:1px 2px;border:1px solid #999}
-    #tk-print.on,#sj-print.on{page:land}
+    #tk-print.on,#sj-print.on,#ts-print.on{page:land}
   }
   @page land{size:A4 landscape;margin:8mm}
+  .tsgrid{border-collapse:collapse;width:100%;font-size:7.5px}
+  .tsgrid th,.tsgrid td{border:1px solid #999;padding:1px 2px;text-align:center;white-space:nowrap}
+  .tsgrid td.l{text-align:left}
   .tblwrap{overflow-x:auto}
   .tbl{width:100%;border-collapse:collapse;font-size:13px}
   .tbl th,.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
@@ -201,7 +204,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on,#pl-print.on,#as-print.on,#ky-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on,#pl-print.on,#as-print.on,#ky-print.on,#ts-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -1000,6 +1003,7 @@
       <button data-s="tokutei" onclick="billSec('tokutei')">⭐ 特定事業所加算</button>
       <button data-s="kaigi" onclick="billSec('kaigi')">📚 研修・会議 <span class="chip y" id="kg-navchip" style="display:none"></span></button>
       <button data-s="kyuyo" onclick="billSec('kyuyo')">💰 給与実績</button>
+      <button data-s="taisei" onclick="billSec('taisei')">🗂 勤務体制</button>
       <button data-s="diff" onclick="billSec('diff')">🔀 改定差分</button>
       <button data-s="data" onclick="billSec('data')">📤 請求データ</button>
     </div>
@@ -1054,6 +1058,7 @@
     <div id="tk-print" class="sheet"></div>
     <div id="kg-print" class="sheet"></div>
     <div id="ky-print" class="sheet"></div>
+    <div id="ts-print" class="sheet"></div>
     <div data-sec="diff" class="card noprint">
       <div class="subttl">🔀 改定の新旧差分チェック</div>
       <p class="muted">同じ実績を別の改定版で計算し、差額を確認します。改定版を作ったら必ず前月実績で確認してください。</p>
@@ -1081,6 +1086,20 @@
         <button class="btn sec" onclick="printKyuyo()">🖨 職員別実績の印刷</button>
       </div>
       <p class="muted" style="margin-top:10px">※ 🚗移動の距離・交通費は職員に紐づいていないため、ここでは事業所合計のみ表示しています(明細は🚗移動タブ)。</p>
+    </div>
+    <div data-sec="taisei" class="card noprint" style="display:none">
+      <div class="banner">🗂 <b>勤務体制一覧表(参考様式1相当)</b> ― 指定申請・加算の届出・運営指導で求められる「従業者の勤務の体制及び勤務形態一覧表」を、⚙️👥職員の勤務予定から作ります。<b>常勤換算は勤務予定からの目安</b>です(常勤は1.0、非常勤は週の勤務時間÷週所定労働時間)。実際の届出は<b>指定権者の様式・記載要領</b>に従ってください。</div>
+      <div class="row" style="align-items:center;flex-wrap:wrap">
+        <label class="fld" style="margin:0">常勤の週所定労働時間</label>
+        <input type="number" id="ts-weekh" min="1" max="60" step="0.5" style="max-width:100px" onchange="tsSetWeekH(this.value)">
+        <span class="muted">時間/週(就業規則の定め)</span>
+      </div>
+      <div id="taisei-body" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn sec" onclick="exportTaiseiCsv()">⬇ 勤務体制CSV</button>
+        <button class="btn sec" onclick="printTaisei()">🖨 勤務体制一覧表を印刷(A4横)</button>
+      </div>
+      <p class="muted" style="margin-top:10px">職種・勤務形態・保有資格・時給は ⚙️設定→👥職員、曜日ごとの勤務予定は 📅予定→👥職員の予定 で登録します。</p>
     </div>
 
     <div data-sec="kaigi" class="card noprint" style="display:none">
@@ -1518,6 +1537,22 @@
             <option>管理者</option>
             <option>事務</option>
           </select></div>
+        <div><label class="fld">勤務形態</label>
+          <select id="sf-emp">
+            <option value="">(未選択)</option>
+            <option value="jsen">常勤・専従</option>
+            <option value="jken">常勤・兼務</option>
+            <option value="hsen">非常勤・専従</option>
+            <option value="hken">非常勤・兼務</option>
+          </select></div>
+        <div><label class="fld">保有資格(主なもの)</label>
+          <select id="sf-qual">
+            <option value="">(未選択)</option>
+            <option value="fukushi">介護福祉士</option>
+            <option value="jitsumu">実務者研修</option>
+            <option value="shonin">初任者研修</option>
+            <option value="kango">看護師等</option>
+          </select></div>
       </div>
       <button class="btn" style="margin-top:12px" onclick="addStaff()">＋ 職員を追加</button>
       </div>
@@ -1684,6 +1719,7 @@ const seed = {
   ],
   seidoPack1: true,
   tokutei: { kenshu:false, kaigiDate:'', shiji:false, kenshinDate:'', kinkyu:false, fukushiPct:'', judo:false },
+  taisei: { weekHours: 40 },
   office: { no:'', name:'', city:'', tanka:10 },
   master: [
     { code:'111111', name:'身体介護 20分未満',                unit:163, kind:'base', svc:'shintai',  mn:0,  mx:20, on:true, from:'2024-04', to:'' },
@@ -1732,7 +1768,7 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         if(of.shogu!==undefined){ setRate('116501', +of.shogu||0, +of.shogu>0); delete of.shogu; }
         d.users.forEach(u=>{ u.care=u.care||'要介護1'; u.wari=u.wari||1; u.tatemono=u.tatemono||0; u.hokenNo=u.hokenNo||''; u.rules=u.rules||{};
           ['kanaName','birth','sex','ninteiFrom','ninteiTo','kyotakuNo','hokenshaNo'].forEach(k=>{ u[k]=u[k]||''; }); });
-        d.reports.forEach(r=>{ r.kubun=r.kubun||'shintai'; }); d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; return d; } }catch(e){} return structuredClone(seed); }
+        d.reports.forEach(r=>{ r.kubun=r.kubun||'shintai'; }); d.tokutei=d.tokutei||{kenshu:false,kaigiDate:'',shiji:false,kenshinDate:'',kinkyu:false,fukushiPct:'',judo:false}; d.taisei=d.taisei||{weekHours:40}; return d; } }catch(e){} return structuredClone(seed); }
 function save(){ try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){} }
 function user(id){ return db.users.find(u=>u.id===id); }
 function fullDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -2756,7 +2792,16 @@ function renderStaff(){
         <div class="row" style="margin-top:6px;align-items:center"><span class="muted" style="font-size:12px">時給</span>
           <input type="number" value="${s.wage||''}" min="0" step="10" placeholder="未設定"
                  onchange="setStaffWage('${s.id}', this.value)" style="max-width:110px">
-          <span class="muted" style="font-size:12px">円</span></div></div>
+          <span class="muted" style="font-size:12px">円</span></div>
+        <div class="row" style="margin-top:6px;align-items:center;flex-wrap:wrap">
+          <select onchange="setStaffField('${s.id}','emp',this.value)" style="max-width:145px">
+            <option value="">勤務形態(未登録)</option>
+            ${Object.entries(EMP_LBL).map(([k,v])=>`<option value="${k}" ${s.emp===k?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <select onchange="setStaffField('${s.id}','qual',this.value)" style="max-width:145px">
+            <option value="">資格(未登録)</option>
+            ${Object.entries(QUAL_LBL).map(([k,v])=>`<option value="${k}" ${s.qual===k?'selected':''}>${v}</option>`).join('')}
+          </select></div></div>
       <button class="btn mini sec" onclick="delStaff('${s.id}')">削除</button></div>`).join('')
     : '<p class="muted">まだ職員が登録されていません。</p>';
 }
@@ -2765,12 +2810,18 @@ function setStaffWage(id, v){
   s.wage=+v||0; save();
   if(document.getElementById('kyuyo-body')) renderKyuyo();
 }
+function setStaffField(id, field, v){
+  const s=staff(id); if(!s) return;
+  s[field]=v; save();
+  if(document.getElementById('taisei-body')) renderTaisei();
+}
 function addStaff(){
   const name=document.getElementById('sf-name').value.trim();
   if(!name){ alert('名前を入力してください(仮名で)。'); return; }
   db.staff=db.staff||[];
   db.staff.push({id:'st'+Date.now(), name, role:document.getElementById('sf-role').value,
-                 wage:+document.getElementById('sf-wage').value||0});
+                 wage:+document.getElementById('sf-wage').value||0,
+                 emp:document.getElementById('sf-emp').value, qual:document.getElementById('sf-qual').value});
   save();
   document.getElementById('sf-name').value='';
   document.getElementById('sf-wage').value='';
@@ -2922,6 +2973,8 @@ function seedDemoData(){
   const s2=db.staff.find(x=>x.id===st2); if(s2&&!s2.work) s2.work=w2;
   if(s1&&!s1.wage) s1.wage=1600;
   if(s2&&!s2.wage) s2.wage=1400;
+  if(s1&&!s1.emp){ s1.emp='jsen'; s1.qual='fukushi'; }   // 常勤・専従の介護福祉士(サ責)
+  if(s2&&!s2.emp){ s2.emp='hsen'; s2.qual='shonin'; }    // 非常勤・専従の初任者研修修了者
 
   // --- 研修・会議・委員会 ---
   //  直近のヒヤリハット(浴室での転倒しかけ)を会議で扱った、という流れにして
@@ -5339,6 +5392,127 @@ function printKyuyo(){
   setTimeout(()=>el.classList.remove('on'), 500);
 }
 
+/* ---------- 勤務体制一覧表(B-9・参考様式1相当) ---------- */
+const EMP_LBL={jsen:'常勤・専従', jken:'常勤・兼務', hsen:'非常勤・専従', hken:'非常勤・兼務'};
+const QUAL_LBL={fukushi:'介護福祉士', jitsumu:'実務者研修', shonin:'初任者研修', kango:'看護師等'};
+function tsWeekH(){ return +((db.taisei||{}).weekHours)||40; }
+function tsSetWeekH(v){ db.taisei=db.taisei||{}; db.taisei.weekHours=Math.min(60,Math.max(1,+v||40)); save(); renderTaisei(); }
+function weekWorkMins(s){
+  if(!s.work) return null;                       // 勤務予定が未登録
+  let m=0;
+  [0,1,2,3,4,5,6].forEach(d=>{ const w=s.work[d]; if(!w) return;
+    const a=hhmm(w.from), b=hhmm(w.to);
+    if(a!==null&&b!==null&&b>a) m+=b-a; });
+  return m;
+}
+/* 常勤換算: 常勤は1.0、非常勤は週の勤務時間÷週所定(上限1.0)。勤務予定が未登録の非常勤は算定不能(null) */
+function fteOf(s){
+  if(s.emp==='jsen'||s.emp==='jken') return 1;
+  const wm=weekWorkMins(s);
+  if(wm===null) return null;
+  return Math.min(1, Math.round(wm/60/tsWeekH()*100)/100);
+}
+function taiseiStats(){
+  const rows=(db.staff||[]).map(s=>({s, wm:weekWorkMins(s), fte:fteOf(s)}));
+  const care=rows.filter(r=>r.s.role==='訪問介護員'||r.s.role==='サービス提供責任者');
+  const careFte=Math.round(care.reduce((a,r)=>a+(r.fte||0),0)*100)/100;
+  const seki=rows.filter(r=>r.s.role==='サービス提供責任者').length;
+  const sekiNeed=Math.max(1, Math.ceil((db.users||[]).length/40));
+  const fukushiN=care.filter(r=>r.s.qual==='fukushi').length;
+  const anyQual=care.some(r=>r.s.qual);
+  const fukushiPct=(anyQual&&care.length)? Math.round(fukushiN/care.length*100) : null;
+  return {rows, care, careFte, seki, sekiNeed, fukushiN, fukushiPct, careN:care.length};
+}
+function tsQualHint(){
+  const st=taiseiStats();
+  return st.fukushiPct===null?'':' 👥職員の資格登録から計算すると '+st.fukushiPct+'%です(🗂勤務体制に内訳)。';
+}
+function renderTaisei(){
+  const el=document.getElementById('taisei-body'); if(!el) return;
+  const wh=document.getElementById('ts-weekh'); if(wh&&!wh.value) wh.value=tsWeekH();
+  const st=taiseiStats();
+  if(!st.rows.length){ el.innerHTML='<p class="muted">職員が未登録です。⚙️設定→👥職員で登録してください。</p>'; return; }
+  const chk=(ok,t,d)=>`<div class="check-row"><div class="check-ic">${ok?'✅':'⚠️'}</div><div style="flex:1;min-width:0"><div class="t">${t}</div><div class="d">${d}</div></div></div>`;
+  el.innerHTML = `<div class="subttl">職員別の勤務体制(週の勤務予定から)</div>
+  <div class="tblwrap"><table class="tbl">
+    <tr><th>氏名</th><th>職種</th><th>勤務形態</th><th>資格</th><th>勤務日</th><th class="num">週の時間</th><th class="num">常勤換算</th></tr>
+    ${st.rows.map(r=>{ const s=r.s;
+      return `<tr><td>${esc(s.name)}</td><td>${esc(s.role||'')}</td>
+        <td>${s.emp?esc(EMP_LBL[s.emp]||''):'<span class="chip y">未登録</span>'}</td>
+        <td>${s.qual?esc(QUAL_LBL[s.qual]||''):'―'}</td>
+        <td>${s.work?([1,2,3,4,5,6,0].filter(d=>s.work[d]).map(d=>WD_LBL[d]).join('・')||'―'):'<span class="chip y">勤務予定 未登録</span>'}</td>
+        <td class="num">${r.wm===null?'―':hmin(r.wm)}</td>
+        <td class="num">${r.fte===null?'―':r.fte.toFixed(2)}</td></tr>`; }).join('')}
+    <tr><td colspan="6"><b>訪問介護員等(サ責を含む)の常勤換算 合計</b></td><td class="num"><b>${st.careFte.toFixed(2)}</b></td></tr>
+  </table></div>
+  <div class="subttl" style="margin-top:16px">人員基準の目安</div>
+  ${chk(st.careFte>=2.5, '訪問介護員等の常勤換算 2.5以上(指定基準)', `現在 ${st.careFte.toFixed(2)}。勤務予定からの目安です${st.careFte>=2.5?'':' ― 不足しています。勤務予定・勤務形態の登録漏れがないかも確認してください'}。`)}
+  ${chk(st.seki>=st.sekiNeed, 'サービス提供責任者の配置(利用者40人ごとに1人以上)', `現在 ${st.seki}人 / 利用者 ${(db.users||[]).length}人 → 必要 ${st.sekiNeed}人以上。`)}
+  ${st.fukushiPct===null?'':chk(st.fukushiPct>=30, '介護福祉士の割合 30%以上(特定事業所加算の人材要件)', `訪問介護員等 ${st.careN}人のうち介護福祉士 ${st.fukushiN}人 = ${st.fukushiPct}%。実務者研修修了者等を含む別基準もあります。`)}
+  <p class="muted" style="margin-top:8px">※ 常勤換算の算入範囲・兼務の扱い・育児短時間勤務の特例など、取り扱いは指定権者により異なります。判定は目安とし、正式には指定権者にご確認ください。</p>`;
+}
+/* その職員のその日の勤務時間(時間・数値)。休み/未登録は '' */
+function tsDayHours(s, dateStr){
+  const w=s.work ? s.work[new Date(dateStr+'T00:00:00').getDay()] : undefined;
+  if(!w) return '';
+  const a=hhmm(w.from), b=hhmm(w.to);
+  if(a===null||b===null||b<=a) return '';
+  return Math.round((b-a)/60*10)/10;
+}
+function exportTaiseiCsv(){
+  const st=taiseiStats();
+  if(!st.rows.length){ alert('職員が未登録です。'); return; }
+  const rows=[['勤務体制一覧表(簡易CSV)','週所定'+tsWeekH()+'時間'],
+    ['氏名','職種','勤務形態','資格','月','火','水','木','金','土','日','週合計(時間)','常勤換算']];
+  st.rows.forEach(r=>{ const s=r.s;
+    const wd=[1,2,3,4,5,6,0].map(d=>{ const w=s.work&&s.work[d]; if(!w) return '';
+      const a=hhmm(w.from), b=hhmm(w.to); return (a!==null&&b!==null&&b>a)?String(Math.round((b-a)/60*10)/10):''; });
+    rows.push([s.name, s.role||'', s.emp?EMP_LBL[s.emp]:'', s.qual?QUAL_LBL[s.qual]:'',
+      ...wd, r.wm===null?'':String(Math.round(r.wm/60*10)/10), r.fte===null?'':r.fte.toFixed(2)]);
+  });
+  rows.push([]);
+  rows.push(['訪問介護員等(サ責含む)の常勤換算 合計', st.careFte.toFixed(2)]);
+  rows.push(['※常勤換算は勤務予定からの目安です。届出は指定権者の様式・記載要領に従ってください。']);
+  const csv='\ufeff'+rows.map(x=>x.map(c=>/[,"\n]/.test(c||'')?'"'+String(c).replace(/"/g,'""')+'"':(c||'')).join(',')).join('\r\n')+'\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='taisei_'+billYm()+'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function printTaisei(){
+  const st=taiseiStats();
+  if(!st.rows.length){ alert('職員が未登録です。'); return; }
+  const ym=billYm(); const o=db.office||{};
+  const el=document.getElementById('ts-print');
+  const days=[...Array(28)].map((_,i)=>ym+'-'+String(i+1).padStart(2,'0'));
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:14px;margin-bottom:8px">従業者の勤務の体制及び勤務形態一覧表(訪問介護)</div>
+    <div class="shead" style="font-size:10px">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>対象</b>${esc(ym.slice(0,4))}年${esc(ym.slice(5,7))}月(1日〜28日)</div>
+      <div><b>常勤の週所定労働時間</b>${tsWeekH()}時間</div>
+    </div>
+    <table class="tsgrid">
+      <tr><th rowspan="2">職種</th><th rowspan="2">勤務形態</th><th rowspan="2">資格</th><th rowspan="2">氏名</th>
+        <th colspan="7">第1週</th><th colspan="7">第2週</th><th colspan="7">第3週</th><th colspan="7">第4週</th>
+        <th rowspan="2">4週計<br>(時間)</th><th rowspan="2">週平均<br>(時間)</th><th rowspan="2">常勤<br>換算</th></tr>
+      <tr>${days.map(d=>`<th>${+d.slice(8,10)}</th>`).join('')}</tr>
+      ${st.rows.map(r=>{ const s=r.s;
+        const cells=days.map(d=>tsDayHours(s,d));
+        const total=cells.reduce((a,c)=>a+(+c||0),0);
+        return `<tr><td class="l">${esc(s.role||'')}</td><td>${s.emp?esc(EMP_LBL[s.emp]):'未登録'}</td>
+          <td>${s.qual?esc(QUAL_LBL[s.qual]):'―'}</td><td class="l">${esc(s.name)}</td>
+          ${cells.map(c=>`<td>${c===''?'':c}</td>`).join('')}
+          <td>${Math.round(total*10)/10}</td><td>${Math.round(total/4*10)/10}</td>
+          <td>${r.fte===null?'―':r.fte.toFixed(2)}</td></tr>`; }).join('')}
+      <tr><td colspan="${4+28+2}" class="l"><b>訪問介護員等(サービス提供責任者を含む)の常勤換算 合計</b></td><td><b>${st.careFte.toFixed(2)}</b></td></tr>
+    </table>
+    <p style="font-size:9px;margin-top:6px">※ 参考様式1に相当する試作です。日々の時間は⚙️👥職員の週間勤務予定を展開したもので、常勤換算は目安です(常勤=1.0、非常勤=週の勤務時間÷週所定)。実際の届出は指定権者の様式・記載要領に従って作成してください。</p>
+    <div class="sfoot" style="font-size:10px"><div>出力日 ${esc(fullDate())}</div><div>管理者確認　　　　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
 /* ---------- 訪問時の注意(その家のルール)の報告画面表示 ---------- */
 const RULE_DEFS=[['key','🔑 鍵・入室'],['park','🅿 駐車・駐輪'],['pet','🐕 ペット'],['care','⚠️ 禁忌・注意'],['contact','📞 緊急連絡']];
 function renderVisitRules(){
@@ -5601,7 +5775,7 @@ function calcAllUsers(ym, ver){ return db.users.map(u=>calcUser(u, ym, ver)).fil
 function billYm(){ const el=document.getElementById('bill-month'); if(el&&!el.value) el.value=fullDate().slice(0,7); return el?el.value:fullDate().slice(0,7); }
 
 function renderBilling(){
-  renderKaigi(); renderKenshuPlan(); renderKyuyo();
+  renderKaigi(); renderKenshuPlan(); renderKyuyo(); renderTaisei();
   const ym=billYm();
   const list=calcAllUsers(ym);
   const sum=k=>list.reduce((s,r)=>s+r[k], 0);
@@ -5939,6 +6113,7 @@ function billSec(s){
   // 記録の作成フォームは、タブを開いた時点では畳んでおく
   if(s==='kaigi'){ const f=document.getElementById('kg-form'); if(f && !editingKaigi) f.style.display='none'; renderKaigi(); renderKenshuPlan(); }
   if(s==='kyuyo') renderKyuyo();
+  if(s==='taisei') renderTaisei();
 }
 function billSecCur(){ const b=document.querySelector('#v-billing .subnav button.on'); return b?b.dataset.s:'sum'; }
 
@@ -5970,7 +6145,7 @@ function renderTokutei(){
   document.getElementById('tk-list').innerHTML =
     `<div class="subttl" style="margin-top:6px">① 体制要件(全区分で必須)</div>` + items.map(row).join('') +
     `<div class="subttl" style="margin-top:16px">② 人材要件(区分Ⅰ・Ⅱ)</div>` +
-    row({ok:jinzaiOk, t:'介護福祉士の割合 30%以上 等', d:'在籍する訪問介護員のうち介護福祉士の占める割合(実務者研修修了者等の基準もあり)。',
+    row({ok:jinzaiOk, t:'介護福祉士の割合 30%以上 等', d:'在籍する訪問介護員のうち介護福祉士の占める割合(実務者研修修了者等の基準もあり)。'+tsQualHint(),
          act:`<span style="display:inline-flex;gap:8px;align-items:center">介護福祉士 <input type="number" value="${esc(String(t.fukushiPct||''))}" onchange="tkSet('fukushiPct',this.value)" style="max-width:100px" placeholder="0"> %</span>`}) +
     `<div class="subttl" style="margin-top:16px">③ 重度者等対応要件(区分Ⅰ・Ⅲ)</div>` +
     row({ok:t.judo, t:'重度要介護者等 20%以上 または 看取り対応実績', d:'要介護4・5、認知症日常生活自立度Ⅲ以上等の利用者が20%以上、または看取り期の対応実績1名以上(選択式)。',
