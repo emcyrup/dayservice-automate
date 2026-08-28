@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print,#pl-print,#as-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print,#pl-print,#as-print,#ky-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -201,7 +201,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on,#pl-print.on,#as-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on,#pl-print.on,#as-print.on,#ky-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -999,6 +999,7 @@
       <button data-s="teikyo" onclick="billSec('teikyo')">📄 提供票</button>
       <button data-s="tokutei" onclick="billSec('tokutei')">⭐ 特定事業所加算</button>
       <button data-s="kaigi" onclick="billSec('kaigi')">📚 研修・会議 <span class="chip y" id="kg-navchip" style="display:none"></span></button>
+      <button data-s="kyuyo" onclick="billSec('kyuyo')">💰 給与実績</button>
       <button data-s="diff" onclick="billSec('diff')">🔀 改定差分</button>
       <button data-s="data" onclick="billSec('data')">📤 請求データ</button>
     </div>
@@ -1052,6 +1053,7 @@
     </div>
     <div id="tk-print" class="sheet"></div>
     <div id="kg-print" class="sheet"></div>
+    <div id="ky-print" class="sheet"></div>
     <div data-sec="diff" class="card noprint">
       <div class="subttl">🔀 改定の新旧差分チェック</div>
       <p class="muted">同じ実績を別の改定版で計算し、差額を確認します。改定版を作ったら必ず前月実績で確認してください。</p>
@@ -1071,6 +1073,16 @@
         <button class="btn" onclick="alert('(検証版)本番では介護給付費明細書・請求書を自動作成し、電子請求受付システムへインターネット伝送します。')">📤 国保連へ伝送(本番機能)</button>
       </div>
     </div>
+    <div data-sec="kyuyo" class="card noprint" style="display:none">
+      <div class="banner">💰 <b>📋報告の実績を、そのまま給与計算の材料にします</b>。職員ごとの訪問件数・提供時間・時間帯(早朝/夜間/深夜)・2人対応・緊急時訪問を月別に集計し、CSVで給与計算ソフトへ渡せます。⚙️の👥職員に<b>時給</b>を登録すると概算も出ます。<br>⚠️ 概算は<b>訪問の提供時間 × 時給</b>だけです。移動時間・待機時間・各種手当・割増賃金の法定計算・社会保険は含みません。<b>実際の給与計算は就業規則と労働関係法令に沿って行ってください。</b></div>
+      <div id="kyuyo-body"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn sec" onclick="exportKyuyoCsv()">⬇ 給与実績CSV(サマリー+明細)</button>
+        <button class="btn sec" onclick="printKyuyo()">🖨 職員別実績の印刷</button>
+      </div>
+      <p class="muted" style="margin-top:10px">※ 🚗移動の距離・交通費は職員に紐づいていないため、ここでは事業所合計のみ表示しています(明細は🚗移動タブ)。</p>
+    </div>
+
     <div data-sec="kaigi" class="card noprint" style="display:none">
       <div class="banner">📚 <b>会議・研修・委員会は「やったこと」ではなく「記録が残っていること」が問われます</b>。特定事業所加算の定期会議と個別研修計画、虐待防止・感染症対策・BCPの研修と訓練は、<b>議事録と出席者の記録</b>が実地指導で確認されます(虐待防止・BCPは未実施だと減算の対象です)。<br>🤖 <b>議題はAIが下書き</b>します ― ⚠️ヒヤリハット・事故、📣苦情、⭐未整備の要件から「今回話すべきこと」を拾います。</div>
       <button class="btn" onclick="newKaigi()">＋ 開催を記録する</button>
@@ -1498,6 +1510,7 @@
       <div id="staff-list"></div>
       <div class="grid2" style="margin-top:10px">
         <div><label class="fld">名前(仮名で)</label><input type="text" id="sf-name" placeholder="例: 職員C"></div>
+        <div><label class="fld">時給(円・任意)</label><input type="number" id="sf-wage" min="0" step="10" placeholder="例: 1400"></div>
         <div><label class="fld">職種</label>
           <select id="sf-role">
             <option>訪問介護員</option>
@@ -2739,17 +2752,28 @@ function renderStaff(){
   const el=document.getElementById('staff-list'); if(!el) return;
   el.innerHTML = (db.staff||[]).length ? db.staff.map(s=>`
     <div class="check-row"><div class="check-ic">👤</div>
-      <div style="flex:1;min-width:0"><div class="t">${esc(s.name)}</div><div class="d">${esc(s.role||'')}</div></div>
+      <div style="flex:1;min-width:0"><div class="t">${esc(s.name)}</div><div class="d">${esc(s.role||'')}</div>
+        <div class="row" style="margin-top:6px;align-items:center"><span class="muted" style="font-size:12px">時給</span>
+          <input type="number" value="${s.wage||''}" min="0" step="10" placeholder="未設定"
+                 onchange="setStaffWage('${s.id}', this.value)" style="max-width:110px">
+          <span class="muted" style="font-size:12px">円</span></div></div>
       <button class="btn mini sec" onclick="delStaff('${s.id}')">削除</button></div>`).join('')
     : '<p class="muted">まだ職員が登録されていません。</p>';
+}
+function setStaffWage(id, v){
+  const s=staff(id); if(!s) return;
+  s.wage=+v||0; save();
+  if(document.getElementById('kyuyo-body')) renderKyuyo();
 }
 function addStaff(){
   const name=document.getElementById('sf-name').value.trim();
   if(!name){ alert('名前を入力してください(仮名で)。'); return; }
   db.staff=db.staff||[];
-  db.staff.push({id:'st'+Date.now(), name, role:document.getElementById('sf-role').value});
+  db.staff.push({id:'st'+Date.now(), name, role:document.getElementById('sf-role').value,
+                 wage:+document.getElementById('sf-wage').value||0});
   save();
   document.getElementById('sf-name').value='';
+  document.getElementById('sf-wage').value='';
   renderStaff(); fillSelects();
   alert('職員を追加しました。📋報告の「担当スタッフ」から選べます。');
 }
@@ -2896,6 +2920,8 @@ function seedDemoData(){
   [1,2,3,4,5,6].forEach(d=>w2[d]={from:'09:00',to:'17:00'});
   const s1=db.staff.find(x=>x.id===st1); if(s1&&!s1.work) s1.work=w1;
   const s2=db.staff.find(x=>x.id===st2); if(s2&&!s2.work) s2.work=w2;
+  if(s1&&!s1.wage) s1.wage=1600;
+  if(s2&&!s2.wage) s2.wage=1400;
 
   // --- 研修・会議・委員会 ---
   //  直近のヒヤリハット(浴室での転倒しかけ)を会議で扱った、という流れにして
@@ -5174,6 +5200,145 @@ function printAssess(id){
   setTimeout(()=>el.classList.remove('on'), 500);
 }
 
+
+/* ============================================================
+   給与実績(職員別・月別)
+   非常勤ヘルパーの給与は「その月に何件・何時間回ったか」がすべての土台。
+   いまはサ責が報告を数えて表計算に転記している。📋報告に担当が
+   入っているので、そのまま職員別に集計してCSVで渡せるようにする。
+   概算は 提供時間×時給 のみ。移動・待機・手当・法定の割増計算は
+   含まない(給与計算そのものはソフト・社労士の領分)。
+   ============================================================ */
+function timeBand(start){
+  const h=+((start||'10:00').split(':')[0]);
+  if(h>=22||h<6) return 'shinya';
+  if(h<8) return 'souchou';
+  if(h>=18) return 'yakan';
+  return 'nichu';
+}
+const TB_LBL={nichu:'日中', souchou:'早朝', yakan:'夜間', shinya:'深夜'};
+
+function kyuyoStats(ym){
+  const rs=db.reports.filter(r=>(r.date||'').slice(0,7)===ym);
+  const by={};
+  rs.forEach(r=>{
+    const key=r.staffId||'';
+    if(!by[key]) by[key]={staffId:key, n:0, mins:0, days:new Set(),
+      kubun:{shintai:0,seikatsu:0,both:0,joukou:0}, band:{nichu:0,souchou:0,yakan:0,shinya:0},
+      futari:0, kinkyu:0, reports:[]};
+    const s=by[key];
+    s.n++; s.mins+=(+r.mins||0); s.days.add(r.date);
+    s.kubun[r.kubun||'shintai']=(s.kubun[r.kubun||'shintai']||0)+1;
+    s.band[timeBand(r.start)]++;
+    if(r.futari) s.futari++;
+    if(r.kinkyu) s.kinkyu++;
+    s.reports.push(r);
+  });
+  return Object.values(by).sort((a,b)=>{
+    const an=(staff(a.staffId)||{}).name||'～', bn=(staff(b.staffId)||{}).name||'～';
+    return an<bn?-1:1;
+  });
+}
+function hmin(m){ return Math.floor(m/60)+':'+String(m%60).padStart(2,'0'); }
+
+function renderKyuyo(){
+  const el=document.getElementById('kyuyo-body'); if(!el) return;
+  const ym=billYm();
+  const list=kyuyoStats(ym);
+  if(!list.length){ el.innerHTML=`<p class="muted">${esc(ym)}の報告がありません。📋報告で実績を登録すると、ここに職員別の集計が出ます。</p>`; return; }
+  const trips=db.trips.filter(t=>(t.date||'').slice(0,7)===ym);
+  const tripKm=trips.reduce((a,t)=>a+(parseFloat(t.dist)||0),0);
+  const tripFare=trips.reduce((a,t)=>a+(+t.fare||0),0);
+  const tot={n:0, mins:0, gaku:0};
+  const rows=list.map(x=>{
+    const s=staff(x.staffId);
+    const wage=(s&&+s.wage)||0;
+    const gaku=wage ? Math.round(x.mins/60*wage) : 0;
+    tot.n+=x.n; tot.mins+=x.mins; tot.gaku+=gaku;
+    const bands=['souchou','yakan','shinya'].filter(b=>x.band[b]).map(b=>`${TB_LBL[b]}${x.band[b]}`).join('・');
+    return `<tr>
+      <td style="text-align:left">${s?esc(s.name):'<span class="chip y">担当未記入</span>'}</td>
+      <td class="num">${x.n}件</td>
+      <td class="num">${hmin(x.mins)}</td>
+      <td class="num">${x.days.size}日</td>
+      <td class="num">${bands||'―'}</td>
+      <td class="num">${x.futari||'―'}</td>
+      <td class="num">${x.kinkyu||'―'}</td>
+      <td class="num">${wage?wage.toLocaleString():'―'}</td>
+      <td class="num">${gaku?('¥'+gaku.toLocaleString()):'―'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=`
+    <div class="subttl">${esc(ym)} の職員別実績</div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th style="text-align:left">職員</th><th>件数</th><th>提供時間</th><th>出勤日数</th><th>早朝/夜間/深夜</th><th>2人</th><th>緊急</th><th>時給</th><th>概算</th></tr>
+      ${rows}
+      <tr><td style="text-align:left"><b>合計</b></td><td class="num"><b>${tot.n}件</b></td><td class="num"><b>${hmin(tot.mins)}</b></td>
+        <td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>
+        <td class="num"><b>${tot.gaku?('¥'+tot.gaku.toLocaleString()):'―'}</b></td></tr>
+    </table></div>
+    <p class="muted" style="margin-top:8px">🚗 事業所全体の移動: ${tripKm.toFixed(1)}km ／ 交通費(実費) ¥${tripFare.toLocaleString()}。
+      時給は⚙️設定→👥職員で登録・変更できます。担当未記入の報告は📋報告の履歴から「✏️編集」で担当を入れてください。</p>`;
+}
+
+function exportKyuyoCsv(){
+  const ym=billYm();
+  const list=kyuyoStats(ym);
+  if(!list.length){ alert('この月の報告がありません。'); return; }
+  const rows=[['給与実績サマリー', ym],
+    ['職員','件数','提供時間(分)','出勤日数','日中','早朝','夜間','深夜','2人対応','緊急時','時給','概算(提供時間×時給)']];
+  list.forEach(x=>{
+    const s=staff(x.staffId);
+    const wage=(s&&+s.wage)||0;
+    rows.push([s?s.name:'(担当未記入)', String(x.n), String(x.mins), String(x.days.size),
+      String(x.band.nichu), String(x.band.souchou), String(x.band.yakan), String(x.band.shinya),
+      String(x.futari), String(x.kinkyu), wage?String(wage):'', wage?String(Math.round(x.mins/60*wage)):'']);
+  });
+  rows.push([]);
+  rows.push(['明細(1行=1訪問)']);
+  rows.push(['職員','日付','開始','終了','分','サービス区分','時間帯','2人対応','緊急時','利用者']);
+  list.forEach(x=>{
+    x.reports.slice().sort((a,b)=>((a.date+a.start)<(b.date+b.start)?-1:1)).forEach(r=>{
+      const s=staff(x.staffId);
+      rows.push([s?s.name:'(担当未記入)', r.date, r.start||'', r.end||'', String(r.mins||0),
+        KUBUN_LBL[r.kubun]||'', TB_LBL[timeBand(r.start)], r.futari?'1':'', r.kinkyu?'1':'',
+        (user(r.userId)||{}).name||'']);
+    });
+  });
+  rows.push([]);
+  rows.push(['※概算は提供時間×時給のみ。移動・待機・手当・法定の割増計算・社会保険は含みません。']);
+  const csv='﻿'+rows.map(x=>x.map(c=>/[,"\n]/.test(c||'')?'"'+String(c).replace(/"/g,'""')+'"':(c||'')).join(',')).join('\r\n')+'\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`kyuyo_${ym}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function printKyuyo(){
+  const ym=billYm();
+  const list=kyuyoStats(ym);
+  if(!list.length){ alert('この月の報告がありません。'); return; }
+  const o=db.office||{};
+  const el=document.getElementById('ky-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">職員別 訪問実績表(給与計算用)</div>
+    <div class="shead">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>対象月</b>${esc(ym.slice(0,4))}年${esc(ym.slice(5,7))}月</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>職員</th><th>件数</th><th>提供時間</th><th>出勤日数</th><th>早朝</th><th>夜間</th><th>深夜</th><th>2人</th><th>緊急</th></tr>
+      ${list.map(x=>{ const s=staff(x.staffId);
+        return `<tr><td>${s?esc(s.name):'(担当未記入)'}</td><td>${x.n}</td><td>${hmin(x.mins)}</td><td>${x.days.size}</td>
+          <td>${x.band.souchou||'―'}</td><td>${x.band.yakan||'―'}</td><td>${x.band.shinya||'―'}</td>
+          <td>${x.futari||'―'}</td><td>${x.kinkyu||'―'}</td></tr>`; }).join('')}
+    </table></div>
+    <p style="font-size:11px;margin-top:8px">※ 提供時間は📋報告の実績の合計です。移動時間・待機時間・各種手当は含みません。給与計算は就業規則と労働関係法令に沿って行ってください。</p>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>管理者確認　　　　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
 /* ---------- 訪問時の注意(その家のルール)の報告画面表示 ---------- */
 const RULE_DEFS=[['key','🔑 鍵・入室'],['park','🅿 駐車・駐輪'],['pet','🐕 ペット'],['care','⚠️ 禁忌・注意'],['contact','📞 緊急連絡']];
 function renderVisitRules(){
@@ -5436,7 +5601,7 @@ function calcAllUsers(ym, ver){ return db.users.map(u=>calcUser(u, ym, ver)).fil
 function billYm(){ const el=document.getElementById('bill-month'); if(el&&!el.value) el.value=fullDate().slice(0,7); return el?el.value:fullDate().slice(0,7); }
 
 function renderBilling(){
-  renderKaigi(); renderKenshuPlan();
+  renderKaigi(); renderKenshuPlan(); renderKyuyo();
   const ym=billYm();
   const list=calcAllUsers(ym);
   const sum=k=>list.reduce((s,r)=>s+r[k], 0);
@@ -5773,6 +5938,7 @@ function billSec(s){
   document.querySelectorAll('#v-billing .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
   // 記録の作成フォームは、タブを開いた時点では畳んでおく
   if(s==='kaigi'){ const f=document.getElementById('kg-form'); if(f && !editingKaigi) f.style.display='none'; renderKaigi(); renderKenshuPlan(); }
+  if(s==='kyuyo') renderKyuyo();
 }
 function billSecCur(){ const b=document.querySelector('#v-billing .subnav button.on'); return b?b.dataset.s:'sum'; }
 
