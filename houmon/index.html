@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print,#pl-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -201,7 +201,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on,#pl-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -419,10 +419,28 @@
           <option value="both">身体介護＋生活援助</option>
           <option value="joukou">通院等乗降介助</option>
         </select>
+        <label class="fld">担当ヘルパー</label>
+        <select id="pl-staff"></select>
         <button class="btn" style="margin-top:12px" onclick="addPlan()">💾 予定を登録</button>
       </div>
     </details>
+    <div class="card">
+      <div class="subttl">👥 職員の予定(この日) <span class="chip y" id="sd-warn" style="display:none"></span></div>
+      <p class="muted">上で選んだ日について、<b>誰がどこを回るか</b>を職員ごとに並べます。<b>時間の重なり(ダブルブッキング)</b>と<b>勤務時間外</b>は赤く出ます。担当が未定の予定はここで割り当ててください。急な欠勤のときは、空き時間を見て代わりの担当を選べます。</p>
+      <div id="staff-day"></div>
+      <button class="btn mini sec" style="margin-top:10px" onclick="printStaffDay()">🖨 この日の職員予定表を印刷</button>
+      <details class="acc" style="margin-top:12px">
+        <summary>⏰ 職員の勤務予定(曜日ごと)</summary>
+        <div class="accbody">
+          <p class="muted">職員ごとに「何曜日の何時から何時まで働けるか」を登録すると、勤務時間外の予定に警告が出て、空き時間が計算できるようになります。未登録の職員は勤務時間の判定をしません。</p>
+          <label class="fld">職員</label>
+          <select id="sw-staff" onchange="renderWorkEdit()"></select>
+          <div id="sw-body" style="margin-top:10px"></div>
+        </div>
+      </details>
+    </div>
     <div class="card"><div class="subttl">登録済みの予定 <span class="chip g" id="plan-count"></span></div><div id="plan-list"></div></div>
+    <div id="pl-print" class="sheet"></div>
     </div><!-- /data-plsec=plan -->
 
     <div data-plsec="shiji" style="display:none">
@@ -442,7 +460,7 @@
           <div><label class="fld">利用者</label><select id="sj-user" onchange="renderSjPlanSel()"></select></div>
         </div>
         <label class="fld">対象の訪問(この日の予定から)</label>
-        <select id="sj-plan"></select>
+        <select id="sj-plan" onchange="sjPlanChanged()"></select>
         <div class="grid2">
           <div><label class="fld">指示を出す人(サービス提供責任者)</label><select id="sj-from"></select></div>
           <div><label class="fld">指示を受ける人(訪問介護員)</label><select id="sj-staff"></select></div>
@@ -959,6 +977,16 @@
         <button class="btn sec" onclick="exportTeikyoCsv()">⬇ 提供票CSV</button>
       </div>
       <div id="tk-out" class="sheet" style="margin-top:14px"></div>
+    </div>
+    <div data-sec="teikyo" class="card noprint">
+      <div class="subttl">🔁 ケアマネとのデータ連携(CSV)</div>
+      <p class="muted"><b>ケアマネから受け取った提供票(予定)を取り込むと訪問予定が自動で作られ、当月の実績を1行=1回の形式で書き出してケアマネへ返せます。</b>列は被保険者番号・提供日・開始・終了・サービスコード等、ケアプランデータ連携で使われる項目に合わせています。<br>※検証版は<b>簡易CSV形式</b>です。国保中央会「ケアプランデータ連携システム」の正式ファイル(所定レイアウト)への対応は本番で行います。文字コードはUTF-8とShift_JISのどちらも読み込めます。</p>
+      <button class="btn sec" onclick="exportRenkeiCsv()">⬆ 実績CSVを書き出す(この利用者・当月)</button>
+      <div style="margin-top:12px">
+        <label class="fld">提供票CSVの取込(予定 → 📅訪問予定に反映)</label>
+        <input type="file" id="rk-file" accept=".csv,text/csv" onchange="importRenkeiCsv(event)">
+      </div>
+      <div id="rk-preview" style="margin-top:12px"></div>
     </div>
     <div id="tk-print" class="sheet"></div>
     <div id="kg-print" class="sheet"></div>
@@ -1595,7 +1623,7 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
         d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[]; d.keikaku=d.keikaku||[];
-        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[]; d.incidents=d.incidents||[]; d.kaigi=d.kaigi||[]; d.kenshuPlan=d.kenshuPlan||[];
+        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[]; d.incidents=d.incidents||[]; d.kaigi=d.kaigi||[]; d.kenshuPlan=d.kenshuPlan||[]; d.plans.forEach(p=>{ p.staffId=p.staffId||''; });
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1694,6 +1722,9 @@ function renderHome(){
   const vw=vitalWatch();
   if(vw.length) alerts.push({ic:'🩺', t:`バイタルに気になる値がある方が ${vw.length} 名(直近3日)`,
     d:vw.slice(0,3).map(x=>`${x.name}(${x.what})`).join('、')+(vw.length>3?' ほか':'')+' ― かかりつけ医の指示や事業所の基準と照らして確認してください', go:'report'});
+  const cfs=staffConflicts(today);
+  if(cfs.length) alerts.push({ic:'⛔', t:`今日の予定に時間の重なりが ${cfs.length} 件`,
+    d:cfs.slice(0,2).map(c=>`${(staff(c.staffId)||{}).name||''}: ${c.a.start}〜と${c.b.start}〜`).join('、')+' ― 📅予定の「職員の予定」で担当を調整してください', go:'plan'});
   const gg=gimuGaps();
   if(gg.length) alerts.push({ic:'📚', t:`研修・委員会の実施記録が不足 ${gg.length} 件`,
     d:gg.map(g=>g.short).join('、')+' ― 記録がないと減算・指導の対象になります', go:'billing'});
@@ -1749,6 +1780,10 @@ function fillSelects(){
       ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
       : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
     if(k&&staff(k)) el.value=k; });
+  ['pl-staff','sw-staff'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const k=el.value;
+    el.innerHTML=(id==='pl-staff'?'<option value="">(担当未定 ― あとで割り当てる)</option>':'')
+      +(db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('');
+    if(k&&(id==='pl-staff'&&k===''||staff(k))) el.value=k; });
   ['kg-host','kp-staff'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const k=el.value;
     el.innerHTML=(db.staff||[]).length
       ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
@@ -2687,9 +2722,9 @@ function seedDemoData(){
 
   // --- 訪問予定(毎週) ---
   db.plans.push(
-    {id:'demo-p1', userId:'u1', type:'weekly', days:[1,3,5], start:'09:00', end:'10:00', kubun:'seikatsu'},
-    {id:'demo-p2', userId:'u2', type:'weekly', days:[1,4],   start:'11:00', end:'11:45', kubun:'shintai'},
-    {id:'demo-p3', userId:'u3', type:'weekly', days:[2,5],   start:'14:00', end:'15:00', kubun:'both'}
+    {id:'demo-p1', userId:'u1', type:'weekly', days:[1,3,5], start:'09:00', end:'10:00', kubun:'seikatsu', staffId:st2},
+    {id:'demo-p2', userId:'u2', type:'weekly', days:[1,4],   start:'11:00', end:'11:45', kubun:'shintai',  staffId:st2},
+    {id:'demo-p3', userId:'u3', type:'weekly', days:[2,5],   start:'14:00', end:'15:00', kubun:'both',     staffId:st1}
   );
 
   // --- 買い物の金銭記録 ---
@@ -2722,6 +2757,13 @@ function seedDemoData(){
       staffId:s.staffId, staffName:st?st.name:'', fromId:s.fromId, fromName:fr?fr.name:'',
       text:s.text, ack:s.ack?date:'', ackBy:s.ack?(st?st.name:''):'', reportId:r?r.id:''});
   });
+
+  // --- 職員の勤務予定(月〜金 9-18 / 月〜土 9-17) ---
+  const w1={}, w2={};
+  [1,2,3,4,5].forEach(d=>w1[d]={from:'09:00',to:'18:00'});
+  [1,2,3,4,5,6].forEach(d=>w2[d]={from:'09:00',to:'17:00'});
+  const s1=db.staff.find(x=>x.id===st1); if(s1&&!s1.work) s1.work=w1;
+  const s2=db.staff.find(x=>x.id===st2); if(s2&&!s2.work) s2.work=w2;
 
   // --- 研修・会議・委員会 ---
   //  直近のヒヤリハット(浴室での転倒しかけ)を会議で扱った、という流れにして
@@ -3143,14 +3185,19 @@ function renderPlan(){
   }).join('') : '<p class="muted">この日の予定はありません。下の「＋ 予定を追加」から登録してください。</p>';
   const all=db.plans.slice().sort((a,b)=>(a.start<b.start?-1:1));
   document.getElementById('plan-count').textContent=all.length+'件';
+  const sopts=(sel)=>'<option value="">担当未定</option>'+(db.staff||[]).map(s=>`<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.name)}</option>`).join('');
   document.getElementById('plan-list').innerHTML = all.length ? all.map(p=>{
     const u=user(p.userId);
     const when=p.type==='once' ? p.date : '毎週 '+(p.days||[]).map(d=>WD_LBL[d]).join('・')+'曜';
     return `<div class="check-row"><div class="check-ic">📅</div>
-      <div style="flex:1;min-width:0"><div class="t">${esc(u?u.name:'(削除済み利用者)')}</div>
-        <div class="d">${esc(when)} ${esc(p.start)}〜${esc(p.end)}(${KUBUN_LBL[p.kubun]||''})</div></div>
-      <button class="btn mini sec" onclick="delPlan('${p.id}')">削除</button></div>`;
+      <div style="flex:1;min-width:0"><div class="t">${esc(u?u.name:'(削除済み利用者)')}${p.staffId?'':' <span class="chip y">担当未定</span>'}</div>
+        <div class="d">${esc(when)} ${esc(p.start)}〜${esc(p.end)}(${KUBUN_LBL[p.kubun]||''})</div>
+        <div class="row" style="margin-top:6px;align-items:center">
+          <select onchange="assignPlanStaff('${p.id}', this.value)" style="max-width:170px">${sopts(p.staffId||'')}</select>
+          <button class="btn mini sec" onclick="delPlan('${p.id}')">削除</button>
+        </div></div></div>`;
   }).join('') : '<p class="muted">まだ予定はありません。</p>';
+  renderStaffDay();
 }
 function addPlan(){
   const userId=document.getElementById('pl-user').value;
@@ -3158,7 +3205,8 @@ function addPlan(){
   const type=document.getElementById('pl-type').value;
   const p={id:'pl'+Date.now(), userId, type,
     start:document.getElementById('pl-start').value, end:document.getElementById('pl-end').value,
-    kubun:document.getElementById('pl-kubun').value};
+    kubun:document.getElementById('pl-kubun').value,
+    staffId:(document.getElementById('pl-staff')||{}).value||''};
   if(type==='weekly'){
     p.days=[...document.querySelectorAll('#pl-wd input:checked')].map(e=>+e.value);
     if(!p.days.length){ alert('曜日を1つ以上選択してください。'); return; }
@@ -3166,6 +3214,9 @@ function addPlan(){
     p.date=document.getElementById('pl-once').value;
     if(!p.date){ alert('日付を選択してください。'); return; }
   }
+  // 登録前に、同じ担当の時間の重なりを知らせる(登録は止めない ― 現場の判断を優先)
+  const cf=planConflictMsg(p);
+  if(cf && !confirm(cf+'\n\nこのまま登録しますか?')) return;
   db.plans.push(p); save(); renderPlan(); renderHome();
   alert('予定を登録しました。');
 }
@@ -3185,6 +3236,7 @@ function startFromPlan(id){
   renderVisitRefs();
   setTimeSel('visit-start', p.start); setTimeSel('visit-end', p.end);
   document.getElementById('visit-kubun').value=p.kubun;
+  if(p.staffId && staff(p.staffId)) document.getElementById('visit-staff').value=p.staffId;
   renderVisitEditing();
   document.getElementById('visit-text').focus();
 }
@@ -3279,6 +3331,10 @@ function editShiji(id){
 function hideSjForm(){ document.getElementById('sj-form').style.display='none'; editingShiji=null; }
 
 /* 対象日・利用者に合う訪問予定だけを選べるようにする(「どの訪問への指示か」を残す) */
+function sjPlanChanged(){
+  const p=db.plans.find(x=>x.id===(document.getElementById('sj-plan')||{}).value);
+  if(p && p.staffId && staff(p.staffId)) document.getElementById('sj-staff').value=p.staffId;
+}
 function renderSjPlanSel(){
   const el=document.getElementById('sj-plan'); if(!el) return;
   const d=document.getElementById('sj-date').value||fullDate();
@@ -4418,6 +4474,376 @@ function printKenshuPlan(){
   el.classList.add('on');
   window.print();
   setTimeout(()=>el.classList.remove('on'), 500);
+}
+
+
+/* ============================================================
+   職員軸の予定管理
+   これまでの📅予定は「どの利用者を訪問するか」だけだった。
+   サ責の実務は「誰を・誰が・いつ回るか」の采配で、
+   ダブルブッキングと勤務時間外、急な欠勤時の空き探しが日常。
+   予定に担当を持たせ、職員側から見えるようにする。
+   ============================================================ */
+function planStaff(p){ return p.staffId ? staff(p.staffId) : null; }
+
+/* 2つの時間帯の重なり(分)。どちらか欠けていれば0 */
+function overlapMin(a1,b1,a2,b2){
+  const s1=hhmm(a1), e1=hhmm(b1), s2=hhmm(a2), e2=hhmm(b2);
+  if(s1===null||e1===null||s2===null||e2===null) return 0;
+  return Math.max(0, Math.min(e1,e2)-Math.max(s1,s2));
+}
+
+/* その日の、同じ担当の時間の重なり */
+function staffConflicts(dateStr){
+  const ps=plansFor(dateStr).filter(p=>p.staffId);
+  const out=[];
+  for(let i=0;i<ps.length;i++) for(let j=i+1;j<ps.length;j++){
+    const a=ps[i], b=ps[j];
+    if(a.staffId!==b.staffId) continue;
+    if(overlapMin(a.start,a.end,b.start,b.end)>0) out.push({staffId:a.staffId, a, b});
+  }
+  return out;
+}
+
+/* 追加・変更しようとしている予定が既存とぶつかるか(メッセージを返す) */
+function planConflictMsg(p, ignoreId){
+  if(!p.staffId) return '';
+  const days = p.type==='once' ? [p.date] : null;
+  // 毎週予定は「その曜日の代表日」で判定する(直近でその曜日になる日)
+  const dates = days || (p.days||[]).map(wd=>{
+    const d=new Date(fullDate()+'T00:00:00');
+    d.setDate(d.getDate() + ((wd - d.getDay()) + 7) % 7);
+    return d.toISOString().slice(0,10);
+  });
+  for(const ds of dates){
+    if(!ds) continue;
+    const hit=plansFor(ds).find(x=>x.id!==ignoreId && x.id!==p.id && x.staffId===p.staffId &&
+      overlapMin(x.start,x.end,p.start,p.end)>0);
+    if(hit){
+      const u=user(hit.userId);
+      return `⛔ ${(staff(p.staffId)||{}).name||''} は同じ時間帯に別の予定があります:\n${WD_LBL[new Date(ds+'T00:00:00').getDay()]}曜 ${hit.start}〜${hit.end} ${u?u.name:''}`;
+    }
+  }
+  return '';
+}
+
+/* 勤務予定: s.work = { 曜日番号: {from,to} }。未登録(null)なら判定しない */
+function workOf(staffId, dateStr){
+  const s=staff(staffId); if(!s||!s.work) return undefined;   // 未登録
+  return s.work[new Date(dateStr+'T00:00:00').getDay()] || null;   // null=休み
+}
+function outsideWork(p, dateStr){
+  if(!p.staffId) return false;
+  const w=workOf(p.staffId, dateStr);
+  if(w===undefined) return false;          // 勤務予定を登録していない職員は判定しない
+  if(w===null) return true;                // その曜日は休み
+  const a=hhmm(p.start), b=hhmm(p.end), f=hhmm(w.from), t=hhmm(w.to);
+  if(a===null||b===null||f===null||t===null) return false;
+  return a<f || b>t;
+}
+
+/* 勤務時間から予定を引いた空き時間 */
+function freeSlots(staffId, dateStr){
+  const w=workOf(staffId, dateStr);
+  if(w===undefined||w===null) return null;
+  const busy=plansFor(dateStr).filter(p=>p.staffId===staffId)
+    .map(p=>[hhmm(p.start), hhmm(p.end)]).filter(x=>x[0]!==null&&x[1]!==null)
+    .sort((a,b)=>a[0]-b[0]);
+  const out=[]; let cur=hhmm(w.from); const end=hhmm(w.to);
+  busy.forEach(([s,e])=>{ if(s>cur) out.push([cur, Math.min(s,end)]); cur=Math.max(cur,e); });
+  if(cur<end) out.push([cur,end]);
+  const mm=v=>String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');
+  return out.filter(([s,e])=>e-s>=30).map(([s,e])=>mm(s)+'〜'+mm(e));
+}
+
+function assignPlanStaff(planId, staffId){
+  const p=db.plans.find(x=>x.id===planId); if(!p) return;
+  if(staffId){
+    const cf=planConflictMsg(Object.assign({},p,{staffId}), p.id);
+    if(cf && !confirm(cf+'\n\nこのまま割り当てますか?')){ renderPlan(); return; }
+  }
+  p.staffId=staffId||'';
+  save(); renderPlan(); renderHome();
+}
+
+/* ---------- 職員別デイリー表 ---------- */
+function renderStaffDay(){
+  const el=document.getElementById('staff-day'); if(!el) return;
+  const dateStr=(document.getElementById('pl-date')||{}).value||fullDate();
+  const ps=plansFor(dateStr);
+  const cfs=staffConflicts(dateStr);
+  const cfIds=new Set(cfs.flatMap(c=>[c.a.id,c.b.id]));
+  const unassigned=ps.filter(p=>!p.staffId);
+  const warn=document.getElementById('sd-warn');
+  if(warn){
+    const n=cfs.length+unassigned.length;
+    warn.style.display=n?'':'none';
+    warn.textContent=cfs.length?`重なり ${cfs.length}`:`担当未定 ${unassigned.length}`;
+    warn.className=cfs.length?'chip r':'chip y';
+  }
+  if(!ps.length){ el.innerHTML='<p class="muted">この日の予定はありません。</p>'; return; }
+  const sopts=(sel)=>'<option value="">担当未定</option>'+(db.staff||[]).map(s=>`<option value="${s.id}" ${s.id===sel?'selected':''}>${esc(s.name)}</option>`).join('');
+  const row=(p, flags)=>{
+    const u=user(p.userId);
+    return `<div class="check-row"><div class="check-ic">${flags.length?'⛔':'🕐'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="t">${esc(p.start)}〜${esc(p.end)} ${esc(u?u.name:'')} <span class="chip g">${KUBUN_LBL[p.kubun]||''}</span>
+          ${flags.map(f=>`<span class="chip r">${f}</span>`).join('')}</div>
+        ${!p.staffId?`<div class="row" style="margin-top:6px"><select onchange="assignPlanStaff('${p.id}', this.value)" style="max-width:170px">${sopts('')}</select></div>`:''}
+      </div></div>`;
+  };
+  let html='';
+  (db.staff||[]).forEach(s=>{
+    const mine=ps.filter(p=>p.staffId===s.id).sort((a,b)=>a.start<b.start?-1:1);
+    if(!mine.length && !s.work) return;   // 予定も勤務予定もない職員は出さない
+    const w=workOf(s.id, dateStr);
+    const free=freeSlots(s.id, dateStr);
+    html+=`<div style="margin-top:12px"><b>👤 ${esc(s.name)}</b>
+      <span class="muted" style="font-size:12px"> ${w===undefined?'(勤務予定 未登録)':(w===null?'(この曜日は休み)':`勤務 ${esc(w.from)}〜${esc(w.to)}`)}</span></div>`;
+    html+= mine.length ? mine.map(p=>{
+      const flags=[];
+      if(cfIds.has(p.id)) flags.push('時間が重なっています');
+      if(outsideWork(p, dateStr)) flags.push('勤務時間外');
+      return row(p, flags);
+    }).join('') : '<p class="muted" style="margin:4px 0 0">この日の予定はありません。</p>';
+    if(free && free.length && mine.length) html+=`<div class="muted" style="font-size:12px;margin-top:4px">空き: ${free.map(esc).join(' ／ ')}</div>`;
+  });
+  if(unassigned.length){
+    html+=`<div style="margin-top:12px"><b>❓ 担当が未定</b> <span class="chip y">${unassigned.length}件</span></div>`
+      + unassigned.map(p=>row(p, [])).join('');
+  }
+  el.innerHTML=html;
+  renderWorkEdit();
+}
+
+/* ---------- 勤務予定の編集 ---------- */
+function renderWorkEdit(){
+  const el=document.getElementById('sw-body'); if(!el) return;
+  const sid=(document.getElementById('sw-staff')||{}).value;
+  const s=staff(sid);
+  if(!s){ el.innerHTML='<p class="muted">職員が未登録です。⚙️設定→👥職員で登録してください。</p>'; return; }
+  const w=s.work||{};
+  el.innerHTML=`<div class="tblwrap"><table class="tbl">
+    <tr><th>曜日</th><th>勤務</th><th>開始</th><th>終了</th></tr>
+    ${[0,1,2,3,4,5,6].map(d=>{
+      const v=w[d];
+      return `<tr><td>${WD_LBL[d]}</td>
+        <td><input type="checkbox" ${v?'checked':''} onchange="swSet('${sid}',${d},'on',this.checked)"></td>
+        <td><input type="time" value="${esc(v?v.from:'09:00')}" ${v?'':'disabled'} onchange="swSet('${sid}',${d},'from',this.value)"></td>
+        <td><input type="time" value="${esc(v?v.to:'18:00')}" ${v?'':'disabled'} onchange="swSet('${sid}',${d},'to',this.value)"></td></tr>`;
+    }).join('')}
+  </table></div>`;
+}
+function swSet(sid, wd, field, val){
+  const s=staff(sid); if(!s) return;
+  s.work=s.work||{};
+  if(field==='on'){
+    if(val) s.work[wd]=s.work[wd]||{from:'09:00',to:'18:00'};
+    else delete s.work[wd];
+  }else{
+    if(!s.work[wd]) s.work[wd]={from:'09:00',to:'18:00'};
+    s.work[wd][field]=val;
+  }
+  save(); renderWorkEdit(); renderStaffDay(); renderHome();
+}
+
+/* ---------- 職員予定表のA4(事務所の壁に貼る用) ---------- */
+function printStaffDay(){
+  const dateStr=(document.getElementById('pl-date')||{}).value||fullDate();
+  const o=db.office||{};
+  const ps=plansFor(dateStr);
+  const cfIds=new Set(staffConflicts(dateStr).flatMap(c=>[c.a.id,c.b.id]));
+  const wd=WD_LBL[new Date(dateStr+'T00:00:00').getDay()];
+  const block=(label, list)=> list.length ? `
+    <tr><th colspan="4" style="text-align:left;background:#f0f0f0">${esc(label)}</th></tr>
+    ${list.map(p=>{ const u=user(p.userId);
+      return `<tr><td>${esc(p.start)}〜${esc(p.end)}</td><td>${esc(u?u.name:'')} 様</td>
+        <td>${KUBUN_LBL[p.kubun]||''}</td><td>${cfIds.has(p.id)?'⚠ 時間重複':''}</td></tr>`; }).join('')}` : '';
+  const el=document.getElementById('pl-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">訪問予定表(職員別)</div>
+    <div class="shead">
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>対象日</b>${esc(dateStr)}(${wd})</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>時間</th><th>利用者</th><th>区分</th><th>備考</th></tr>
+      ${(db.staff||[]).map(s=>block('👤 '+s.name, ps.filter(p=>p.staffId===s.id).sort((a,b)=>a.start<b.start?-1:1))).join('')}
+      ${block('❓ 担当未定', ps.filter(p=>!p.staffId))}
+    </table></div>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>サービス提供責任者確認　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
+/* ============================================================
+   ケアマネとのデータ連携(CSV)
+   ワイズマン等の他社ソフトを使う居宅介護支援事業所と、提供票を
+   紙・FAXではなくデータでやり取りするための入口。
+   - 取込: ケアマネの提供票(予定)CSV → 訪問予定を自動作成(担当は未定で入る)
+   - 出力: 当月の実績を1行=1回の行形式CSVで書き出す
+   列名はケアプランデータ連携で使われる項目に合わせるが、検証版は
+   簡易形式。正式な連携ファイル(所定レイアウト)は本番で対応する。
+   ============================================================ */
+const RK_KUBUN=[['shintai','身体介護'],['seikatsu','生活援助'],['both','身体介護＋生活援助'],['joukou','通院等乗降介助']];
+
+function exportRenkeiCsv(){
+  const u=user(tkUid()); if(!u){ alert('利用者を選択してください。'); return; }
+  const ym=billYm(), o=db.office||{};
+  const rows=[['種別','事業所番号','事業所名','被保険者番号','利用者名','提供日','開始時刻','終了時刻','サービスコード','サービス内容','単位数']];
+  const reps=db.reports.filter(x=>x.userId===u.id && (x.date||'').slice(0,7)===ym).sort((a,b)=>a.date<b.date?-1:1);
+  const ms=activeMaster(ym);
+  reps.forEach(x=>{
+    const b=visitUnits(ms, x);
+    rows.push(['実績', o.no||'', o.name||'', u.hokenNo||'', u.name, x.date, x.start||'', x.end||'', b.code||'', KUBUN_LBL[x.kubun]||'', String(b.unit||0)]);
+  });
+  if(reps.length===0){ alert('この利用者の当月実績がありません。'); return; }
+  const csv='﻿'+rows.map(x=>x.map(c=>/[,"\n]/.test(c||'')?'"'+String(c).replace(/"/g,'""')+'"':(c||'')).join(',')).join('\r\n')+'\r\n';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`renkei_jisseki_${u.name}_${ym}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* 素朴なCSVパーサ(引用符・改行対応) */
+function parseCsvText(text){
+  const rows=[]; let row=[], cell='', q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){ cell+='"'; i++; } else q=false; }
+      else cell+=c;
+    }else{
+      if(c==='"') q=true;
+      else if(c===','){ row.push(cell); cell=''; }
+      else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++;
+        row.push(cell); cell=''; if(row.some(x=>x!=='')) rows.push(row); row=[]; }
+      else cell+=c;
+    }
+  }
+  row.push(cell); if(row.some(x=>x!=='')) rows.push(row);
+  return rows;
+}
+
+/* 列名の揺れを吸収してインデックスを引く */
+function rkFindCol(header, keys){
+  return header.findIndex(h=>keys.some(k=>(h||'').replace(/\s/g,'').includes(k)));
+}
+function rkNormTime(s){
+  const m=/^(\d{1,2})[:時]?(\d{2})/.exec(String(s||'').trim());
+  return m? String(+m[1]).padStart(2,'0')+':'+m[2] : '';
+}
+function rkNormDate(s, ym){
+  const t=String(s||'').trim();
+  let m=/^(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/.exec(t);
+  if(m) return `${m[1]}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;
+  m=/^(\d{1,2})$/.exec(t);   // 日だけの列(1〜31)は対象月で補う
+  if(m && ym) return `${ym}-${String(+m[1]).padStart(2,'0')}`;
+  return '';
+}
+function rkGuessKubun(s){
+  const t=String(s||'');
+  if(/乗降|通院/.test(t)) return 'joukou';
+  if(/身体.*生活|生活.*身体|＋|\+/.test(t)) return 'both';
+  if(/身体/.test(t)) return 'shintai';
+  if(/生活|家事/.test(t)) return 'seikatsu';
+  // サービスコードの先頭からの推定(11xxxx=訪問介護)
+  if(/^11/.test(t)){ const c=t.slice(2,4); if(c<='14') return 'shintai'; }
+  return 'shintai';
+}
+
+/* CSVテキスト → 取り込み候補の行(status付き)。テストしやすいよう分離 */
+function parseRenkeiCsv(text){
+  const rows=parseCsvText(text);
+  if(rows.length<2) return {error:'CSVに行がありません。1行目を見出し、2行目以降をデータにしてください。', items:[]};
+  const h=rows[0];
+  const ci={
+    type:  rkFindCol(h, ['種別','区分(予定','予定実績']),
+    hoken: rkFindCol(h, ['被保険者番号','被保険者No']),
+    name:  rkFindCol(h, ['利用者名','氏名','利用者']),
+    date:  rkFindCol(h, ['提供日','日付','年月日','サービス提供日']),
+    start: rkFindCol(h, ['開始']),
+    end:   rkFindCol(h, ['終了']),
+    code:  rkFindCol(h, ['サービスコード','コード']),
+    svc:   rkFindCol(h, ['サービス内容','内容','サービス名']),
+  };
+  if(ci.date<0 || ci.start<0) return {error:'「提供日(日付)」と「開始時刻」の列が見つかりません。1行目の見出しをご確認ください。', items:[]};
+  const ym=billYm();
+  const items=rows.slice(1).map(r=>{
+    const get=i=>i>=0?(r[i]||''):'';
+    const typ=get(ci.type);
+    const it={
+      type: typ, date: rkNormDate(get(ci.date), ym),
+      start: rkNormTime(get(ci.start)), end: rkNormTime(get(ci.end)),
+      hokenNo: get(ci.hoken).trim(), name: get(ci.name).trim(),
+      code: get(ci.code).trim(), svc: get(ci.svc).trim(),
+    };
+    it.kubun=rkGuessKubun(it.svc||it.code);
+    // 利用者の突合: 被保険者番号 → 氏名(空白無視)
+    let u=null;
+    if(it.hokenNo) u=db.users.find(x=>(x.hokenNo||'')===it.hokenNo);
+    if(!u && it.name) u=db.users.find(x=>x.name.replace(/[\s　]/g,'')===it.name.replace(/[\s　]/g,''));
+    it.userId=u?u.id:'';
+    if(typ && /実績/.test(typ)) it.status='skip-jisseki';
+    else if(!it.date) it.status='no-date';
+    else if(!it.start) it.status='no-time';
+    else if(!u) it.status='no-user';
+    else if(db.plans.some(p=>p.type==='once' && p.userId===u.id && p.date===it.date && p.start===it.start)) it.status='dup';
+    else it.status='ok';
+    return it;
+  });
+  return {error:'', items};
+}
+
+let rkItems=[];
+function importRenkeiCsv(ev){
+  const f=ev.target.files && ev.target.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    // ケアマネソフトのCSVはShift_JISが多い。UTF-8で読めなければ切り替える
+    const buf=fr.result;
+    let text;
+    try{ text=new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+    catch(e){ try{ text=new TextDecoder('shift_jis').decode(buf); }catch(e2){ text=new TextDecoder('utf-8').decode(buf); } }
+    text=text.replace(/^﻿/,'');
+    const r=parseRenkeiCsv(text);
+    renderRkPreview(r);
+    ev.target.value='';
+  };
+  fr.readAsArrayBuffer(f);
+}
+const RK_STATUS_LBL={ok:'取込OK', dup:'すでに同じ予定があります(スキップ)', 'no-user':'利用者が見つかりません(被保険者番号か氏名を確認)',
+                     'no-date':'日付が読めません', 'no-time':'開始時刻が読めません', 'skip-jisseki':'実績行(予定のみ取り込みます)'};
+function renderRkPreview(r){
+  const el=document.getElementById('rk-preview'); if(!el) return;
+  if(r.error){ el.innerHTML=`<div class="banner">⚠️ ${esc(r.error)}</div>`; rkItems=[]; return; }
+  rkItems=r.items;
+  const ok=r.items.filter(x=>x.status==='ok').length;
+  el.innerHTML=`
+    <div class="banner">${ok?`✅ <b>${ok}件</b>を訪問予定として取り込めます。`:'⚠️ 取り込める行がありません。'} 全${r.items.length}行を確認してから「予定に反映」を押してください。<b>担当は未定で入る</b>ので、📅予定の「職員の予定」で割り当ててください。</div>
+    <div class="tblwrap"><table class="tbl">
+      <tr><th>状態</th><th>日付</th><th>時間</th><th>利用者</th><th>区分</th></tr>
+      ${r.items.map(x=>`<tr>
+        <td>${x.status==='ok'?'✅':'⚠️'} ${esc(RK_STATUS_LBL[x.status]||'')}</td>
+        <td>${esc(x.date||'―')}</td><td>${esc(x.start||'')}${x.end?'〜'+esc(x.end):''}</td>
+        <td>${esc((user(x.userId)||{}).name||x.name||x.hokenNo||'―')}</td>
+        <td>${KUBUN_LBL[x.kubun]||''}</td></tr>`).join('')}
+    </table></div>
+    ${ok?`<button class="btn" style="margin-top:12px" onclick="applyRenkeiRows()">📅 ${ok}件を予定に反映</button>`:''}`;
+}
+function applyRenkeiRows(){
+  const ok=rkItems.filter(x=>x.status==='ok');
+  if(!ok.length) return;
+  ok.forEach((x,i)=>{
+    db.plans.push({id:'rk'+Date.now()+'-'+i, userId:x.userId, type:'once',
+      date:x.date, start:x.start, end:x.end||x.start, kubun:x.kubun, staffId:''});
+  });
+  save();
+  rkItems=[];
+  document.getElementById('rk-preview').innerHTML=
+    `<div class="banner">✅ ${ok.length}件を訪問予定に反映しました。担当は未定です ― 📅予定タブの「👥 職員の予定」で割り当ててください。</div>`;
+  if(document.getElementById('pl-date')) renderPlan();
+  renderHome();
 }
 
 /* ---------- 訪問時の注意(その家のルール)の報告画面表示 ---------- */

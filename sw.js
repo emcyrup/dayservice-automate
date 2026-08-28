@@ -14,7 +14,7 @@
  *
  * 更新のしかた: 配信内容を変えたら CACHE_VERSION を上げる。
  */
-const CACHE_VERSION = '2026-08-26d';
+const CACHE_VERSION = '2026-08-28a';
 const CACHE = 'app-' + CACHE_VERSION;
 const BASE = new URL('./', self.location).pathname;   // 例: /dayservice-automate/
 
