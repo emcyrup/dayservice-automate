@@ -143,7 +143,7 @@
   .rec-item.open .body{display:block;-webkit-line-clamp:unset;overflow:visible}
   .rec-item.rich .body{white-space:normal}
   .rec-item .h{cursor:pointer}
-  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print,#pl-print{display:none}
+  #report-print,#kei-print,#tk-print,#sj-print,#kj-print,#inc-print,#kg-print,#pl-print,#as-print{display:none}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
   @keyframes sp{to{transform:rotate(360deg)}}
   .tkgrid{font-size:11px}
@@ -201,7 +201,7 @@
   .sheet .sfoot{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;font-weight:700}
   @media print{
     .topbar,.foot,.totop,.noprint{display:none!important}
-    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on,#pl-print.on{display:block!important}
+    #report-print.on,#kei-print.on,#tk-print.on,#sj-print.on,#kj-print.on,#inc-print.on,#kg-print.on,#pl-print.on,#as-print.on{display:block!important}
     body{display:block!important;background:#fff}
     main{grid-column:auto;max-width:none;width:auto;padding:0;margin:0}
     .view{display:none!important}
@@ -508,7 +508,12 @@
 
   <!-- ============ 訪問介護計画書 ============ -->
   <section id="v-keikaku" class="view">
-    <h2 class="title noprint">📝 訪問介護計画書</h2>
+    <h2 class="title noprint">📝 計画・アセスメント</h2>
+    <div class="subnav noprint">
+      <button data-s="plan" class="on" onclick="kkSec('plan')">📝 計画書</button>
+      <button data-s="assess" onclick="kkSec('assess')">🔍 アセスメント</button>
+    </div>
+    <div data-kksec="plan">
     <div class="banner noprint">📋 <b>運営基準で作成・説明・同意・交付が義務</b>づけられた書類です(未作成は減算・指導の対象)。居宅サービス計画(ケアプラン)の目標に沿って援助目標とサービス内容を定め、変更のたびに作り直します。<br>🤖 <b>直近の訪問報告からAIが下書き</b>します ― 「実際に行っている支援」を拾うので、ゼロから書くより早く、計画と実態のズレも減らせます。<b>内容は必ずサービス提供責任者が確認・修正</b>してから説明・交付してください。</div>
     <div class="card noprint">
       <label class="fld">利用者</label>
@@ -564,8 +569,65 @@
       <div class="subttl">この方の計画書 <span class="chip g" id="kei-count"></span></div>
       <div id="kei-list"></div>
     </div>
+    </div><!-- /data-kksec=plan -->
+
+    <div data-kksec="assess" style="display:none">
+      <div class="banner noprint">🔍 <b>アセスメント(課題分析)は訪問介護計画の根拠</b>です。運営指導では「なぜこの計画になったのか」を課題分析の記録で説明できることが求められます。ここで残した課題は、📝計画書のAI下書きにも渡ります。<br>🤖 <b>生活課題は直近の報告・バイタル・医療情報からAIが下書き</b>します。内容は必ずサービス提供責任者がご本人の状態を確認して書き換えてください。</div>
+
+      <div class="card noprint">
+        <label class="fld">利用者</label>
+        <select id="as-user" onchange="renderAssess()"></select>
+        <div id="as-status" style="margin-top:12px"></div>
+        <button class="btn" style="margin-top:12px" onclick="newAssess()">＋ アセスメントを実施する</button>
+      </div>
+
+      <div class="card noprint" id="as-form" style="display:none">
+        <div class="subttl" id="as-form-title">アセスメントの記録</div>
+        <div class="grid2">
+          <div><label class="fld">実施日</label><input type="date" id="as-date"></div>
+          <div><label class="fld">実施者(サービス提供責任者)</label><select id="as-staff"></select></div>
+        </div>
+
+        <div class="subttl" style="margin-top:16px">① 心身の状況(ADL)</div>
+        <div id="as-adl"></div>
+        <div class="subttl" style="margin-top:16px">② 生活行為(IADL)</div>
+        <div id="as-iadl"></div>
+
+        <div class="subttl" style="margin-top:16px">③ 生活の状況</div>
+        <label class="fld">住環境・生活状況</label>
+        <textarea id="as-kankyo" placeholder="例: 一戸建て2階建て、寝室は1階。玄関に段差あり。日中は独居。"></textarea>
+        <label class="fld">家族・周囲の支援</label>
+        <textarea id="as-kazoku" placeholder="例: 長男夫婦が隣市在住、週末に訪問。近隣に民生委員の見守りあり。"></textarea>
+        <label class="fld">健康状態 <span class="muted">※🩺医療情報から写せます</span></label>
+        <div class="row" style="margin-bottom:6px"><button class="btn mini sec" onclick="asFromMed()">🩺 医療情報から写す</button></div>
+        <textarea id="as-health" placeholder="例: 高血圧で服薬中。直近のバイタルは安定。"></textarea>
+
+        <div class="subttl" style="margin-top:16px">④ 本人・ご家族の意向</div>
+        <textarea id="as-ikou" placeholder="例: ご本人「自宅での生活を続けたい。調理は自分でもやりたい」。長男さま「転倒が心配」。"></textarea>
+
+        <div class="subttl" style="margin-top:16px">⑤ 生活課題と支援の方向性</div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea id="as-issues" style="flex:1;min-height:110px" placeholder="例) ・浴室での転倒リスクが高い → 入浴時の見守りと環境整備&#10;・調理の負担が大きい → 作り置きの支援で自炊を続けられるようにする"></textarea>
+          <button id="as-mic" class="mic sm" onclick="toggleDict('as-mic','as-issues','as-hint')">🎤</button>
+        </div>
+        <div class="muted" id="as-hint" style="margin:4px 0 0"></div>
+
+        <div id="as-ai-note" style="margin-top:12px"></div>
+        <button class="btn" id="as-gen" style="margin-top:12px" onclick="genAssess()">🤖 報告・バイタル・医療情報から課題を下書きする</button>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" onclick="saveAssess()">💾 アセスメントを保存</button>
+          <button class="btn sec" onclick="hideAsForm()">キャンセル</button>
+        </div>
+      </div>
+
+      <div class="card noprint">
+        <div class="subttl">この方のアセスメント <span class="chip g" id="as-count"></span></div>
+        <div id="as-list"></div>
+      </div>
+    </div>
 
     <div id="kei-print" class="sheet"></div>
+    <div id="as-print" class="sheet"></div>
   </section>
 
   <section id="v-report" class="view">
@@ -1328,6 +1390,26 @@
           <div><label class="fld">📞 緊急連絡</label><input type="text" id="uf-r-contact" placeholder="例: 長女→ケアマネの順"></div>
         </div>
         <label class="fld">⚠️ 禁忌・注意事項</label><textarea id="uf-r-care" placeholder="例: 食事はきざみ食。玄関の段差で転倒歴あり。宗教上の配慮など"></textarea>
+
+        <div class="subttl" style="margin-top:14px">🩺 医療情報(緊急時に見る欄)</div>
+        <p class="muted">体調の急変・事故のとき、ヘルパーがその場で見る情報です。📋報告の画面にも自動で出ます。</p>
+        <label class="fld">既往歴・現在の病気</label><textarea id="uf-m-history" placeholder="例: 高血圧、変形性膝関節症。2024年に大腿骨頸部骨折(手術済み)"></textarea>
+        <label class="fld">服薬(内容と管理方法)</label><textarea id="uf-m-meds" placeholder="例: 降圧薬(朝1回)。お薬カレンダーで自己管理、飲み忘れ時々あり"></textarea>
+        <div class="grid2">
+          <div><label class="fld">かかりつけ医・医療機関</label><input type="text" id="uf-m-doctor" placeholder="例: ◯◯内科クリニック(△△先生)"></div>
+          <div><label class="fld">医療機関の連絡先</label><input type="text" id="uf-m-doctel" placeholder="例: 03-0000-0000"></div>
+        </div>
+        <label class="fld">アレルギー・禁忌薬</label><input type="text" id="uf-m-allergy" placeholder="例: ペニシリン系、そば">
+        <label class="fld">主治医からのバイタル指示値 <span class="muted">※空欄なら一般的な目安(37.5℃/140/93%)で判定します</span></label>
+        <div class="grid2">
+          <div><label class="fld" style="font-size:11.5px">体温 上限(℃)</label><input type="number" id="uf-m-vtemp" step="0.1" min="35" max="40" placeholder="37.5"></div>
+          <div><label class="fld" style="font-size:11.5px">収縮期血圧 上限</label><input type="number" id="uf-m-vbph" step="1" min="90" max="220" placeholder="140"></div>
+        </div>
+        <div class="grid2">
+          <div><label class="fld" style="font-size:11.5px">SpO2 下限(%)</label><input type="number" id="uf-m-vspo2" step="1" min="80" max="99" placeholder="93"></div>
+          <div></div>
+        </div>
+
         <div class="row" style="margin-top:12px">
           <button class="btn" onclick="saveUser()">保存</button>
           <button class="btn sec" onclick="hideUserForm()">キャンセル</button>
@@ -1353,6 +1435,7 @@
       </div>
     </div>
     <div class="card"><div class="subttl">🏠 訪問時の注意(その家のルール)</div><div id="ud-rules"></div></div>
+    <div class="card"><div class="subttl">🩺 医療情報</div><div id="ud-med"></div></div>
     <div class="card"><div class="subttl">🩺 バイタルの推移</div><div id="ud-vital"></div></div>
     <div class="card"><div class="subttl">直近の報告</div><div id="ud-reports"></div></div>
     <div class="card"><div class="subttl">いつもの品</div><div id="ud-items"></div></div>
@@ -1556,7 +1639,7 @@ const seed = {
     { id:'st1', name:'職員A', role:'サービス提供責任者' },
     { id:'st2', name:'職員B', role:'訪問介護員' }
   ],
-  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [], complaints: [], incidents: [], kaigi: [], kenshuPlan: [],
+  memos: [], reports: [], trips: [], life: [], scans: [], plans: [], moneys: [], casesShared: [], chat: [], keikaku: [], shiji: [], complaints: [], incidents: [], kaigi: [], kenshuPlan: [], assess: [],
   cases: [
     { id:'cs1', title:'特定事業所加算 届出理由書の文例(体制要件)', tags:'特定事業所加算 届出 理由書 体制要件',
       text:'当事業所では、訪問介護員等ごとに経験年数・保有資格・本人の意向を踏まえた個別研修計画を作成し、年間を通じて計画的に研修を実施しております。また、サービス提供責任者を中心に、利用者情報の伝達および技術指導を目的とした会議を毎月1回開催し、議事録を保存しています。サービス提供にあたっては、サービス提供責任者が文書等により訪問介護員に対し事前に指示を行い、提供後には担当訪問介護員から適宜報告を受ける体制を整備しております。' },
@@ -1623,7 +1706,7 @@ function load(){ try{ const d=JSON.parse(localStorage.getItem(DB_KEY)); if(d&&d.
         d.office.tokutei=d.office.tokutei||0; d.office.chiiki=d.office.chiiki||0;
         d.limits=d.limits||structuredClone(seed.limits); d.life=d.life||[]; d.scans=d.scans||[]; d.cases=d.cases||structuredClone(seed.cases);
         d.plans=d.plans||[]; d.moneys=d.moneys||[]; d.casesShared=d.casesShared||[]; d.chat=d.chat||[]; d.keikaku=d.keikaku||[];
-        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[]; d.incidents=d.incidents||[]; d.kaigi=d.kaigi||[]; d.kenshuPlan=d.kenshuPlan||[]; d.plans.forEach(p=>{ p.staffId=p.staffId||''; });
+        d.life.forEach(l=>{ if(typeof l.sub!=='string') l.sub = (l.sub && l.subDate) ? l.subDate : ''; delete l.subDate; }); d.staff=d.staff||structuredClone(seed.staff); d.memos=d.memos||[]; d.shiji=d.shiji||[]; d.complaints=d.complaints||[]; d.incidents=d.incidents||[]; d.kaigi=d.kaigi||[]; d.kenshuPlan=d.kenshuPlan||[]; d.plans.forEach(p=>{ p.staffId=p.staffId||''; }); d.users.forEach(u=>{ u.med=u.med||{}; u.vt=u.vt||{}; }); d.assess=d.assess||[];
         if(!d.seidoPack1){ seed.cases.filter(c=>c.kind==='seido').forEach(c=>{ if(!d.cases.some(x=>x.id===c.id)) d.cases.push(structuredClone(c)); }); d.seidoPack1=true; }
         if(!d.master || !d.master.some(m=>m.kind)) d.master=structuredClone(seed.master);
         d.master.forEach(m=>{ m.from=m.from||'2024-04'; if(m.to===undefined) m.to=''; });
@@ -1657,7 +1740,7 @@ function go(t){
   if(t==='home') renderHome();
   if(t==='chat') renderChat();
   if(t==='plan'){ renderPlan(); renderShiji(); }
-  if(t==='keikaku') renderKeikaku();
+  if(t==='keikaku'){ renderKeikaku(); renderAssess(); }
   if(t==='report'){ renderReports(); renderVisitRefs(); renderVisitEditing(); markVisitDate(); renderIncidents(); }
   if(t==='trip'){ renderTrips(); renderTripRoute(); }
   if(t==='shop'){ renderShop(); renderMoney(); }
@@ -1705,6 +1788,9 @@ function renderHome(){
   const noKei=db.users.filter(u=>!latestKei(u.id));
   if(noKei.length) alerts.push({ic:'📝', t:`訪問介護計画書が未作成の利用者が ${noKei.length} 名`,
     d:noKei.slice(0,4).map(u=>u.name).join('、')+(noKei.length>4?' ほか':'')+' ― 運営基準上の必須書類です(未作成は減算・指導の対象)', go:'keikaku'});
+  const noAs=db.users.filter(u=>!latestAssess(u.id));
+  if(noAs.length) alerts.push({ic:'🔍', t:`アセスメント未実施の利用者が ${noAs.length} 名`,
+    d:noAs.slice(0,4).map(u=>u.name).join('、')+(noAs.length>4?' ほか':'')+' ― 計画の根拠となる課題分析の記録です', go:'keikaku'});
   const keiPend=db.users.map(u=>latestKei(u.id)).filter(k=>k&&(!k.doui||!k.koufu)).length;
   if(keiPend) alerts.push({ic:'✍️', t:`計画書の同意・交付が未済 ${keiPend} 件`, d:'利用者への説明と同意・交付の記録が必要です', go:'keikaku'});
   const keiMon=db.users.map(u=>latestKei(u.id)).filter(k=>{
@@ -1780,6 +1866,13 @@ function fillSelects(){
       ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
       : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
     if(k&&staff(k)) el.value=k; });
+  const au=document.getElementById('as-user'); if(au){ const k=au.value; au.innerHTML=opts; if(k) au.value=k; }
+  const ast=document.getElementById('as-staff');
+  if(ast){ const k=ast.value;
+    ast.innerHTML=(db.staff||[]).length
+      ? (db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('')
+      : '<option value="">(職員未登録 ― ⚙️設定→👥職員で追加)</option>';
+    if(k&&staff(k)) ast.value=k; }
   ['pl-staff','sw-staff'].forEach(id=>{ const el=document.getElementById(id); if(!el) return; const k=el.value;
     el.innerHTML=(id==='pl-staff'?'<option value="">(担当未定 ― あとで割り当てる)</option>':'')
       +(db.staff||[]).map(s=>`<option value="${s.id}">${esc(s.name)}${s.role?'('+esc(s.role)+')':''}</option>`).join('');
@@ -1892,6 +1985,22 @@ const demoGenerators = {
       services: svc,
       ryui: (rules||[]).join(' / ') + (risk ? (rules||[]).length?' / 移動時のふらつきに注意し、手すり・声かけで転倒を予防する。':'移動時のふらつきに注意し、手すり・声かけで転倒を予防する。' : ''),
       note: `直近の報告${(reports||[]).length}件から、実際に行っている支援を抽出しました。(検証版のデモ生成です)`
+    };
+  },
+  assess({userName, care, reports, vitals, med, rules}){
+    const rs=(reports||[]).join(' ');
+    const has=re=>re.test(rs);
+    const L=[];
+    if(has(/ふらつ|転倒|滑|つまず/)) L.push('・移動・入浴の場面で転倒リスクが高い → 見守りと声かけ、手すり・マット等の環境整備を徹底する');
+    if(has(/痛|膝|腰/)) L.push('・痛みによる動作の負担 → 動作を急がせず、痛みの訴えを記録して受診時に伝えられるようにする');
+    if(has(/血圧|むくみ/)||(vitals||[]).some(x=>/血圧1[4-9]\d/.test(x))) L.push('・血圧が高めで推移 → 訪問ごとに測定し、指示値を超えたら事業所・主治医へ連絡する');
+    if(has(/食欲|食べ|きざみ|むせ/)) L.push('・食事量・嚥下の状態に注意が必要 → 食事の形態と摂取量を記録し、変化があれば共有する');
+    if(has(/薬|残薬|飲み忘/)||/飲み忘れ/.test((med&&med.meds)||'')) L.push('・服薬の飲み忘れがある → 訪問時に服薬確認を行い、お薬カレンダーの運用をご家族と相談する');
+    if(has(/買い物|調理|掃除/)) L.push('・家事の負担が大きい → できる部分はご本人と一緒に行い、生活能力の維持につなげる');
+    if(!L.length) L.push('・現在の生活は概ね安定 → 変化の早期発見のため、訪問ごとの記録と共有を続ける');
+    return {
+      issues:L.slice(0,5).join('\n'),
+      note:`${userName}(${care||'―'})の直近の報告${(reports||[]).length}件・バイタル・医療情報から課題を下書きしました。(検証版のデモ生成です)`
     };
   },
   kaigi({kindLabel, incidents, complaints, missing, lastMinutes}){
@@ -2378,7 +2487,7 @@ function renderReports(){
         <span><b>${esc(r.date||'')}</b>・${esc((user(r.userId)||{}).name||'(削除済み利用者)')}${r.staffName?`<span class="muted"> ／ ${esc(r.staffName)}</span>`:''}</span>
         <span>${r.draft?'<span class="chip y">下書き</span> ':''}${r.pend?'<span class="chip y">⏳再生成待ち</span>':'<span class="chip g">3形態</span>'}</span>
       </div>
-      <div class="muted" style="font-size:12px;margin-top:3px">${esc(r.start||'')}〜${esc(r.end||'')}・${esc(KUBUN_LBL[r.kubun]||'')}${vitalLine(r.vital)?`　🩺 ${esc(vitalLine(r.vital))}`:''}${vitalFlags(r.vital).length?' <span class="chip y">要確認</span>':''}</div>
+      <div class="muted" style="font-size:12px;margin-top:3px">${esc(r.start||'')}〜${esc(r.end||'')}・${esc(KUBUN_LBL[r.kubun]||'')}${vitalLine(r.vital)?`　🩺 ${esc(vitalLine(r.vital))}`:''}${vitalFlags(r.vital, user(r.userId)).length?' <span class="chip y">要確認</span>':''}</div>
       <div class="body">${body}
         <div class="row" style="margin-top:10px">
           <button class="btn mini sec" onclick="editReport('${r.id}')">✏️ 編集</button>
@@ -2663,6 +2772,7 @@ function editUserFromDetail(){
 /* ---------- デモデータ(初回起動時のみ・日付は相対で生成) ----------
    ⚙️設定の「🧹 サンプルを削除」で利用者ごと消えます。 */
 function seedDemoData(){
+  db.users.forEach(u=>{ u.med=u.med||{}; u.vt=u.vt||{}; });
   if(db.demoSeeded) return;
   db.demoSeeded = true;
   if(!db.users.some(u=>u.id==='u1')) { save(); return; }  // サンプル利用者が消えていれば何もしない
@@ -2757,6 +2867,28 @@ function seedDemoData(){
       staffId:s.staffId, staffName:st?st.name:'', fromId:s.fromId, fromName:fr?fr.name:'',
       text:s.text, ack:s.ack?date:'', ackBy:s.ack?(st?st.name:''):'', reportId:r?r.id:''});
   });
+
+  // --- アセスメント(鈴木さん ― 計画書・報告と噛み合う内容) ---
+  if(!db.assess.some(a=>a.id==='demo-a1')){
+    db.assess.push({ id:'demo-a1', userId:'u2', date:dayOf(35), staffId:st1, staffName:(db.staff.find(x=>x.id===st1)||{}).name||'',
+      adl:{ido:'見守り', shokuji:'自立', haisetsu:'自立', nyuyoku:'一部介助', seiyou:'自立', ifuku:'見守り'},
+      iadl:{chori:'一部介助', souji:'一部介助', sentaku:'自立', kaimono:'全介助', kinsen:'自立', fukuyaku:'見守り'},
+      kankyo:'一戸建て。浴室に手すりあり、床が滑りやすい。寝室は2階だが日中は1階で過ごす。',
+      kazoku:'ご主人と二人暮らし。次男が市内在住で週1回訪問。',
+      health:'高血圧で服薬中(降圧薬 朝1回)。左膝の手術歴。直近は血圧の上昇傾向と膝の痛みの訴えあり。',
+      ikou:'ご本人「入浴は続けたい。膝が痛むが自分でできることは自分で」。ご主人「浴室での転倒が心配」。',
+      issues:'・浴室での転倒リスクが高い → 入浴時の見守り・声かけと、マット等の環境整備を徹底する\n・膝の痛みによる移動の負担 → 立ち上がりの動作を急がせず、痛みの訴えを記録して受診時に伝えられるようにする\n・血圧が高めで推移 → 訪問ごとに測定し、主治医の指示値(上150)を超えたら事業所へ連絡する' });
+  }
+
+  // --- 医療情報(鈴木さん ― 血圧の推移と噛み合う内容にする) ---
+  const mu2=db.users.find(x=>x.id==='u2');
+  if(mu2 && !(mu2.med&&mu2.med.doctor)){
+    mu2.med={ history:'高血圧、変形性膝関節症。2023年に左膝の手術。',
+              meds:'降圧薬(朝1回)。お薬カレンダーで自己管理、飲み忘れ時々あり。',
+              doctor:'さくら内科クリニック(田中先生)', doctorTel:'03-0000-0000',
+              allergy:'ペニシリン系' };
+    mu2.vt={ temp:'', bpH:'150', spo2:'' };   // 主治医から「上150を超えたら連絡」の指示がある想定
+  }
 
   // --- 職員の勤務予定(月〜金 9-18 / 月〜土 9-17) ---
   const w1={}, w2={};
@@ -3055,7 +3187,7 @@ function renderMemos(){
    報告・買い物・LIFE・計画・提供票…とタブごとに選び直していたのをやめ、
    どこかで利用者を選んだら他のタブにも引き継ぐ。 */
 let curUid='';
-const USER_SELECTS=['visit-user','shop-user','money-user','life-user','kei-user','tk-user','kiroku-user','bill-user','ud-user','sj-user'];
+const USER_SELECTS=['visit-user','shop-user','money-user','life-user','kei-user','tk-user','kiroku-user','bill-user','ud-user','sj-user','as-user'];
 const OPT_USER_SELECTS=['trip-user','memo-user','inc-user','kj-user'];   // 「選ばない」を許すもの
 function applyCurUser(ids){
   if(!curUid) return;
@@ -3567,18 +3699,22 @@ function vitalLine(v){
   return p.join(' / ');
 }
 
-/* 目安を外れた値。医学的な判断はせず「確認してほしい」までにとどめる。 */
-function vitalFlags(v){
+/* 目安を外れた値。医学的な判断はせず「確認してほしい」までにとどめる。
+   利用者に主治医の指示値(u.vt)が登録されていれば、目安の段はそちらを優先する。 */
+function vitalFlags(v, u){
   if(!hasVital(v)) return [];
+  const vt=(u&&u.vt)||{};
+  const tempTh=+vt.temp||37.5, bpTh=+vt.bpH||140, spo2Th=+vt.spo2||93;
+  const own=k=>vt[k]?'(主治医指示 ':'(';
   const f=[], add=(k,t)=>f.push({k,t});
   if(v.temp!=null){
     if(v.temp>=38.0) add('temp','発熱(38.0℃以上)');
-    else if(v.temp>=37.5) add('temp','発熱の目安(37.5℃以上)');
+    else if(v.temp>=tempTh) add('temp','発熱の目安'+own('temp')+tempTh+'℃以上)');
     else if(v.temp<35.0) add('temp','低体温の目安(35.0℃未満)');
   }
   if(v.bpH!=null||v.bpL!=null){
     if((v.bpH!=null&&v.bpH>=180)||(v.bpL!=null&&v.bpL>=110)) add('bp','血圧が高い(180/110以上)');
-    else if((v.bpH!=null&&v.bpH>=140)||(v.bpL!=null&&v.bpL>=90)) add('bp','血圧が高めの目安(140/90以上)');
+    else if((v.bpH!=null&&v.bpH>=bpTh)||(v.bpL!=null&&v.bpL>=90)) add('bp','血圧が高めの目安'+own('bpH')+'上'+bpTh+'以上)');
     else if(v.bpH!=null&&v.bpH<90) add('bp','血圧が低め(上90未満)');
   }
   if(v.pulse!=null){
@@ -3587,7 +3723,7 @@ function vitalFlags(v){
   }
   if(v.spo2!=null){
     if(v.spo2<=90) add('spo2','SpO2が低い(90%以下)');
-    else if(v.spo2<=93) add('spo2','SpO2が低めの目安(93%以下)');
+    else if(v.spo2<=spo2Th) add('spo2','SpO2が低めの目安'+own('spo2')+spo2Th+'%以下)');
   }
   return f;
 }
@@ -3610,7 +3746,8 @@ function renderVitalNote(){
   const lastEl=document.getElementById('visit-vital-last');
   if(!chip||!note) return;
   const v=readVital();
-  const line=vitalLine(v), flags=vitalFlags(v);
+  const vu=user((document.getElementById('visit-user')||{}).value);
+  const line=vitalLine(v), flags=vitalFlags(v, vu);
   chip.textContent = line || '未入力';
   chip.className = flags.length ? 'chip y' : 'chip g';
   note.innerHTML = flags.length
@@ -3641,7 +3778,7 @@ function vitalTrendHtml(uid, n){
   if(!rs.length) return '<p class="muted">まだバイタルの記録がありません。📋報告の「🩺 バイタル」に数値を入れると、ここに推移が出ます。</p>';
   const head=VITAL_DEFS.map(d=>`<th>${d.n}${d.u?`<span class="muted">(${d.u})</span>`:''}</th>`).join('');
   const rows=rs.map(r=>{
-    const fk=new Set(vitalFlags(r.vital).map(f=>f.k));
+    const fk=new Set(vitalFlags(r.vital, user(uid)).map(f=>f.k));
     const cell=d=>{
       const x=r.vital[d.k];
       const hi=fk.has(d.k) || (fk.has('bp') && (d.k==='bpH'||d.k==='bpL'));
@@ -3649,7 +3786,7 @@ function vitalTrendHtml(uid, n){
     };
     return `<tr><td>${esc(r.date)}</td>${VITAL_DEFS.map(cell).join('')}</tr>`;
   }).join('');
-  const warn=rs.filter(r=>vitalFlags(r.vital).length).length;
+  const warn=rs.filter(r=>vitalFlags(r.vital, user(uid)).length).length;
   return `<div class="tblwrap"><table class="vtbl"><tr><th>日付</th>${head}</tr>${rows}</table></div>`
     + `<p class="muted" style="margin-top:8px">直近${rs.length}件${warn?` ／ うち ${warn}件は目安を外れた値があります(赤字)`:''}。目安は一般的なもので、実際の基準は主治医の指示や事業所の取り決めが優先されます。</p>`;
 }
@@ -3659,7 +3796,7 @@ function vitalWatch(){
   const from=dateAgo(-3);
   const by={};
   db.reports.filter(r=>r.date>=from && hasVital(r.vital)).forEach(r=>{
-    const fs=vitalFlags(r.vital); if(!fs.length) return;
+    const fs=vitalFlags(r.vital, user(r.userId)); if(!fs.length) return;
     const u=user(r.userId); if(!u) return;
     if(!by[u.id]) by[u.id]={name:u.name, what:[]};
     fs.forEach(f=>{ if(!by[u.id].what.includes(f.t)) by[u.id].what.push(f.t); });
@@ -4846,15 +4983,215 @@ function applyRenkeiRows(){
   renderHome();
 }
 
+
+/* ============================================================
+   アセスメント(課題分析)
+   訪問介護計画の根拠。運営指導では「なぜこの計画になったのか」を
+   課題分析の記録で説明できることが求められる。
+   アセスメント → 計画 → モニタリング の一連をアプリ内でつなぐ。
+   ============================================================ */
+const AS_ADL=[['ido','移動・歩行'],['shokuji','食事'],['haisetsu','排泄'],['nyuyoku','入浴'],['seiyou','整容'],['ifuku','更衣']];
+const AS_IADL=[['chori','調理'],['souji','掃除'],['sentaku','洗濯'],['kaimono','買い物'],['kinsen','金銭管理'],['fukuyaku','服薬管理']];
+const AS_LV=['自立','見守り','一部介助','全介助'];
+
+let editingAssess=null;
+function asUid(){ const e=document.getElementById('as-user'); return e?e.value:''; }
+function assessOf(uid){ return (db.assess||[]).filter(a=>a.userId===uid).sort((a,b)=>a.date<b.date?1:-1); }
+function latestAssess(uid){ return assessOf(uid)[0]||null; }
+
+function kkSec(s){
+  document.querySelectorAll('#v-keikaku [data-kksec]').forEach(el=>{ el.style.display = el.dataset.kksec===s ? '' : 'none'; });
+  document.querySelectorAll('#v-keikaku .subnav button').forEach(b=>b.classList.toggle('on', b.dataset.s===s));
+  if(s==='assess') renderAssess();
+}
+function kkSecCur(){ const b=document.querySelector('#v-keikaku .subnav button.on'); return b?b.dataset.s:'plan'; }
+
+function asLvRows(defs, boxId, cur){
+  return `<div class="tblwrap"><table class="tbl">
+    <tr><th style="text-align:left">項目</th><th>状態</th></tr>
+    ${defs.map(([k,n])=>`<tr><td style="text-align:left">${n}</td>
+      <td><select data-as="${boxId}-${k}">${AS_LV.map(l=>`<option ${((cur||{})[k]||'自立')===l?'selected':''}>${l}</option>`).join('')}</select></td></tr>`).join('')}
+  </table></div>`;
+}
+function readAsLv(defs, boxId){
+  const out={};
+  defs.forEach(([k])=>{ const e=document.querySelector(`[data-as="${boxId}-${k}"]`); out[k]=e?e.value:'自立'; });
+  return out;
+}
+
+function newAssess(){
+  const uid=asUid();
+  if(!user(uid)){ alert('利用者がいません。🏡利用者タブから追加してください。'); return; }
+  editingAssess=null;
+  const prev=latestAssess(uid);   // 前回を土台にする(状態の変化だけ直せばよい)
+  document.getElementById('as-form-title').textContent='アセスメントの記録'+(prev?`(前回 ${prev.date} を土台に)`:'');
+  document.getElementById('as-form').style.display='';
+  document.getElementById('as-date').value=fullDate();
+  document.getElementById('as-adl').innerHTML=asLvRows(AS_ADL,'adl',prev?prev.adl:null);
+  document.getElementById('as-iadl').innerHTML=asLvRows(AS_IADL,'iadl',prev?prev.iadl:null);
+  ['as-kankyo','as-kazoku','as-health','as-ikou','as-issues'].forEach(id=>{
+    const k=id.replace('as-','');
+    document.getElementById(id).value=prev?(prev[k==='kankyo'?'kankyo':k]||''):'';
+  });
+  document.getElementById('as-ai-note').innerHTML='';
+  const st=(db.staff||[]).find(s=>/サービス提供責任者|サ責|管理者/.test(s.role||''));
+  if(st) document.getElementById('as-staff').value=st.id;
+  document.getElementById('as-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function editAssess(id){
+  const a=(db.assess||[]).find(x=>x.id===id); if(!a) return;
+  editingAssess=id;
+  document.getElementById('as-form-title').textContent='アセスメントの修正';
+  document.getElementById('as-form').style.display='';
+  document.getElementById('as-date').value=a.date;
+  document.getElementById('as-adl').innerHTML=asLvRows(AS_ADL,'adl',a.adl);
+  document.getElementById('as-iadl').innerHTML=asLvRows(AS_IADL,'iadl',a.iadl);
+  ['kankyo','kazoku','health','ikou','issues'].forEach(k=>{ document.getElementById('as-'+k).value=a[k]||''; });
+  if(a.staffId && staff(a.staffId)) document.getElementById('as-staff').value=a.staffId;
+  document.getElementById('as-ai-note').innerHTML='';
+  document.getElementById('as-form').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function hideAsForm(){ document.getElementById('as-form').style.display='none'; editingAssess=null; }
+
+function asFromMed(){
+  const u=user(asUid()); if(!u) return;
+  const md=u.med||{};
+  const bits=[md.history, md.meds?('服薬: '+md.meds):'', md.allergy?('アレルギー: '+md.allergy):''].filter(Boolean);
+  if(!bits.length){ alert('🩺医療情報が未登録です。🏡利用者の「編集」から登録してください。'); return; }
+  const ta=document.getElementById('as-health');
+  ta.value=(ta.value.trim()? ta.value.replace(/\s*$/,'')+'\n' : '')+bits.join('\n');
+}
+
+function saveAssess(){
+  const uid=asUid();
+  if(!user(uid)){ alert('利用者を選択してください。'); return; }
+  const issues=document.getElementById('as-issues').value.trim();
+  if(!issues){ alert('「生活課題と支援の方向性」を入力してください。ここが計画の根拠になります。'); return; }
+  const sid=document.getElementById('as-staff').value||'';
+  let a = editingAssess ? (db.assess||[]).find(x=>x.id===editingAssess) : null;
+  if(!a){ a={id:'as'+Date.now(), userId:uid}; db.assess.push(a); }
+  Object.assign(a, {
+    date:document.getElementById('as-date').value||fullDate(),
+    staffId:sid, staffName:(staff(sid)||{}).name||'',
+    adl:readAsLv(AS_ADL,'adl'), iadl:readAsLv(AS_IADL,'iadl'),
+    kankyo:document.getElementById('as-kankyo').value.trim(),
+    kazoku:document.getElementById('as-kazoku').value.trim(),
+    health:document.getElementById('as-health').value.trim(),
+    ikou:document.getElementById('as-ikou').value.trim(),
+    issues
+  });
+  save(); hideAsForm(); renderAssess(); renderKeikaku(); renderHome();
+  alert('アセスメントを保存しました。📝計画書のAI下書きにもこの課題が渡ります。');
+}
+function delAssess(id){
+  const a=(db.assess||[]).find(x=>x.id===id); if(!a) return;
+  if(!confirm('このアセスメント記録を削除します。計画の根拠となる記録です。よろしいですか?')) return;
+  db.assess=db.assess.filter(x=>x.id!==id);
+  save(); renderAssess(); renderKeikaku(); renderHome();
+}
+
+async function genAssess(){
+  const u=user(asUid()); if(!u) return;
+  const reports=db.reports.filter(r=>r.userId===u.id).sort((a,b)=>a.date<b.date?1:-1).slice(0,8)
+    .map(r=>`${r.date} ${(r.src&&r.src.text)||r.summary||''}`);
+  const vitals=vitalsOf(u.id,5).map(r=>`${r.date} ${vitalLine(r.vital)}`);
+  const rules=(u.rules?RULE_DEFS.filter(([k])=>u.rules[k]).map(([k,n])=>`${n} ${u.rules[k]}`):[]);
+  await withLoading('as-gen','報告・バイタル・医療情報から課題を下書き中…', async()=>{
+    const out=await callAI('assess', {userName:u.name, care:u.care||'', reports, vitals, med:u.med||{}, rules});
+    const ta=document.getElementById('as-issues');
+    ta.value=(ta.value.trim()? ta.value.replace(/\s*$/,'')+'\n' : '')+(out.issues||'');
+    document.getElementById('as-ai-note').innerHTML=
+      `<div class="banner">🤖 ${esc(out.note||'')}${aiFallback?' ※AIサーバに接続できなかったため、デモ生成です。':''}<br>
+       AIは記録から読み取れる範囲の下書きです。<b>ご本人の状態を実際に確認して</b>書き換えてください。</div>`;
+  });
+}
+
+function renderAssess(){
+  const sel=document.getElementById('as-user'); if(!sel) return;
+  const uid=asUid();
+  const u=user(uid);
+  const as=assessOf(uid);
+  const cur=as[0];
+  document.getElementById('as-status').innerHTML = !u
+    ? '<p class="muted">利用者が登録されていません。🏡利用者タブから追加してください。</p>'
+    : `<div class="check-row"><div class="check-ic">${cur?'🔍':'⚠️'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="t">${esc(u.name)}のアセスメント ${cur?`<span class="chip g">最新 ${esc(cur.date)}</span>`:'<span class="chip y">未実施</span>'}</div>
+          <div class="d">${cur
+            ? `${cur.staffName?esc(cur.staffName)+' 実施・':''}${daysSince(cur.date)}日前。状態が変わったら取り直してください(計画の見直しとセットで)。`
+            : '計画の根拠となる課題分析の記録がありません。'}</div>
+        </div></div>`;
+  document.getElementById('as-count').textContent=as.length+'件';
+  const lvLine=(defs,o)=>defs.map(([k,n])=>`${n}:${(o||{})[k]||'―'}`).join(' ／ ');
+  document.getElementById('as-list').innerHTML = as.length ? as.map(a=>`
+    <div class="check-row"><div class="check-ic">🔍</div>
+      <div style="flex:1;min-width:0">
+        <div class="t">${esc(a.date)}${a.staffName?' ／ '+esc(a.staffName):''}</div>
+        <div class="d" style="margin-top:3px">ADL: ${esc(lvLine(AS_ADL,a.adl))}</div>
+        <div class="d">IADL: ${esc(lvLine(AS_IADL,a.iadl))}</div>
+        ${a.issues?`<div class="sjtx">${esc(a.issues)}</div>`:''}
+        <div class="row" style="margin-top:8px">
+          <button class="btn mini sec" onclick="editAssess('${a.id}')">✏️ 修正</button>
+          <button class="btn mini sec" onclick="printAssess('${a.id}')">🖨 印刷</button>
+          <button class="btn mini sec" style="color:var(--danger)" onclick="delAssess('${a.id}')">🗑 削除</button>
+        </div>
+      </div></div>`).join('')
+    : '<p class="muted">まだアセスメントはありません。「＋ アセスメントを実施する」から記録してください。</p>';
+}
+
+function printAssess(id){
+  const a=(db.assess||[]).find(x=>x.id===id); if(!a) return;
+  const u=user(a.userId)||{}, o=db.office||{};
+  const lvTable=(t,defs,o2)=>`<tr><th colspan="4" style="text-align:left;background:#f0f0f0">${t}</th></tr>`
+    + defs.map(([k,n],i)=> i%2===0
+      ? `<tr><th>${n}</th><td>${esc((o2||{})[k]||'―')}</td>`
+        + (defs[i+1]?`<th>${defs[i+1][1]}</th><td>${esc((o2||{})[defs[i+1][0]]||'―')}</td></tr>`:'<th></th><td></td></tr>')
+      : '').join('');
+  const row=(l,v)=>`<tr><th style="width:24%">${l}</th><td colspan="3" style="text-align:left;white-space:pre-wrap">${esc(v||'―')}</td></tr>`;
+  const el=document.getElementById('as-print');
+  el.innerHTML=`
+    <div style="text-align:center;font-weight:800;font-size:16px;margin-bottom:12px">訪問介護 アセスメント票(課題分析)</div>
+    <div class="shead">
+      <div><b>利用者</b>${esc(u.name||'')} 様</div>
+      <div><b>要介護度</b>${esc(u.care||'')}</div>
+      <div><b>実施日</b>${esc(a.date||'')}</div>
+      <div><b>実施者</b>${esc(a.staffName||'―')}</div>
+      <div><b>事業所名</b>${esc(o.name||'(未登録)')}</div>
+      <div><b>事業所番号</b>${esc(o.no||'(未登録)')}</div>
+    </div>
+    <div class="tblwrap"><table class="tbl">
+      ${lvTable('① 心身の状況(ADL)', AS_ADL, a.adl)}
+      ${lvTable('② 生活行為(IADL)', AS_IADL, a.iadl)}
+      ${row('③ 住環境・生活状況', a.kankyo)}
+      ${row('　 家族・周囲の支援', a.kazoku)}
+      ${row('　 健康状態', a.health)}
+      ${row('④ 本人・ご家族の意向', a.ikou)}
+      ${row('⑤ 生活課題と支援の方向性', a.issues)}
+    </table></div>
+    <div class="sfoot"><div>出力日 ${esc(fullDate())}</div><div>サービス提供責任者　　　　　　　　印</div></div>`;
+  el.classList.add('on');
+  window.print();
+  setTimeout(()=>el.classList.remove('on'), 500);
+}
+
 /* ---------- 訪問時の注意(その家のルール)の報告画面表示 ---------- */
 const RULE_DEFS=[['key','🔑 鍵・入室'],['park','🅿 駐車・駐輪'],['pet','🐕 ペット'],['care','⚠️ 禁忌・注意'],['contact','📞 緊急連絡']];
 function renderVisitRules(){
   const el=document.getElementById('visit-rules'); if(!el) return;
   const u=user(document.getElementById('visit-user').value);
   const rs=(u&&u.rules)?RULE_DEFS.filter(([k])=>u.rules[k]):[];
-  el.innerHTML = rs.length
+  const md=(u&&u.med)||{};
+  const medBits=[
+    md.doctor?`🏥 ${esc(md.doctor)}${md.doctorTel?' '+esc(md.doctorTel):''}`:'',
+    md.allergy?`⚠️ アレルギー: ${esc(md.allergy)}`:'',
+    md.meds?`💊 ${esc(md.meds)}`:''
+  ].filter(Boolean);
+  el.innerHTML = (rs.length
     ? `<div class="banner" style="margin:8px 0 2px">🏠 <b>訪問時の注意</b>: ${rs.map(([k,n])=>`${n} ${esc(u.rules[k])}`).join(' ／ ')}</div>`
-    : '';
+    : '')
+    + (medBits.length
+    ? `<div class="banner" style="margin:8px 0 2px">🚑 <b>緊急時</b>: ${medBits.join(' ／ ')}</div>`
+    : '');
   renderVisitShiji();
 }
 
@@ -6146,7 +6483,10 @@ function renderKeikaku(){
           <div class="d">${cur
             ? `${esc(cur.date)} 作成${cur.staffName?' / '+esc(cur.staffName):''}・サービス ${(cur.services||[]).length}件${cur.koufu?`・交付 ${esc(cur.koufu)}`:''}`
             : '<b>まだ計画書がありません。</b>訪問介護計画の未作成は減算・指導の対象です。'}</div>
-        </div></div>`;
+        </div></div>`
+      + (u ? (latestAssess(uid)
+        ? `<div class="check-row"><div class="check-ic">🔍</div><div style="flex:1;min-width:0"><div class="t">最新のアセスメント: ${esc(latestAssess(uid).date)}</div><div class="d">計画の根拠になります。状態が変わったら🔍アセスメントで取り直してください。</div></div></div>`
+        : `<div class="check-row"><div class="check-ic">⚠️</div><div style="flex:1;min-width:0"><div class="t">アセスメントが未実施です</div><div class="d">計画の根拠となる課題分析の記録がありません。<button class="btn mini sec" onclick="kkSec('assess')">🔍 アセスメントへ</button></div></div></div>`) : '');
   document.getElementById('kei-count').textContent=ks.length+'件';
   document.getElementById('kei-list').innerHTML = ks.length ? ks.map((k,idx)=>{
     const s=keiStatus(k), latest=idx===0;
@@ -6207,7 +6547,8 @@ async function genKeikaku(){
       cpLong:document.getElementById('kei-cplong').value, cpShort:document.getElementById('kei-cpshort').value,
       plans, rules,
       reports: rs.map(r2=>`${r2.date} ${r2.start||''}〜${r2.end||''} ${(r2.src&&r2.src.text)||r2.summary||''}`),
-      prev: prev ? `長期目標: ${prev.goalLong||''} / 短期目標: ${prev.goalShort||''} / 留意: ${prev.ryui||''}` : ''
+      prev: prev ? `長期目標: ${prev.goalLong||''} / 短期目標: ${prev.goalShort||''} / 留意: ${prev.ryui||''}` : '',
+      assess: (function(){ const a=latestAssess(uid); return a ? `課題(${a.date} 実施): ${a.issues||''}` : ''; })()
     });
     const set=(id,val)=>{ const e=document.getElementById(id); if(e && val) e.value=val; };
     set('kei-ikou', r.ikou); set('kei-goallong', r.goalLong); set('kei-goalshort', r.goalShort); set('kei-ryui', r.ryui);
@@ -6625,6 +6966,11 @@ function editUser(id){
     .forEach(([el,k])=>{ document.getElementById(el).value=u[k]||''; });
   const rr=u.rules||{};
   [['uf-r-key','key'],['uf-r-park','park'],['uf-r-pet','pet'],['uf-r-contact','contact'],['uf-r-care','care']].forEach(([id,k])=>{ document.getElementById(id).value=rr[k]||''; });
+  const md=u.med||{}, vt=u.vt||{};
+  [['uf-m-history','history'],['uf-m-meds','meds'],['uf-m-doctor','doctor'],['uf-m-doctel','doctorTel'],['uf-m-allergy','allergy']]
+    .forEach(([id,k])=>{ document.getElementById(id).value=md[k]||''; });
+  [['uf-m-vtemp','temp'],['uf-m-vbph','bpH'],['uf-m-vspo2','spo2']]
+    .forEach(([id,k])=>{ document.getElementById(id).value=vt[k]||''; });
   const f=document.getElementById('user-form');
   document.getElementById('uf-title').textContent = id ? esc(u.name)+'さんの情報を編集' : '利用者の登録';
   f.style.display='block';
@@ -6649,7 +6995,12 @@ function saveUser(){
               kyotakuNo:document.getElementById('uf-kyotaku').value.trim(),
               rules:{ key:document.getElementById('uf-r-key').value.trim(), park:document.getElementById('uf-r-park').value.trim(),
                       pet:document.getElementById('uf-r-pet').value.trim(), contact:document.getElementById('uf-r-contact').value.trim(),
-                      care:document.getElementById('uf-r-care').value.trim() } };
+                      care:document.getElementById('uf-r-care').value.trim() },
+              med:{ history:document.getElementById('uf-m-history').value.trim(), meds:document.getElementById('uf-m-meds').value.trim(),
+                    doctor:document.getElementById('uf-m-doctor').value.trim(), doctorTel:document.getElementById('uf-m-doctel').value.trim(),
+                    allergy:document.getElementById('uf-m-allergy').value.trim() },
+              vt:{ temp:document.getElementById('uf-m-vtemp').value.trim(), bpH:document.getElementById('uf-m-vbph').value.trim(),
+                   spo2:document.getElementById('uf-m-vspo2').value.trim() } };
   if(editingUser){ Object.assign(user(editingUser), {name, kana:name[0], note}, ins); }
   else { db.users.push(Object.assign({id:'u'+Date.now(), name, kana:name[0], note, history:[], suggest:[]}, ins)); }
   save(); hideUserForm(); renderUsers(); fillSelects(); renderHome(); renderShop();
@@ -6744,6 +7095,13 @@ function showUser(id){
   const rr=u.rules||{};
   const rrows=RULE_DEFS.filter(([k])=>rr[k]).map(([k,n])=>`<div class="check-row"><div class="check-ic">${n.slice(0,2)}</div><div style="flex:1;min-width:0"><div class="t">${esc(n.slice(3))}</div><div class="d">${esc(rr[k])}</div></div></div>`).join('');
   document.getElementById('ud-rules').innerHTML = rrows || '<p class="muted">未登録です。代替訪問に備えて、利用者の「編集」から鍵・駐車・禁忌などを登録してください。</p>';
+  const md=u.med||{}, vt=u.vt||{};
+  const mrow=(ic,l,v)=>v?`<div class="check-row"><div class="check-ic">${ic}</div><div style="flex:1;min-width:0"><div class="t">${l}</div><div class="d">${esc(v)}</div></div></div>`:'';
+  const vtLine=[vt.temp?`体温 ${vt.temp}℃以上`:'', vt.bpH?`収縮期血圧 ${vt.bpH}以上`:'', vt.spo2?`SpO2 ${vt.spo2}%以下`:''].filter(Boolean).join(' ／ ');
+  const medRows=mrow('🏥','かかりつけ医', (md.doctor||'')+(md.doctorTel?'　'+md.doctorTel:''))+mrow('📋','既往歴・現在の病気', md.history)
+    +mrow('💊','服薬', md.meds)+mrow('⚠️','アレルギー・禁忌薬', md.allergy)
+    +(vtLine?mrow('🩺','主治医のバイタル指示値(これを超えたら要確認)', vtLine):'');
+  document.getElementById('ud-med').innerHTML = medRows || '<p class="muted">未登録です。緊急時に備えて、利用者の「編集」から既往歴・服薬・かかりつけ医を登録してください。</p>';
   document.getElementById('ud-vital').innerHTML = vitalTrendHtml(id, 8);
   const reps=db.reports.filter(r=>r.userId===id).slice(-5).reverse();
   document.getElementById('ud-reports').innerHTML = reps.length ? reps.map(r=>`

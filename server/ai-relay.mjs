@@ -5,7 +5,7 @@
  * APIキーはこのサーバの環境変数にのみ置き、フロントエンドには一切出さない。
  *
  *   POST /ai      {app, kind, payload} → {ok:true, data}
- *                 kind: visit / life / keikaku / shiji / jiko / kaigi / shinsei / shogu / ocr / chat
+ *                 kind: visit / life / keikaku / assess / shiji / jiko / kaigi / shinsei / shogu / ocr / chat
  *   GET  /health  接続テスト用
  *   GET/POST/DELETE /cases  事業所共有の事例ライブラリ(Firestore。未設定時は無効と応答)
  *
@@ -62,6 +62,10 @@ const KeikakuOut = z.object({
   })).describe('サービス内容。渡された訪問予定と報告の実績にもとづく'),
   ryui: z.string().describe('留意事項。転倒歴・禁忌・アレルギー・その家のルール・緊急連絡など、渡された情報に含まれるもののみ'),
   note: z.string().describe('この下書きの根拠と、サービス提供責任者が本人・家族に確認すべき点を2〜3文で'),
+});
+const AssessOut = z.object({
+  issues: z.string().describe('生活課題と支援の方向性。「・課題 → 方向性」の形の箇条書きで3〜5行。記録から読み取れる範囲だけを書き、推測や医学的判断はしない'),
+  note: z.string().describe('サービス提供責任者が実際に確認すべき点を1〜2文で'),
 });
 const KaigiOut = z.object({
   agenda: z.string().describe('その会議・研修で扱うべき議題。「・」の箇条書きで4〜7行。直近のヒヤリハット・事故・苦情・未整備の要件から、実際に話す必要があることだけを挙げる'),
@@ -162,6 +166,20 @@ function userPrompt(kind, p) {
       '受診の要否や病名の判断はせず、観察された事実と、確認や共有の依頼にとどめてください。',
     ] : []),
   ].join('\n');
+  if (kind === 'assess') return [
+    `訪問介護のアセスメント(課題分析)のうち「生活課題と支援の方向性」を下書きしてください。`,
+    `利用者: ${p.userName}(${p.care || '要介護度未登録'})`,
+    '--- 直近の訪問報告 ---',
+    ...((p.reports || []).length ? p.reports.map((t, i) => `${i + 1}. ${t}`) : ['(記録なし)']),
+    '--- 直近のバイタル ---',
+    ...((p.vitals || []).length ? p.vitals.map((t) => `・${t}`) : ['(記録なし)']),
+    '--- 医療情報 ---',
+    `既往歴: ${p.med?.history || '(未登録)'} / 服薬: ${p.med?.meds || '(未登録)'} / アレルギー: ${p.med?.allergy || '(未登録)'}`,
+    '--- 訪問時の注意 ---',
+    ...((p.rules || []).length ? p.rules.map((x) => `・${x}`) : ['(登録なし)']),
+    '課題は「・課題 → 支援の方向性」の形で、記録から読み取れる範囲だけを書いてください。',
+    '推測で課題を作らず、根拠が薄い点は note で「確認が必要」と伝えてください。医学的な診断はしないでください。',
+  ].join('\n');
   if (kind === 'kaigi') return [
     `訪問介護事業所の「${p.kindLabel || '会議'}」で扱うべき議題を下書きしてください。`,
     `職員数: ${p.staffCount || 0}名 / 前回開催以降(${p.since || ''})の記録は次のとおりです。`,
@@ -245,6 +263,7 @@ function userPrompt(kind, p) {
     ...((p.reports || []).length ? (p.reports || []).map((t, i) => `${i + 1}. ${t}`) : ['(記録なし)']),
     '--- 訪問時の注意(その家のルール) ---',
     ...((p.rules || []).length ? (p.rules || []).map(x => `・${x}`) : ['(登録なし)']),
+    p.assess ? `--- アセスメント(課題分析)の結果。計画はこの課題に対応させる ---\n${p.assess}` : '',
     p.prev ? `--- 前回の計画(見直しの土台) ---\n${p.prev}` : '',
     '・サービス内容は「実際に行われている支援」を報告から抽出して書き、予定にない支援を勝手に足さないでください。',
     '・目標はケアプランの目標と矛盾しないようにしてください。',
@@ -283,6 +302,7 @@ function outputFormat(kind, p) {
   if (kind === 'shiji') return zodOutputFormat(ShijiOut);
   if (kind === 'jiko') return zodOutputFormat(JikoOut);
   if (kind === 'kaigi') return zodOutputFormat(KaigiOut);
+  if (kind === 'assess') return zodOutputFormat(AssessOut);
   if (kind === 'ocr') {
     const fields = ScanFields[p.kind] || ScanFields.memo;
     return zodOutputFormat(z.object({ note: z.string(), fields }));
